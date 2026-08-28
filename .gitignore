@@ -1,0 +1,56 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Builds and native outputs
+build/
+dist/
+*.egg-info/
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+out/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+configs/local/
+
+# Datasets, model artifacts, and experiment outputs
+data/
+datasets/
+checkpoints/
+weights/
+runs/
+outputs/
+artifacts/
+*.ckpt
+*.engine
+*.onnx
+*.pt
+*.pth
+
+# Generated media and profiling traces
+*.mp4
+*.avi
+*.gif
+*.prof
+*.trace
