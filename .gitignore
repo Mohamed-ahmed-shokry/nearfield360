@@ -36,16 +36,16 @@ Thumbs.db
 .env
 .env.*
 !.env.example
-configs/local/
+/configs/local/
 
 # Datasets, model artifacts, and experiment outputs
-data/
-datasets/
-checkpoints/
-weights/
-runs/
-outputs/
-artifacts/
+/data/
+/datasets/
+/checkpoints/
+/weights/
+/runs/
+/outputs/
+/artifacts/
 *.ckpt
 *.engine
 *.onnx
