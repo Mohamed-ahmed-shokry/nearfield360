@@ -1,0 +1,9 @@
+paths:
+  dataset_root: null
+  output_root: outputs
+runtime:
+  device: auto
+  seed: 42
+logging:
+  level: INFO
+  structured: false
