@@ -40,6 +40,9 @@ dependencies = [
   "typer>=0.15,<1",
 ]
 
+[project.scripts]
+nearfield360 = "nearfield360.cli:app"
+
 [dependency-groups]
 dev = [
   "build>=1.2.2,<2",
@@ -69,7 +72,7 @@ select = ["A", "B", "C4", "E", "F", "I", "N", "PERF", "PIE", "PTH", "RUF", "SIM"
 "tests/**/*.py" = ["S101"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 warn_unreachable = true
 pretty = true
@@ -88,6 +91,7 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["nearfield360"]
+omit = ["src/nearfield360/__main__.py"]
 
 [tool.coverage.report]
 fail_under = 85
