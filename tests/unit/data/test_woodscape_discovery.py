@@ -58,9 +58,7 @@ def test_discover_associates_optional_files_and_sorts_samples(tmp_path: Path) ->
     assert dataset[0].semantic_mask_path == (
         data_root / "semantic_annotations/gtLabels/00001_FV.png"
     )
-    assert dataset[0].calibration_path == (
-        data_root / "calibration_data/calibration/00001_FV.json"
-    )
+    assert dataset[0].calibration_path == (data_root / "calibration_data/calibration/00001_FV.json")
     assert dataset[1].previous_image_path is None
     assert dataset.for_camera(CameraId.FRONT) == (dataset[0],)
     assert dataset.get(SampleKey("00002", CameraId.REAR)) == dataset[1]

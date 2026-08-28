@@ -85,7 +85,9 @@ def parse_sample_key(path: Path, *, previous: bool = False) -> SampleKey:
 def locate_dataset_root(root: Path) -> Path:
     """Accept either the extracted data directory or its immediate archive parent."""
     expanded = root.expanduser()
-    candidates = [candidate for candidate in (expanded, expanded / "data") if _has_rgb_dir(candidate)]
+    candidates = [
+        candidate for candidate in (expanded, expanded / "data") if _has_rgb_dir(candidate)
+    ]
     if not candidates:
         raise DatasetLayoutError(
             f"No 'rgb_images' directory found at {expanded} or {expanded / 'data'}"
@@ -154,7 +156,9 @@ class WoodScapeDataset:
         dataset_root = locate_dataset_root(root)
         images = _index_files(dataset_root / "rgb_images", suffixes=IMAGE_SUFFIXES)
         if not images:
-            raise DatasetLayoutError(f"No supported RGB images found in {dataset_root / 'rgb_images'}")
+            raise DatasetLayoutError(
+                f"No supported RGB images found in {dataset_root / 'rgb_images'}"
+            )
 
         previous_directory = _optional_directory(dataset_root, (Path("previous_images"),))
         semantic_directory = _optional_directory(
