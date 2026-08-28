@@ -4,6 +4,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.cache/
+.hypothesis/
 .coverage
 coverage.xml
 htmlcov/
@@ -18,6 +20,8 @@ dist/
 *.egg-info/
 CMakeFiles/
 CMakeCache.txt
+CMakeUserPresets.json
+compile_commands.json
 cmake-build-*/
 out/
 
@@ -47,6 +51,11 @@ artifacts/
 *.onnx
 *.pt
 *.pth
+
+# Allow deliberately tiny, reviewable regression artifacts.
+!tests/fixtures/**/*.onnx
+!tests/fixtures/**/*.pt
+!tests/fixtures/**/*.pth
 
 # Generated media and profiling traces
 *.mp4

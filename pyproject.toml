@@ -66,7 +66,7 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["A", "B", "C4", "E", "F", "I", "N", "PERF", "PIE", "PTH", "RUF", "SIM", "UP"]
+select = ["A", "B", "C4", "E", "F", "I", "N", "PERF", "PIE", "PTH", "RUF", "S", "SIM", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]
@@ -83,8 +83,10 @@ packages = ["nearfield360"]
 addopts = ["--strict-config", "--strict-markers"]
 testpaths = ["tests"]
 markers = [
+  "dataset: requires an externally acquired dataset",
   "gpu: requires a CUDA-capable GPU",
   "integration: exercises multiple project components",
+  "regression: protects a stable numerical or behavioral result",
   "slow: takes substantially longer than a unit test",
 ]
 
