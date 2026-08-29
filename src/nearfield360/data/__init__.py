@@ -1,5 +1,13 @@
 """Dataset discovery, validation, and loading interfaces."""
 
+from nearfield360.data.calibration import (
+    MAX_CALIBRATION_BYTES,
+    CalibrationError,
+    CameraCalibration,
+    ExtrinsicParameters,
+    IntrinsicParameters,
+    load_calibration,
+)
 from nearfield360.data.images import (
     DEFAULT_IMAGE_LIMITS,
     ImageLimits,
@@ -29,17 +37,23 @@ from nearfield360.data.woodscape import (
 
 __all__ = [
     "DEFAULT_IMAGE_LIMITS",
+    "MAX_CALIBRATION_BYTES",
     "WOODSCAPE_SEMANTIC_CLASSES",
+    "CalibrationError",
+    "CameraCalibration",
     "CameraId",
     "DatasetLayoutError",
+    "ExtrinsicParameters",
     "ImageLimits",
     "ImageReadError",
+    "IntrinsicParameters",
     "SampleKey",
     "SemanticClass",
     "SemanticMaskError",
     "WoodScapeDataset",
     "WoodScapeSample",
     "colorize_semantic_mask",
+    "load_calibration",
     "load_label_image",
     "load_rgb_image",
     "load_semantic_mask",
