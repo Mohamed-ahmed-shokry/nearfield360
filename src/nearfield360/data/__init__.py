@@ -15,6 +15,13 @@ from nearfield360.data.images import (
     load_label_image,
     load_rgb_image,
 )
+from nearfield360.data.integrity import (
+    DatasetValidationReport,
+    ValidationIssue,
+    ValidationPolicy,
+    ValidationSeverity,
+    validate_dataset,
+)
 from nearfield360.data.semantic import (
     WOODSCAPE_SEMANTIC_CLASSES,
     SemanticClass,
@@ -43,6 +50,7 @@ __all__ = [
     "CameraCalibration",
     "CameraId",
     "DatasetLayoutError",
+    "DatasetValidationReport",
     "ExtrinsicParameters",
     "ImageLimits",
     "ImageReadError",
@@ -50,6 +58,9 @@ __all__ = [
     "SampleKey",
     "SemanticClass",
     "SemanticMaskError",
+    "ValidationIssue",
+    "ValidationPolicy",
+    "ValidationSeverity",
     "WoodScapeDataset",
     "WoodScapeSample",
     "colorize_semantic_mask",
@@ -61,5 +72,6 @@ __all__ = [
     "parse_sample_key",
     "semantic_class",
     "semantic_histogram",
+    "validate_dataset",
     "validate_semantic_mask",
 ]
