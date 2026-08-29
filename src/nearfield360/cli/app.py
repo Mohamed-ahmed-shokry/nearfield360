@@ -5,15 +5,15 @@ from __future__ import annotations
 import json
 import platform
 import shutil
-from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Any, cast
+from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
 
 from nearfield360 import __version__
+from nearfield360.cli.state import CliState, get_state
 from nearfield360.config import ConfigurationError, LoggingConfig, ProjectConfig, load_config
 from nearfield360.logging import configure_logging
 
@@ -26,14 +26,6 @@ class LogLevel(StrEnum):
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
-
-
-@dataclass(frozen=True)
-class CliState:
-    """Validated state shared by subcommands."""
-
-    config: ProjectConfig
-    config_path: Path | None
 
 
 app = typer.Typer(
@@ -50,10 +42,6 @@ def _version_callback(value: bool) -> None:
     if value:
         typer.echo(f"NearField360 {__version__}")
         raise typer.Exit()
-
-
-def _state(context: typer.Context) -> CliState:
-    return cast(CliState, context.obj)
 
 
 @app.callback()
@@ -118,7 +106,7 @@ def main(
 @config_app.command("validate")
 def validate_config(context: typer.Context) -> None:
     """Validate configuration syntax, fields, types, and environment overrides."""
-    state = _state(context)
+    state = get_state(context)
     source = state.config_path if state.config_path is not None else "built-in defaults"
     typer.echo(f"Configuration is valid: {source}")
 
@@ -126,7 +114,7 @@ def validate_config(context: typer.Context) -> None:
 @config_app.command("show")
 def show_config(context: typer.Context) -> None:
     """Print the effective validated configuration as JSON."""
-    typer.echo(_state(context).config.model_dump_json(indent=2))
+    typer.echo(get_state(context).config.model_dump_json(indent=2))
 
 
 def _doctor_payload(config: ProjectConfig) -> dict[str, Any]:
@@ -155,7 +143,7 @@ def doctor(
     ] = False,
 ) -> None:
     """Report required and optional runtime capabilities without changing the host."""
-    payload = _doctor_payload(_state(context).config)
+    payload = _doctor_payload(get_state(context).config)
     if as_json:
         typer.echo(json.dumps(payload, indent=2, sort_keys=True))
         return
