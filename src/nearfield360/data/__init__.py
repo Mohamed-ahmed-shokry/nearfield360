@@ -32,6 +32,13 @@ from nearfield360.data.semantic import (
     semantic_histogram,
     validate_semantic_mask,
 )
+from nearfield360.data.splits import (
+    DatasetSplit,
+    DatasetSplits,
+    SplitError,
+    SplitRatios,
+    create_splits,
+)
 from nearfield360.data.woodscape import (
     CameraId,
     DatasetLayoutError,
@@ -50,6 +57,8 @@ __all__ = [
     "CameraCalibration",
     "CameraId",
     "DatasetLayoutError",
+    "DatasetSplit",
+    "DatasetSplits",
     "DatasetValidationReport",
     "ExtrinsicParameters",
     "ImageLimits",
@@ -58,12 +67,15 @@ __all__ = [
     "SampleKey",
     "SemanticClass",
     "SemanticMaskError",
+    "SplitError",
+    "SplitRatios",
     "ValidationIssue",
     "ValidationPolicy",
     "ValidationSeverity",
     "WoodScapeDataset",
     "WoodScapeSample",
     "colorize_semantic_mask",
+    "create_splits",
     "load_calibration",
     "load_label_image",
     "load_rgb_image",
