@@ -102,3 +102,22 @@ def test_get_reports_unknown_sample(tmp_path: Path) -> None:
 
     with pytest.raises(KeyError, match="Unknown WoodScape sample: missing_MVR"):
         dataset.get(SampleKey("missing", CameraId.MIRROR_RIGHT))
+
+
+def test_empty_nested_calibration_directory_does_not_hide_direct_files(tmp_path: Path) -> None:
+    _touch(tmp_path / "rgb_images", "00001_FV.png")
+    _touch(tmp_path / "calibration_data", "00001_FV.json")
+    (tmp_path / "calibration_data/calibration").mkdir()
+
+    dataset = WoodScapeDataset.discover(tmp_path)
+
+    assert dataset[0].calibration_path == tmp_path / "calibration_data/00001_FV.json"
+
+
+def test_populated_calibration_layout_alternatives_are_rejected(tmp_path: Path) -> None:
+    _touch(tmp_path / "rgb_images", "00001_FV.png", "00002_RV.png")
+    _touch(tmp_path / "calibration_data", "00001_FV.json")
+    _touch(tmp_path / "calibration_data/calibration", "00002_RV.json")
+
+    with pytest.raises(DatasetLayoutError, match="Ambiguous calibration layout"):
+        WoodScapeDataset.discover(tmp_path)

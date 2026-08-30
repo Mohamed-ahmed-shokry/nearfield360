@@ -129,6 +129,22 @@ def _optional_directory(root: Path, candidates: Sequence[Path]) -> Path | None:
     return matches[0] if matches else None
 
 
+def _index_calibrations(root: Path) -> dict[SampleKey, Path]:
+    """Accept either archive layout, but never silently discard populated alternatives."""
+    indexed: dict[SampleKey, Path] = {}
+    for directory in (root / "calibration_data", root / "calibration_data/calibration"):
+        candidate = _index_files(
+            directory if directory.is_dir() else None, suffixes=frozenset({".json"})
+        )
+        if indexed and candidate:
+            raise DatasetLayoutError(
+                "Ambiguous calibration layout: JSON files exist in both calibration_data "
+                "and calibration_data/calibration"
+            )
+        indexed.update(candidate)
+    return indexed
+
+
 def _reject_orphans(
     primary: dict[SampleKey, Path],
     auxiliary: dict[SampleKey, Path],
@@ -164,10 +180,6 @@ class WoodScapeDataset:
         semantic_directory = _optional_directory(
             dataset_root, (Path("semantic_annotations/gtLabels"),)
         )
-        calibration_directory = _optional_directory(
-            dataset_root,
-            (Path("calibration_data/calibration"), Path("calibration_data")),
-        )
 
         previous_images = _index_files(
             previous_directory,
@@ -175,7 +187,7 @@ class WoodScapeDataset:
             previous=True,
         )
         semantic_masks = _index_files(semantic_directory, suffixes=frozenset({".png"}))
-        calibrations = _index_files(calibration_directory, suffixes=frozenset({".json"}))
+        calibrations = _index_calibrations(dataset_root)
 
         _reject_orphans(images, previous_images, "Previous image")
         _reject_orphans(images, semantic_masks, "Semantic mask")
