@@ -5,6 +5,7 @@ import pytest
 from nearfield360.data import (
     CameraId,
     DatasetSplit,
+    DatasetSplits,
     SampleKey,
     SplitError,
     SplitRatios,
@@ -22,7 +23,7 @@ def _dataset(root: Path, frame_count: int = 100) -> WoodScapeDataset:
     return WoodScapeDataset.discover(root)
 
 
-def test_create_splits_keeps_all_cameras_from_a_frame_together(tmp_path: Path) -> None:
+def test_create_splits_keeps_equal_filename_identifiers_together(tmp_path: Path) -> None:
     dataset = _dataset(tmp_path)
 
     splits = create_splits(dataset, seed=7)
@@ -80,7 +81,7 @@ def test_split_ratios_reject_invalid_values(ratios: dict[str, float]) -> None:
         SplitRatios(**ratios)
 
 
-@pytest.mark.parametrize("seed", [-1, 2**64])
+@pytest.mark.parametrize("seed", [-1, 2**64, 42.0, True])
 def test_create_splits_rejects_invalid_seed(tmp_path: Path, seed: int) -> None:
     dataset = _dataset(tmp_path, frame_count=1)
 
@@ -93,3 +94,47 @@ def test_split_for_rejects_unknown_sample(tmp_path: Path) -> None:
 
     with pytest.raises(SplitError, match="No split assignment"):
         splits.split_for(SampleKey("missing", CameraId.FRONT))
+
+
+def test_explicit_recording_groups_remain_together_and_are_copied(tmp_path: Path) -> None:
+    dataset = _dataset(tmp_path, frame_count=10)
+    groups = {sample.key: f"recording-{int(sample.key.frame_id) // 2}" for sample in dataset}
+
+    splits = create_splits(dataset, groups=groups, group_source="verified recording manifest")
+
+    assert splits.grouping == "explicit"
+    assert splits.group_source == "verified recording manifest"
+    for group in set(groups.values()):
+        assert len({splits.split_for(key) for key, value in groups.items() if value == group}) == 1
+    groups[dataset[0].key] = "changed"
+    assert splits.groups[dataset[0].key] == "recording-0"
+
+
+def test_explicit_group_mapping_must_be_complete_and_explain_its_source(tmp_path: Path) -> None:
+    dataset = _dataset(tmp_path, frame_count=1)
+    with pytest.raises(SplitError, match="exactly match"):
+        create_splits(dataset, groups={}, group_source="recordings")
+    groups = dict.fromkeys((sample.key for sample in dataset), "recording-1")
+    with pytest.raises(SplitError, match="group_source"):
+        create_splits(dataset, groups=groups)
+    with pytest.raises(SplitError, match="only allowed with explicit"):
+        create_splits(dataset, group_source="not supplied")
+    groups[dataset[0].key] = " "
+    with pytest.raises(SplitError, match="non-empty string"):
+        create_splits(dataset, groups=groups, group_source="recordings")
+
+
+def test_split_records_reject_group_leakage(tmp_path: Path) -> None:
+    dataset = _dataset(tmp_path, frame_count=1)
+    assignments = dict.fromkeys((sample.key for sample in dataset), DatasetSplit.TRAIN)
+    assignments[dataset[0].key] = DatasetSplit.TEST
+
+    with pytest.raises(SplitError, match="more than one split"):
+        DatasetSplits(
+            seed=42,
+            ratios=SplitRatios(),
+            assignments=assignments,
+            groups=dict.fromkeys(assignments, "same-recording"),
+            grouping="explicit",
+            group_source="verified recording manifest",
+        )

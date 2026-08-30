@@ -23,7 +23,7 @@ latency, and FPS are deliberately not reported until the corresponding experimen
 | Typed configuration and logging | Implemented | Strict validation, environment overrides, human/JSON logs |
 | CLI and environment diagnostics | Implemented | `config validate`, `config show`, and `doctor` commands |
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
-| WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration contracts, integrity, statistics, frame-grouped splits; synthetic tests |
+| WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration contracts, integrity, statistics, explicit-group splits; synthetic tests |
 | Fisheye calibration and geometry | Planned | WoodScape fourth-order radial polynomial model selected |
 | Segmentation, detection, and tracking | Planned | No model results reported yet |
 | Camera health, BEV fusion, and risk layer | Planned | No system results reported yet |
@@ -105,6 +105,11 @@ uv run nearfield360 data stats --root D:\datasets\woodscape --semantic --json
 errors and 2 for a missing/invalid root. Statistics decode RGB files, report actual file sizes and
 resolutions, and optionally count pixels in available semantic masks. They are not model metrics.
 Unit tests use small synthetic fixtures, so contributors and CI do not need restricted data.
+
+Split generation can keep explicitly supplied recording/sequence groups together. Its default
+groups equal filename identifiers only: those identifiers do **not** establish camera
+synchronization or recording-level separation. Evaluation must document verified grouping
+provenance; do not treat the fallback as a leakage-free benchmark split.
 
 ## Development checks
 
