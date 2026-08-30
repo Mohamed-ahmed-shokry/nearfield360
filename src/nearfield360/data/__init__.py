@@ -22,6 +22,11 @@ from nearfield360.data.integrity import (
     ValidationSeverity,
     validate_dataset,
 )
+from nearfield360.data.manifests import (
+    load_split_manifest,
+    sample_identity_digest,
+    write_split_manifest,
+)
 from nearfield360.data.semantic import (
     WOODSCAPE_SEMANTIC_CLASSES,
     SemanticClass,
@@ -90,10 +95,13 @@ __all__ = [
     "load_label_image",
     "load_rgb_image",
     "load_semantic_mask",
+    "load_split_manifest",
     "locate_dataset_root",
     "parse_sample_key",
+    "sample_identity_digest",
     "semantic_class",
     "semantic_histogram",
     "validate_dataset",
     "validate_semantic_mask",
+    "write_split_manifest",
 ]
