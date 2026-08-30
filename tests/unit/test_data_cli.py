@@ -94,3 +94,43 @@ def test_data_verify_returns_two_for_invalid_layout(tmp_path: Path) -> None:
 
     assert result.exit_code == 2
     assert "Dataset discovery error:" in result.stderr
+
+
+def test_data_stats_reports_measured_rgb_statistics(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+
+    result = runner.invoke(app, ["data", "stats", "--root", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "Samples: 1; frame identifiers: 1" in result.stdout
+    assert "Resolution 3x2: 1" in result.stdout
+    assert "semantic=0" in result.stdout
+    assert "Semantic pixels" not in result.stdout
+
+
+def test_data_stats_includes_semantic_counts_in_json(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    mask_dir = tmp_path / "semantic_annotations/gtLabels"
+    mask_dir.mkdir(parents=True)
+    assert cv2.imwrite(str(mask_dir / "00001_FV.png"), np.ones((2, 3), dtype=np.uint8))
+
+    result = runner.invoke(app, ["data", "stats", "--root", str(tmp_path), "--semantic", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["semantic_pixel_counts"]["road"] == 6
+    assert payload["rgb_bytes"] == (tmp_path / "rgb_images/00001_FV.png").stat().st_size
+
+    result = runner.invoke(app, ["data", "stats", "--root", str(tmp_path), "--semantic"])
+    assert result.exit_code == 0
+    assert "road: 6" in result.stdout
+
+
+def test_data_stats_fails_on_malformed_input(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    (tmp_path / "rgb_images/00001_FV.png").write_text("broken", encoding="utf-8")
+
+    result = runner.invoke(app, ["data", "stats", "--root", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "Dataset statistics error:" in result.stderr

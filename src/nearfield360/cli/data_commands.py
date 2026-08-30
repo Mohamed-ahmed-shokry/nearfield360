@@ -11,13 +11,30 @@ import typer
 from nearfield360.cli.state import get_state
 from nearfield360.data import (
     DatasetLayoutError,
+    DatasetStatisticsError,
     DatasetValidationReport,
     ValidationPolicy,
     WoodScapeDataset,
+    compute_dataset_statistics,
     validate_dataset,
 )
 
-data_app = typer.Typer(help="Discover and validate local dataset files.", no_args_is_help=True)
+data_app = typer.Typer(
+    help="Discover, validate, and summarize local datasets.", no_args_is_help=True
+)
+
+DatasetRootOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--root",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+        help="Override the configured WoodScape root.",
+    ),
+]
 
 
 def _resolve_dataset_root(context: typer.Context, override: Path | None) -> Path:
@@ -32,6 +49,14 @@ def _resolve_dataset_root(context: typer.Context, override: Path | None) -> Path
         )
         raise typer.Exit(code=2)
     return configured
+
+
+def _discover_dataset(context: typer.Context, root: Path | None) -> WoodScapeDataset:
+    try:
+        return WoodScapeDataset.discover(_resolve_dataset_root(context, root))
+    except DatasetLayoutError as exc:
+        typer.secho(f"Dataset discovery error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from None
 
 
 def _report_payload(report: DatasetValidationReport) -> dict[str, Any]:
@@ -83,18 +108,7 @@ def _render_report(report: DatasetValidationReport) -> None:
 @data_app.command("verify")
 def verify_dataset(
     context: typer.Context,
-    root: Annotated[
-        Path | None,
-        typer.Option(
-            "--root",
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            resolve_path=True,
-            help="Override the configured WoodScape root.",
-        ),
-    ] = None,
+    root: DatasetRootOption = None,
     require_previous: Annotated[
         bool,
         typer.Option("--require-previous", help="Require a previous frame for every RGB sample."),
@@ -117,12 +131,7 @@ def verify_dataset(
     ] = False,
 ) -> None:
     """Decode and cross-check indexed WoodScape images, masks, and calibration files."""
-    dataset_root = _resolve_dataset_root(context, root)
-    try:
-        dataset = WoodScapeDataset.discover(dataset_root)
-    except DatasetLayoutError as exc:
-        typer.secho(f"Dataset discovery error: {exc}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2) from None
+    dataset = _discover_dataset(context, root)
 
     report = validate_dataset(
         dataset,
@@ -139,6 +148,42 @@ def verify_dataset(
         _render_report(report)
     if not report.is_valid:
         raise typer.Exit(code=1)
+
+
+@data_app.command("stats")
+def dataset_statistics(
+    context: typer.Context,
+    root: DatasetRootOption = None,
+    semantic: Annotated[
+        bool, typer.Option("--semantic", help="Decode masks and count pixels per semantic class.")
+    ] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Emit machine-readable measured statistics.")
+    ] = False,
+) -> None:
+    """Measure sample counts, RGB sizes, resolutions, and optional class frequencies."""
+    dataset = _discover_dataset(context, root)
+    try:
+        statistics = compute_dataset_statistics(dataset, include_semantic_pixels=semantic)
+    except DatasetStatisticsError as exc:
+        typer.secho(f"Dataset statistics error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+    if as_json:
+        typer.echo(json.dumps(statistics.as_dict(), indent=2, sort_keys=True))
+        return
+    typer.echo(f"Samples: {statistics.sample_count}; frame identifiers: {statistics.frame_count}")
+    typer.echo("Cameras: " + ", ".join(f"{key}={n}" for key, n in statistics.camera_counts.items()))
+    typer.echo(f"RGB file bytes: {statistics.rgb_bytes}")
+    for (height, width), count in statistics.resolution_counts.items():
+        typer.echo(f"Resolution {width}x{height}: {count}")
+    typer.echo(
+        f"Available: previous={statistics.previous_image_count}, "
+        f"semantic={statistics.semantic_mask_count}, calibration={statistics.calibration_count}"
+    )
+    if statistics.semantic_pixel_counts is not None:
+        typer.echo("Semantic pixels (available masks only):")
+        for name, count in statistics.semantic_pixel_counts.items():
+            typer.echo(f"  {name}: {count}")
 
 
 __all__ = ["data_app"]

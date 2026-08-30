@@ -11,8 +11,8 @@ fisheye cameras. Its target pipeline combines semantic perception, dynamic-objec
 camera-health awareness, and transparent geometric fusion into a local bird's-eye-view
 representation around a vehicle.
 
-The project is under active construction. The repository currently provides the reproducible,
-tested foundation on which the data and perception components are being built. Accuracy,
+The project is under active construction. The repository currently provides a reproducible,
+tested foundation and local WoodScape data tools. Geometry and perception are being built. Accuracy,
 latency, and FPS are deliberately not reported until the corresponding experiments have run.
 
 ## Capability status
@@ -23,7 +23,7 @@ latency, and FPS are deliberately not reported until the corresponding experimen
 | Typed configuration and logging | Implemented | Strict validation, environment overrides, human/JSON logs |
 | CLI and environment diagnostics | Implemented | `config validate`, `config show`, and `doctor` commands |
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
-| WoodScape data layer | In progress | Synthetic-fixture implementation is the next delivery milestone |
+| WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration contracts, integrity, statistics, frame-grouped splits; synthetic tests |
 | Fisheye calibration and geometry | Planned | WoodScape fourth-order radial polynomial model selected |
 | Segmentation, detection, and tracking | Planned | No model results reported yet |
 | Camera health, BEV fusion, and risk layer | Planned | No system results reported yet |
@@ -94,8 +94,17 @@ have a separate open-source license. Download and accept the dataset terms throu
 official channel; do not add WoodScape images, annotations, or calibration bundles to this
 repository.
 
-NearField360 will provide discovery and validation tools for a local dataset root. Unit tests use
-small synthetic fixtures, so contributors and CI do not need access to restricted data.
+Inspect an already acquired dataset without changing its files:
+
+```powershell
+uv run nearfield360 data verify --root D:\datasets\woodscape --require-semantic --require-calibration
+uv run nearfield360 data stats --root D:\datasets\woodscape --semantic --json
+```
+
+`--root` overrides the configured dataset path. Verification exits with status 1 for integrity
+errors and 2 for a missing/invalid root. Statistics decode RGB files, report actual file sizes and
+resolutions, and optionally count pixels in available semantic masks. They are not model metrics.
+Unit tests use small synthetic fixtures, so contributors and CI do not need restricted data.
 
 ## Development checks
 
