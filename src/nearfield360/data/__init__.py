@@ -39,6 +39,12 @@ from nearfield360.data.splits import (
     SplitRatios,
     create_splits,
 )
+from nearfield360.data.statistics import (
+    DatasetStatistics,
+    DatasetStatisticsError,
+    Resolution,
+    compute_dataset_statistics,
+)
 from nearfield360.data.woodscape import (
     CameraId,
     DatasetLayoutError,
@@ -59,11 +65,14 @@ __all__ = [
     "DatasetLayoutError",
     "DatasetSplit",
     "DatasetSplits",
+    "DatasetStatistics",
+    "DatasetStatisticsError",
     "DatasetValidationReport",
     "ExtrinsicParameters",
     "ImageLimits",
     "ImageReadError",
     "IntrinsicParameters",
+    "Resolution",
     "SampleKey",
     "SemanticClass",
     "SemanticMaskError",
@@ -75,6 +84,7 @@ __all__ = [
     "WoodScapeDataset",
     "WoodScapeSample",
     "colorize_semantic_mask",
+    "compute_dataset_statistics",
     "create_splits",
     "load_calibration",
     "load_label_image",
