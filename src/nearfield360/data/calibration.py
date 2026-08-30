@@ -7,7 +7,7 @@ import math
 from pathlib import Path
 from typing import Annotated, Literal, Never, Self
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from nearfield360.data.woodscape import CameraId
 
@@ -95,12 +95,13 @@ def load_calibration(path: Path) -> CameraCalibration:
     if not path.is_file():
         raise CalibrationError(f"Calibration file does not exist: {path}")
     try:
-        size = path.stat().st_size
-        if size > MAX_CALIBRATION_BYTES:
+        with path.open("rb") as stream:
+            payload = stream.read(MAX_CALIBRATION_BYTES + 1)
+        if len(payload) > MAX_CALIBRATION_BYTES:
             raise CalibrationError(
                 f"Calibration file exceeds the {MAX_CALIBRATION_BYTES}-byte safety limit: {path}"
             )
-        document = path.read_text(encoding="utf-8")
+        document = payload.decode("utf-8")
     except (OSError, UnicodeError) as exc:
         raise CalibrationError(f"Unable to read calibration file {path}: {exc}") from exc
 
@@ -111,7 +112,7 @@ def load_calibration(path: Path) -> CameraCalibration:
             parse_constant=_reject_non_finite_constant,
         )
         return CameraCalibration.model_validate(values)
-    except (json.JSONDecodeError, ValidationError, ValueError) as exc:
+    except (ValueError, RecursionError) as exc:
         raise CalibrationError(f"Invalid calibration file {path}: {exc}") from exc
 
 

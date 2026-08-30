@@ -121,3 +121,19 @@ def test_load_calibration_rejects_duplicate_json_keys(tmp_path: Path) -> None:
 
     with pytest.raises(CalibrationError, match="duplicate JSON key: name"):
         load_calibration(path)
+
+
+def test_deeply_nested_calibration_is_a_contextual_validation_error(tmp_path: Path) -> None:
+    path = tmp_path / "nested.json"
+    path.write_text("[" * 5000 + "0" + "]" * 5000, encoding="utf-8")
+
+    with pytest.raises(CalibrationError, match="Invalid calibration file"):
+        load_calibration(path)
+
+
+def test_calibration_requires_utf8(tmp_path: Path) -> None:
+    path = tmp_path / "encoding.json"
+    path.write_bytes(b"\xff\xfe")
+
+    with pytest.raises(CalibrationError, match="Unable to read calibration file"):
+        load_calibration(path)
