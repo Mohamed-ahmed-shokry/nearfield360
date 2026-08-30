@@ -166,6 +166,8 @@ class WoodScapeDataset:
         self.root = root
         self._samples = tuple(samples)
         self._by_key = {sample.key: sample for sample in self._samples}
+        if len(self._by_key) != len(self._samples):
+            raise DatasetLayoutError("Dataset samples must have unique sample keys")
 
     @classmethod
     def discover(cls, root: Path) -> WoodScapeDataset:

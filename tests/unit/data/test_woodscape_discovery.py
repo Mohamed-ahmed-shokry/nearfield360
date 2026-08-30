@@ -121,3 +121,11 @@ def test_populated_calibration_layout_alternatives_are_rejected(tmp_path: Path) 
 
     with pytest.raises(DatasetLayoutError, match="Ambiguous calibration layout"):
         WoodScapeDataset.discover(tmp_path)
+
+
+def test_dataset_constructor_rejects_duplicate_identities(tmp_path: Path) -> None:
+    _touch(tmp_path / "rgb_images", "00001_FV.png")
+    sample = WoodScapeDataset.discover(tmp_path)[0]
+
+    with pytest.raises(DatasetLayoutError, match="unique sample keys"):
+        WoodScapeDataset(tmp_path, [sample, sample])
