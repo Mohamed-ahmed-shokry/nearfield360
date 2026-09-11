@@ -15,6 +15,12 @@ def test_load_config_uses_typed_defaults() -> None:
     assert config.runtime.seed == 42
     assert config.logging.level == "INFO"
     assert config.logging.structured is False
+    assert config.geometry.theta_max == 2.2
+    assert config.geometry.ground_z == 0.0
+    assert config.geometry.max_distance == 15.0
+    assert (config.bev.x_min, config.bev.x_max) == (-6.0, 10.0)
+    assert (config.bev.y_min, config.bev.y_max) == (-6.0, 6.0)
+    assert config.bev.resolution == 0.05
 
 
 def test_load_config_reads_yaml(tmp_path: Path) -> None:
@@ -99,4 +105,37 @@ def test_load_config_bounds_file_size(tmp_path: Path) -> None:
     config_path.write_bytes(b"x" * (MAX_CONFIG_BYTES + 1))
 
     with pytest.raises(ConfigurationError, match="safety limit"):
+        load_config(config_path)
+
+
+def test_legacy_config_without_geometry_sections_uses_defaults(tmp_path: Path) -> None:
+    config_path = tmp_path / "legacy.yaml"
+    config_path.write_text("runtime:\n  seed: 7\n", encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.runtime.seed == 7
+    assert config.geometry.theta_max == 2.2
+    assert config.bev.resolution == 0.05
+
+
+def test_geometry_and_bev_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("geometry:\n  theta_max: 2.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_GEOMETRY__THETA_MAX", "2.5")
+    monkeypatch.setenv("NEARFIELD360_BEV__RESOLUTION", "0.1")
+
+    config = load_config(config_path)
+
+    assert config.geometry.theta_max == 2.5
+    assert config.bev.resolution == 0.1
+
+
+def test_geometry_config_rejects_nonpositive_resolution(tmp_path: Path) -> None:
+    config_path = tmp_path / "invalid-bev.yaml"
+    config_path.write_text("bev:\n  resolution: 0.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="resolution"):
         load_config(config_path)

@@ -9,6 +9,7 @@ import typer
 
 from nearfield360.cli.data_common import DatasetRootOption, discover_dataset
 from nearfield360.cli.data_splits import split_dataset, verify_split
+from nearfield360.cli.data_viz import render_viz
 from nearfield360.data import (
     DatasetStatisticsError,
     DatasetValidationReport,
@@ -23,6 +24,7 @@ data_app = typer.Typer(
 
 data_app.command("split")(split_dataset)
 data_app.command("verify-split")(verify_split)
+data_app.command("viz")(render_viz)
 
 
 def _report_payload(report: DatasetValidationReport) -> dict[str, Any]:

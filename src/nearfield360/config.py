@@ -52,6 +52,28 @@ class LoggingConfig(BaseModel):
     structured: bool = False
 
 
+class GeometryConfig(BaseModel):
+    """Fisheye angular domain and vehicle ground-plane defaults."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    theta_max: float = Field(default=2.2, gt=0.0, lt=3.141592653589793, allow_inf_nan=False)
+    ground_z: float = Field(default=0.0, allow_inf_nan=False)
+    max_distance: float = Field(default=15.0, gt=0.0, allow_inf_nan=False)
+
+
+class BevConfig(BaseModel):
+    """Local bird's-eye-view grid extent and resolution in metres."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    x_min: float = Field(default=-6.0, allow_inf_nan=False)
+    x_max: float = Field(default=10.0, allow_inf_nan=False)
+    y_min: float = Field(default=-6.0, allow_inf_nan=False)
+    y_max: float = Field(default=6.0, allow_inf_nan=False)
+    resolution: float = Field(default=0.05, gt=0.0, allow_inf_nan=False)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -71,6 +93,8 @@ class ProjectConfig(BaseSettings):
     paths: PathsConfig = Field(default_factory=PathsConfig)
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    geometry: GeometryConfig = Field(default_factory=GeometryConfig)
+    bev: BevConfig = Field(default_factory=BevConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -116,7 +140,9 @@ def load_config(path: Path | None = None) -> ProjectConfig:
 
 __all__ = [
     "MAX_CONFIG_BYTES",
+    "BevConfig",
     "ConfigurationError",
+    "GeometryConfig",
     "LoggingConfig",
     "PathsConfig",
     "ProjectConfig",
