@@ -113,3 +113,33 @@ def test_geometry_info_rejects_invalid_calibration(tmp_path: Path) -> None:
 
     assert result.exit_code == 2
     assert "Calibration error" in result.stderr
+
+
+def test_geometry_human_outputs_are_scannable(tmp_path: Path) -> None:
+    calibration = _calibration_path(tmp_path)
+
+    info = runner.invoke(app, ["geometry", "info", "--calibration", str(calibration)])
+    assert info.exit_code == 0, info.output
+    assert "Rotation:" in info.stdout
+
+    ground = runner.invoke(
+        app,
+        ["geometry", "ground", "--calibration", str(calibration), "--pixel", "519.5,239.5"],
+    )
+    assert ground.exit_code == 0, ground.output
+    assert "ground" in ground.stdout
+
+    bev = runner.invoke(app, ["geometry", "bev"])
+    assert bev.exit_code == 0, bev.output
+    assert "BEV grid" in bev.stdout
+
+
+def test_geometry_ground_rejects_malformed_pixels(tmp_path: Path) -> None:
+    calibration = _calibration_path(tmp_path)
+
+    result = runner.invoke(
+        app, ["geometry", "ground", "--calibration", str(calibration), "--pixel", "oops"]
+    )
+
+    assert result.exit_code == 2
+    assert "Pixel must look like" in result.stderr

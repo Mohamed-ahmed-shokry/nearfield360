@@ -11,22 +11,24 @@ fisheye cameras. Its target pipeline combines semantic perception, dynamic-objec
 camera-health awareness, and transparent geometric fusion into a local bird's-eye-view
 representation around a vehicle.
 
-The project is under active construction. The repository currently provides a reproducible,
-tested foundation and local WoodScape data tools. Geometry and perception are being built. Accuracy,
-latency, and FPS are deliberately not reported until the corresponding experiments have run.
+The repository provides a reproducible, tested foundation: a WoodScape data layer, explicit
+fisheye/vehicle geometry with ground-plane and BEV scaffolding, label-space perception
+metrics, and inspection CLIs. Accuracy, latency, and FPS are deliberately not reported until
+the corresponding experiments have run.
 
 ## Capability status
 
 | Area | Status | Evidence |
 | --- | --- | --- |
 | Reproducible Python package | Implemented | Locked uv environment; wheel and sdist isolated-install smokes |
-| Typed configuration and logging | Implemented | Strict validation, environment overrides, human/JSON logs |
-| CLI and environment diagnostics | Implemented | `config validate`, `config show`, and `doctor` commands |
+| Typed configuration and logging | Implemented | Strict validation, environment overrides, human/JSON logs; geometry and BEV sections |
+| CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, and `data` commands |
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
-| WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration contracts, integrity, statistics, explicit-group splits; synthetic tests |
-| Fisheye calibration and geometry | Planned | WoodScape fourth-order radial polynomial model selected |
-| Segmentation, detection, and tracking | Planned | No model results reported yet |
-| Camera health, BEV fusion, and risk layer | Planned | No system results reported yet |
+| WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration/detection contracts, integrity, statistics, explicit-group splits, semantic overlays; synthetic tests |
+| Fisheye calibration and geometry | Implemented core | Fourth-order radial projection/inverse, rigid transforms, vehicle cameras, surround rig, ground intersection, BEV grid; synthetic tests |
+| Segmentation and detection metrics | Implemented foundation | Numpy-only confusion/IoU and XYXY box IoU without models or accelerators |
+| Segmentation, detection, and tracking models | Planned | No model weights or training runs yet; no results reported |
+| Camera health, BEV fusion, and risk layer | Planned | Grid scaffolding exists; no occupancy belief, uncertainty, or safety zones yet |
 | ONNX, TensorRT, and C++ runtime | Planned | Optional native toolchains are not assumed to be installed |
 
 ## System design
@@ -49,6 +51,13 @@ flowchart LR
 The design keeps raw fisheye imagery whenever possible. It does not assume that rectilinear
 undistortion can preserve a field of view greater than 180 degrees, and it does not infer metric
 3D structure without a documented geometric or learned assumption.
+
+Vehicle axes are X forward, Y left, and Z up. Camera axes are X right, Y down, and Z forward.
+The ground plane is `Z == ground_z` (default zero). Pixels alone never determine depth: the
+geometry layer returns unit rays and, with an explicit ground assumption, footprints with
+Euclidean distances. Rays without a forward intersection stay unknown. The BEV grid covers
+`[x_min, x_max) x [y_min, y_max)` with square cells and half-open bounds, matching the
+fisheye image-bounds convention.
 
 ## Quick start
 
@@ -79,11 +88,32 @@ values override YAML values:
 
 ```powershell
 $env:NEARFIELD360_PATHS__DATASET_ROOT = "D:\datasets\woodscape"
+$env:NEARFIELD360_GEOMETRY__THETA_MAX = "2.2"
+$env:NEARFIELD360_BEV__RESOLUTION = "0.05"
 uv run nearfield360 config show
 ```
 
+`configs/default.yaml` documents the geometry angular limit (`geometry.theta_max`), the ground
+plane (`geometry.ground_z`), the footprint range gate (`geometry.max_distance`), and the local
+BEV extent (`bev.x_min/x_max/y_min/y_max/resolution`). Older configuration files without the
+`geometry` and `bev` sections continue to load with these defaults.
+
 Relative paths are interpreted from the process working directory. Dataset presence is not
 required for `--help`, `--version`, configuration validation, or the test suite.
+
+### Geometry inspection
+
+Validate a per-image calibration and map pixels to ground footprints without inferring depth:
+
+```powershell
+uv run nearfield360 geometry info --calibration D:\datasets\woodscape\calibration_data\00001_FV.json --json
+uv run nearfield360 geometry ground --calibration D:\datasets\woodscape\calibration_data\00001_FV.json --pixel 640,480 --pixel 800,480 --json
+uv run nearfield360 geometry bev --json
+```
+
+`--theta-max` overrides the configured angular limit; `--check-bounds/--ignore-bounds` toggles
+the half-open image rectangle. Invalid rays and intersections behind the ray origin report as
+unknown rather than extrapolated footprints.
 
 ## Dataset policy
 
@@ -105,6 +135,13 @@ uv run nearfield360 data stats --root D:\datasets\woodscape --semantic --json
 errors and 2 for a missing/invalid root. Statistics decode RGB files, report actual file sizes and
 resolutions, and optionally count pixels in available semantic masks. They are not model metrics.
 Unit tests use small synthetic fixtures, so contributors and CI do not need restricted data.
+
+Render inspection overlays for samples that have semantic masks (samples without masks are
+skipped, not fabricated):
+
+```powershell
+uv run nearfield360 data viz --root D:\datasets\woodscape --output outputs/viz --max-images 20
+```
 
 Split generation can keep explicitly supplied recording/sequence groups together. Its default
 groups equal filename identifiers only: those identifiers do **not** establish camera
@@ -149,11 +186,19 @@ observed free space.
 
 ## Roadmap
 
-1. WoodScape discovery, parsing, integrity checks, statistics, and visualization.
-2. Fourth-order fisheye projection/inverse projection and camera-to-vehicle transforms.
-3. Deployment-oriented semantic segmentation, metrics, and reproducible experiments.
-4. Object detection, temporal tracking, and camera-soiling awareness.
-5. Multi-camera BEV fusion, uncertainty propagation, and transparent safety zones.
+1. ~~WoodScape discovery, parsing, integrity checks, statistics, and visualization.~~ Done (core):
+   discovery, bounded RGB/label readers, semantic/calibration/detection contracts, integrity,
+   statistics, explicit-group splits with manifests, and semantic overlay rendering.
+2. ~~Fourth-order fisheye projection/inverse projection and camera-to-vehicle transforms.~~ Done
+   (core): radial-polynomial projection/inverse, rigid transforms, calibrated cameras, surround
+   rig, ground-plane intersection, and BEV grid scaffolding with geometry CLIs.
+3. Deployment-oriented semantic segmentation, metrics, and reproducible experiments. In progress
+   (foundation): numpy-only confusion/IoU and box-IoU metrics exist; no models, training, or
+   measured scores yet.
+4. Object detection, temporal tracking, and camera-soiling awareness. Next: detection parsing
+   exists; tracking and soiling are unstarted.
+5. Multi-camera BEV fusion, uncertainty propagation, and transparent safety zones. Next: grid
+   scaffolding exists; occupancy belief and uncertainty are unstarted.
 6. Controlled robustness evaluation and automated plots.
 7. ONNX parity, optional TensorRT benchmarking, and a modular C++ runtime.
 8. Integrated four-camera demo, measured performance report, and release audit.

@@ -77,3 +77,22 @@ def test_data_viz_respects_max_images(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "1 written" in result.stdout
     assert len(list(output.glob("*_overlay.png"))) == 1
+
+
+def test_data_viz_reports_shape_mismatch(tmp_path: Path) -> None:
+    import cv2 as cv2_module
+    import numpy as np
+
+    rgb_dir = tmp_path / "rgb_images"
+    mask_dir = tmp_path / "semantic_annotations" / "gtLabels"
+    rgb_dir.mkdir(parents=True)
+    mask_dir.mkdir(parents=True)
+    assert cv2_module.imwrite(str(rgb_dir / "00001_FV.png"), np.zeros((8, 8, 3), dtype=np.uint8))
+    assert cv2_module.imwrite(str(mask_dir / "00001_FV.png"), np.zeros((4, 4), dtype=np.uint8))
+
+    result = runner.invoke(
+        app, ["data", "viz", "--root", str(tmp_path), "--output", str(tmp_path / "viz")]
+    )
+
+    assert result.exit_code == 1
+    assert "does not match RGB shape" in result.stderr
