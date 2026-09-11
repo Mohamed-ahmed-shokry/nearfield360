@@ -8,6 +8,16 @@ from nearfield360.data.calibration import (
     IntrinsicParameters,
     load_calibration,
 )
+from nearfield360.data.detection import (
+    DEFAULT_DETECTION_LIMITS,
+    WOODSCAPE_DETECTION_CLASSES,
+    DetectionAnnotation,
+    DetectionAnnotationError,
+    DetectionClass,
+    DetectionLimits,
+    detection_class,
+    load_detection_annotations,
+)
 from nearfield360.data.images import (
     DEFAULT_IMAGE_LIMITS,
     ImageLimits,
@@ -61,8 +71,10 @@ from nearfield360.data.woodscape import (
 )
 
 __all__ = [
+    "DEFAULT_DETECTION_LIMITS",
     "DEFAULT_IMAGE_LIMITS",
     "MAX_CALIBRATION_BYTES",
+    "WOODSCAPE_DETECTION_CLASSES",
     "WOODSCAPE_SEMANTIC_CLASSES",
     "CalibrationError",
     "CameraCalibration",
@@ -73,6 +85,10 @@ __all__ = [
     "DatasetStatistics",
     "DatasetStatisticsError",
     "DatasetValidationReport",
+    "DetectionAnnotation",
+    "DetectionAnnotationError",
+    "DetectionClass",
+    "DetectionLimits",
     "ExtrinsicParameters",
     "ImageLimits",
     "ImageReadError",
@@ -91,7 +107,9 @@ __all__ = [
     "colorize_semantic_mask",
     "compute_dataset_statistics",
     "create_splits",
+    "detection_class",
     "load_calibration",
+    "load_detection_annotations",
     "load_label_image",
     "load_rgb_image",
     "load_semantic_mask",

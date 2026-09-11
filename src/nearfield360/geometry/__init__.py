@@ -1,5 +1,6 @@
 """Explicit fisheye projection and vehicle-frame geometry."""
 
+from nearfield360.geometry.camera import CalibratedCamera, PixelRayResult
 from nearfield360.geometry.fisheye import (
     ProjectionResult,
     RadialPolynomialFisheye,
@@ -7,4 +8,11 @@ from nearfield360.geometry.fisheye import (
 )
 from nearfield360.geometry.transforms import RigidTransform
 
-__all__ = ["ProjectionResult", "RadialPolynomialFisheye", "RigidTransform", "UnprojectionResult"]
+__all__ = [
+    "CalibratedCamera",
+    "PixelRayResult",
+    "ProjectionResult",
+    "RadialPolynomialFisheye",
+    "RigidTransform",
+    "UnprojectionResult",
+]

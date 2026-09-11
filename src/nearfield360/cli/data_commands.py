@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 
-from nearfield360.cli.state import get_state
+from nearfield360.cli.data_common import DatasetRootOption, discover_dataset
+from nearfield360.cli.data_splits import split_dataset, verify_split
 from nearfield360.data import (
-    DatasetLayoutError,
     DatasetStatisticsError,
     DatasetValidationReport,
     ValidationPolicy,
-    WoodScapeDataset,
     compute_dataset_statistics,
     validate_dataset,
 )
@@ -23,40 +21,8 @@ data_app = typer.Typer(
     help="Discover, validate, and summarize local datasets.", no_args_is_help=True
 )
 
-DatasetRootOption = Annotated[
-    Path | None,
-    typer.Option(
-        "--root",
-        exists=True,
-        file_okay=False,
-        dir_okay=True,
-        readable=True,
-        resolve_path=True,
-        help="Override the configured WoodScape root.",
-    ),
-]
-
-
-def _resolve_dataset_root(context: typer.Context, override: Path | None) -> Path:
-    if override is not None:
-        return override
-    configured = get_state(context).config.paths.dataset_root
-    if configured is None:
-        typer.secho(
-            "Dataset root is not configured. Use --root or NEARFIELD360_PATHS__DATASET_ROOT.",
-            fg=typer.colors.RED,
-            err=True,
-        )
-        raise typer.Exit(code=2)
-    return configured
-
-
-def _discover_dataset(context: typer.Context, root: Path | None) -> WoodScapeDataset:
-    try:
-        return WoodScapeDataset.discover(_resolve_dataset_root(context, root))
-    except DatasetLayoutError as exc:
-        typer.secho(f"Dataset discovery error: {exc}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2) from None
+data_app.command("split")(split_dataset)
+data_app.command("verify-split")(verify_split)
 
 
 def _report_payload(report: DatasetValidationReport) -> dict[str, Any]:
@@ -131,7 +97,7 @@ def verify_dataset(
     ] = False,
 ) -> None:
     """Decode and cross-check indexed WoodScape images, masks, and calibration files."""
-    dataset = _discover_dataset(context, root)
+    dataset = discover_dataset(context, root)
 
     report = validate_dataset(
         dataset,
@@ -162,7 +128,7 @@ def dataset_statistics(
     ] = False,
 ) -> None:
     """Measure sample counts, RGB sizes, resolutions, and optional class frequencies."""
-    dataset = _discover_dataset(context, root)
+    dataset = discover_dataset(context, root)
     try:
         statistics = compute_dataset_statistics(dataset, include_semantic_pixels=semantic)
     except DatasetStatisticsError as exc:
