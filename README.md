@@ -176,14 +176,6 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
 - Missing CUDA, TensorRT, native compiler, or proprietary-data evidence is reported as
   unavailable—not silently replaced with estimates.
 
-## Scope and safety limitations
-
-NearField360 is a research and portfolio project, not a certified ADAS component or vehicle
-controller. Its future collision-risk layer will be an explainable geometric visualization, not a
-planning system or a safety guarantee. Monocular images also leave regions occluded or
-geometrically ambiguous; those regions must remain unknown rather than being presented as
-observed free space.
-
 ## Roadmap
 
 1. ~~WoodScape discovery, parsing, integrity checks, statistics, and visualization.~~ Done (core):
