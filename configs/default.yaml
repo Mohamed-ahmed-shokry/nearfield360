@@ -17,3 +17,22 @@ bev:
   y_min: -6.0
   y_max: 6.0
   resolution: 0.05
+occupancy:
+  free_classes:
+    - road
+    - lanemarks
+    - curb
+  occupied_classes:
+    - person
+    - rider
+    - vehicles
+    - bicycle
+    - motorcycle
+    - traffic_sign
+  confidence_slope: 0.5
+  min_evidence: 1
+risk:
+  front_length: 3.0
+  half_width: 0.9
+  start_x: 0.0
+  danger_occupancy: 0.5
