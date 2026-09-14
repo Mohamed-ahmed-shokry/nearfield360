@@ -26,6 +26,9 @@ def test_compute_dataset_statistics_measures_files_and_availability(tmp_path: Pa
         tmp_path / "previous_images/00001_FV_prev.png",
         np.zeros((2, 3, 3), dtype=np.uint8),
     )
+    detection_path = tmp_path / "detection_annotations/00001_FV.txt"
+    detection_path.parent.mkdir(parents=True)
+    detection_path.write_text("vehicles,0,0.0,0.0,1.0,1.0\n", encoding="utf-8")
 
     statistics = compute_dataset_statistics(WoodScapeDataset.discover(tmp_path))
 
@@ -38,6 +41,7 @@ def test_compute_dataset_statistics_measures_files_and_availability(tmp_path: Pa
     assert statistics.previous_image_count == 1
     assert statistics.semantic_mask_count == 0
     assert statistics.calibration_count == 0
+    assert statistics.detection_count == 1
     assert statistics.semantic_pixel_counts is None
 
 

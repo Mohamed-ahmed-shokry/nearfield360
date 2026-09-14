@@ -11,6 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from nearfield360.data.calibration import CalibrationError, load_calibration
+from nearfield360.data.detection import DetectionAnnotationError, load_detection_annotations
 from nearfield360.data.images import ImageReadError, load_rgb_image
 from nearfield360.data.semantic import SemanticMaskError, load_semantic_mask
 from nearfield360.data.woodscape import CameraId, SampleKey, WoodScapeDataset, WoodScapeSample
@@ -38,9 +39,11 @@ class ValidationPolicy:
     require_previous_images: bool = False
     require_semantic_masks: bool = False
     require_calibrations: bool = False
+    require_detections: bool = False
     validate_previous_images: bool = True
     validate_semantic_masks: bool = True
     validate_calibrations: bool = True
+    validate_detections: bool = True
     max_issues: int = 1000
 
     def __post_init__(self) -> None:
@@ -57,6 +60,7 @@ class DatasetValidationReport:
     previous_image_count: int
     semantic_mask_count: int
     calibration_count: int
+    detection_count: int
     issues: tuple[ValidationIssue, ...]
     issues_truncated: bool = False
 
@@ -124,6 +128,12 @@ def _check_required_files(
             sample.calibration_path,
             "missing_calibration",
             "Calibration is required but missing",
+        ),
+        (
+            policy.require_detections,
+            sample.detection_path,
+            "missing_detection",
+            "Detection annotations are required but missing",
         ),
     )
     for required, path, code, message in requirements:
@@ -198,6 +208,25 @@ def _validate_calibration(
         )
 
 
+def _validate_detection(
+    sample: WoodScapeSample,
+    rgb: npt.NDArray[np.uint8] | None,
+    collector: _IssueCollector,
+) -> None:
+    if sample.detection_path is None:
+        return
+    try:
+        if rgb is not None:
+            load_detection_annotations(
+                sample.detection_path,
+                image_size=(int(rgb.shape[0]), int(rgb.shape[1])),
+            )
+        else:
+            load_detection_annotations(sample.detection_path)
+    except DetectionAnnotationError as exc:
+        collector.error("invalid_detection", str(exc), sample)
+
+
 def validate_dataset(
     dataset: WoodScapeDataset,
     policy: ValidationPolicy | None = None,
@@ -209,12 +238,14 @@ def validate_dataset(
     previous_count = 0
     semantic_count = 0
     calibration_count = 0
+    detection_count = 0
 
     for sample in dataset:
         camera_counts[sample.key.camera] += 1
         previous_count += sample.previous_image_path is not None
         semantic_count += sample.semantic_mask_path is not None
         calibration_count += sample.calibration_path is not None
+        detection_count += sample.detection_path is not None
         _check_required_files(sample, policy, collector)
         rgb = _load_rgb(sample, collector)
         if policy.validate_previous_images:
@@ -223,6 +254,8 @@ def validate_dataset(
             _validate_semantic_mask(sample, rgb, collector)
         if policy.validate_calibrations:
             _validate_calibration(sample, rgb, collector)
+        if policy.validate_detections:
+            _validate_detection(sample, rgb, collector)
 
     return DatasetValidationReport(
         sample_count=len(dataset),
@@ -230,6 +263,7 @@ def validate_dataset(
         previous_image_count=previous_count,
         semantic_mask_count=semantic_count,
         calibration_count=calibration_count,
+        detection_count=detection_count,
         issues=tuple(collector.issues),
         issues_truncated=collector.truncated,
     )

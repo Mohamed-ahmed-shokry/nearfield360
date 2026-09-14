@@ -50,6 +50,7 @@ def test_data_verify_uses_environment_config_and_emits_json(tmp_path: Path) -> N
     assert payload["camera_counts"]["RV"] == 1
     assert payload["available"] == {
         "calibrations": 0,
+        "detections": 0,
         "previous_images": 0,
         "semantic_masks": 0,
     }
@@ -66,6 +67,19 @@ def test_data_verify_returns_one_for_integrity_failure(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "WoodScape dataset: INVALID" in result.stdout
     assert "missing_semantic_mask" in result.stdout
+
+
+def test_data_verify_requires_detection_annotations(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["data", "verify", "--root", str(tmp_path), "--require-detection", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout)["available"]["detections"] == 0
+    assert "missing_detection" in result.stdout
 
 
 def test_data_verify_reports_truncated_findings(tmp_path: Path) -> None:

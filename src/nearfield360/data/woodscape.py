@@ -53,6 +53,7 @@ class WoodScapeSample:
     previous_image_path: Path | None = None
     semantic_mask_path: Path | None = None
     calibration_path: Path | None = None
+    detection_path: Path | None = None
 
 
 def parse_sample_key(path: Path, *, previous: bool = False) -> SampleKey:
@@ -182,6 +183,7 @@ class WoodScapeDataset:
         semantic_directory = _optional_directory(
             dataset_root, (Path("semantic_annotations/gtLabels"),)
         )
+        detection_directory = _optional_directory(dataset_root, (Path("detection_annotations"),))
 
         previous_images = _index_files(
             previous_directory,
@@ -190,10 +192,12 @@ class WoodScapeDataset:
         )
         semantic_masks = _index_files(semantic_directory, suffixes=frozenset({".png"}))
         calibrations = _index_calibrations(dataset_root)
+        detections = _index_files(detection_directory, suffixes=frozenset({".txt"}))
 
         _reject_orphans(images, previous_images, "Previous image")
         _reject_orphans(images, semantic_masks, "Semantic mask")
         _reject_orphans(images, calibrations, "Calibration")
+        _reject_orphans(images, detections, "Detection annotation")
 
         ordered_keys = sorted(images, key=lambda key: (key.frame_id, key.camera.value))
         samples = [
@@ -203,6 +207,7 @@ class WoodScapeDataset:
                 previous_image_path=previous_images.get(key),
                 semantic_mask_path=semantic_masks.get(key),
                 calibration_path=calibrations.get(key),
+                detection_path=detections.get(key),
             )
             for key in ordered_keys
         ]

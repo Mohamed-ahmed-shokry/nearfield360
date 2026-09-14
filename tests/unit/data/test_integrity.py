@@ -54,6 +54,9 @@ def _complete_dataset(root: Path) -> WoodScapeDataset:
     calibration_path = root / "calibration_data/00001_FV.json"
     calibration_path.parent.mkdir(parents=True)
     calibration_path.write_text(json.dumps(_calibration_payload()), encoding="utf-8")
+    detection_path = root / "detection_annotations/00001_FV.txt"
+    detection_path.parent.mkdir(parents=True)
+    detection_path.write_text("vehicles,0,0.0,0.0,3.0,2.0\n", encoding="utf-8")
     return WoodScapeDataset.discover(root)
 
 
@@ -64,6 +67,7 @@ def test_validate_dataset_accepts_consistent_complete_sample(tmp_path: Path) -> 
             require_previous_images=True,
             require_semantic_masks=True,
             require_calibrations=True,
+            require_detections=True,
         ),
     )
 
@@ -76,6 +80,7 @@ def test_validate_dataset_accepts_consistent_complete_sample(tmp_path: Path) -> 
     assert report.previous_image_count == 1
     assert report.semantic_mask_count == 1
     assert report.calibration_count == 1
+    assert report.detection_count == 1
     assert report.issues == ()
 
 
@@ -89,6 +94,7 @@ def test_validate_dataset_reports_required_missing_components(tmp_path: Path) ->
             require_previous_images=True,
             require_semantic_masks=True,
             require_calibrations=True,
+            require_detections=True,
         ),
     )
 
@@ -97,7 +103,29 @@ def test_validate_dataset_reports_required_missing_components(tmp_path: Path) ->
         "missing_previous_image",
         "missing_semantic_mask",
         "missing_calibration",
+        "missing_detection",
     }
+
+
+def test_validate_dataset_reports_invalid_detection_contents(tmp_path: Path) -> None:
+    dataset = _complete_dataset(tmp_path)
+    (tmp_path / "detection_annotations/00001_FV.txt").write_text("broken", encoding="utf-8")
+
+    report = validate_dataset(dataset)
+
+    assert {issue.code for issue in report.issues} == {"invalid_detection"}
+
+
+def test_validate_dataset_checks_detection_bounds_against_image_size(tmp_path: Path) -> None:
+    dataset = _complete_dataset(tmp_path)
+    (tmp_path / "detection_annotations/00001_FV.txt").write_text(
+        "vehicles,0,0.0,0.0,9.0,9.0\n", encoding="utf-8"
+    )
+
+    report = validate_dataset(dataset)
+
+    assert {issue.code for issue in report.issues} == {"invalid_detection"}
+    assert "exceeds image size" in report.issues[0].message
 
 
 def test_validate_dataset_reports_cross_file_mismatches(tmp_path: Path) -> None:
@@ -150,6 +178,7 @@ def test_validation_policy_can_skip_optional_file_contents(tmp_path: Path) -> No
     (tmp_path / "previous_images/00001_FV_prev.png").write_text("broken", encoding="utf-8")
     (tmp_path / "semantic_annotations/gtLabels/00001_FV.png").write_text("broken", encoding="utf-8")
     (tmp_path / "calibration_data/00001_FV.json").write_text("broken", encoding="utf-8")
+    (tmp_path / "detection_annotations/00001_FV.txt").write_text("broken", encoding="utf-8")
 
     report = validate_dataset(
         dataset,
@@ -157,6 +186,7 @@ def test_validation_policy_can_skip_optional_file_contents(tmp_path: Path) -> No
             validate_previous_images=False,
             validate_semantic_masks=False,
             validate_calibrations=False,
+            validate_detections=False,
         ),
     )
 

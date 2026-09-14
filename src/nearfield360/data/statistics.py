@@ -34,6 +34,7 @@ class DatasetStatistics:
     previous_image_count: int
     semantic_mask_count: int
     calibration_count: int
+    detection_count: int
     semantic_pixel_counts: Mapping[str, int] | None = None
 
     def as_dict(self) -> dict[str, Any]:
@@ -51,6 +52,7 @@ class DatasetStatistics:
                 "previous_images": self.previous_image_count,
                 "semantic_masks": self.semantic_mask_count,
                 "calibrations": self.calibration_count,
+                "detections": self.detection_count,
             },
             "semantic_pixel_counts": (
                 None if self.semantic_pixel_counts is None else dict(self.semantic_pixel_counts)
@@ -76,6 +78,7 @@ def compute_dataset_statistics(
     previous_count = 0
     semantic_count = 0
     calibration_count = 0
+    detection_count = 0
 
     for sample in dataset:
         frame_ids.add(sample.key.frame_id)
@@ -83,6 +86,7 @@ def compute_dataset_statistics(
         previous_count += sample.previous_image_path is not None
         semantic_count += sample.semantic_mask_path is not None
         calibration_count += sample.calibration_path is not None
+        detection_count += sample.detection_path is not None
         try:
             rgb_bytes += sample.image_path.stat().st_size
             image = load_rgb_image(sample.image_path)
@@ -116,6 +120,7 @@ def compute_dataset_statistics(
         previous_image_count=previous_count,
         semantic_mask_count=semantic_count,
         calibration_count=calibration_count,
+        detection_count=detection_count,
         semantic_pixel_counts=(
             None if semantic_counts is None else MappingProxyType(dict(semantic_counts))
         ),

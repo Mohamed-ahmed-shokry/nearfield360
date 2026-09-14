@@ -36,6 +36,7 @@ def _report_payload(report: DatasetValidationReport) -> dict[str, Any]:
             "previous_images": report.previous_image_count,
             "semantic_masks": report.semantic_mask_count,
             "calibrations": report.calibration_count,
+            "detections": report.detection_count,
         },
         "error_count": report.error_count,
         "warning_count": report.warning_count,
@@ -64,7 +65,8 @@ def _render_report(report: DatasetValidationReport) -> None:
         "Available: "
         f"previous={report.previous_image_count}, "
         f"semantic={report.semantic_mask_count}, "
-        f"calibration={report.calibration_count}"
+        f"calibration={report.calibration_count}, "
+        f"detection={report.detection_count}"
     )
     for issue in report.issues:
         sample = "dataset" if issue.sample_key is None else issue.sample_key.stem
@@ -91,6 +93,12 @@ def verify_dataset(
             "--require-calibration", help="Require calibration JSON for every RGB sample."
         ),
     ] = False,
+    require_detection: Annotated[
+        bool,
+        typer.Option(
+            "--require-detection", help="Require detection annotations for every RGB sample."
+        ),
+    ] = False,
     max_issues: Annotated[
         int, typer.Option(min=1, max=100_000, help="Maximum number of retained findings.")
     ] = 1000,
@@ -98,7 +106,7 @@ def verify_dataset(
         bool, typer.Option("--json", help="Emit machine-readable validation output.")
     ] = False,
 ) -> None:
-    """Decode and cross-check indexed WoodScape images, masks, and calibration files."""
+    """Decode and cross-check indexed WoodScape images, masks, calibration, and detections."""
     dataset = discover_dataset(context, root)
 
     report = validate_dataset(
@@ -107,6 +115,7 @@ def verify_dataset(
             require_previous_images=require_previous,
             require_semantic_masks=require_semantic,
             require_calibrations=require_calibration,
+            require_detections=require_detection,
             max_issues=max_issues,
         ),
     )
@@ -146,7 +155,8 @@ def dataset_statistics(
         typer.echo(f"Resolution {width}x{height}: {count}")
     typer.echo(
         f"Available: previous={statistics.previous_image_count}, "
-        f"semantic={statistics.semantic_mask_count}, calibration={statistics.calibration_count}"
+        f"semantic={statistics.semantic_mask_count}, calibration={statistics.calibration_count}, "
+        f"detection={statistics.detection_count}"
     )
     if statistics.semantic_pixel_counts is not None:
         typer.echo("Semantic pixels (available masks only):")

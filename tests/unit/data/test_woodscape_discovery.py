@@ -48,6 +48,7 @@ def test_discover_associates_optional_files_and_sorts_samples(tmp_path: Path) ->
     _touch(data_root / "previous_images", "00001_FV_prev.png")
     _touch(data_root / "semantic_annotations" / "gtLabels", "00001_FV.png")
     _touch(data_root / "calibration_data" / "calibration", "00001_FV.json")
+    _touch(data_root / "detection_annotations", "00001_FV.txt")
 
     dataset = WoodScapeDataset.discover(tmp_path / "extracted")
 
@@ -59,7 +60,9 @@ def test_discover_associates_optional_files_and_sorts_samples(tmp_path: Path) ->
         data_root / "semantic_annotations/gtLabels/00001_FV.png"
     )
     assert dataset[0].calibration_path == (data_root / "calibration_data/calibration/00001_FV.json")
+    assert dataset[0].detection_path == (data_root / "detection_annotations/00001_FV.txt")
     assert dataset[1].previous_image_path is None
+    assert dataset[1].detection_path is None
     assert dataset.for_camera(CameraId.FRONT) == (dataset[0],)
     assert dataset.get(SampleKey("00002", CameraId.REAR)) == dataset[1]
 
@@ -93,6 +96,14 @@ def test_discover_rejects_orphan_annotations(tmp_path: Path) -> None:
     _touch(tmp_path / "semantic_annotations" / "gtLabels", "00002_RV.png")
 
     with pytest.raises(DatasetLayoutError, match="Semantic mask files without RGB images"):
+        WoodScapeDataset.discover(tmp_path)
+
+
+def test_discover_rejects_orphan_detection_annotations(tmp_path: Path) -> None:
+    _touch(tmp_path / "rgb_images", "00001_FV.png")
+    _touch(tmp_path / "detection_annotations", "00002_RV.txt")
+
+    with pytest.raises(DatasetLayoutError, match="Detection annotation files without RGB images"):
         WoodScapeDataset.discover(tmp_path)
 
 
