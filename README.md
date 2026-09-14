@@ -27,8 +27,9 @@ the corresponding experiments have run.
 | WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration/detection contracts, integrity, statistics, explicit-group splits, semantic overlays; synthetic tests |
 | Fisheye calibration and geometry | Implemented core | Fourth-order radial projection/inverse, rigid transforms, vehicle cameras, surround rig, ground intersection, BEV grid; synthetic tests |
 | Segmentation and detection metrics | Implemented foundation | Numpy-only confusion/IoU and XYXY box IoU without models or accelerators |
+| BEV occupancy and risk | Implemented core | Weighted evidence rasterization, distance-decayed confidence, corridor/circle zones, danger thresholding, fusion and zone CLIs |
 | Segmentation, detection, and tracking models | Planned | No model weights or training runs yet; no results reported |
-| Camera health, BEV fusion, and risk layer | Planned | Grid scaffolding exists; no occupancy belief, uncertainty, or safety zones yet |
+| Camera health | Planned | Soiling/temporal analysis unstarted |
 | ONNX, TensorRT, and C++ runtime | Planned | Optional native toolchains are not assumed to be installed |
 
 ## System design
@@ -94,9 +95,12 @@ uv run nearfield360 config show
 ```
 
 `configs/default.yaml` documents the geometry angular limit (`geometry.theta_max`), the ground
-plane (`geometry.ground_z`), the footprint range gate (`geometry.max_distance`), and the local
-BEV extent (`bev.x_min/x_max/y_min/y_max/resolution`). Older configuration files without the
-`geometry` and `bev` sections continue to load with these defaults.
+plane (`geometry.ground_z`), the footprint range gate (`geometry.max_distance`), the local
+BEV extent (`bev.x_min/x_max/y_min/y_max/resolution`), the occupancy policy
+(`occupancy.free_classes`/`occupied_classes`/`confidence_slope`/`min_evidence`), and the risk
+filter (`risk.front_length`/`half_width`/`start_x`/`danger_occupancy`). Older configuration
+files without the `geometry`, `bev`, `occupancy`, or `risk` sections continue to load with
+these defaults.
 
 Relative paths are interpreted from the process working directory. Dataset presence is not
 required for `--help`, `--version`, configuration validation, or the test suite.
@@ -114,6 +118,29 @@ uv run nearfield360 geometry bev --json
 `--theta-max` overrides the configured angular limit; `--check-bounds/--ignore-bounds` toggles
 the half-open image rectangle. Invalid rays and intersections behind the ray origin report as
 unknown rather than extrapolated footprints.
+
+### Occupancy fusion and risk
+
+Fuse all semantic-grounded frames into one local occupancy layer and score the configured
+zones. Only pixels whose class votes free/occupied are rasterized; every voter is weighted by
+`1 / (1 + confidence_slope * distance)` so distant measurements contribute less:
+
+```powershell
+uv run nearfield360 occupancy layer --root D:\datasets\woodscape --camera FV --output outputs/occupancy/front.json --png outputs/occupancy/front.png
+uv run nearfield360 occupancy zones --json
+```
+
+`--samples N` limits how many frames are fused (0 fuses all). Each layer report records the
+environment, active configuration, selected samples, per-zone confident/danger cell counts,
+and the fused grid. The PNG overlay shades observed cells from free (green) to occupied (red)
+with zone borders drawn on top. Unknown cells stay black.
+
+The scene-level policy is configurable: `occupancy.free_classes` vote for free space,
+`occupancy.occupied_classes` vote for occupancy, `min_evidence` gates which cells are
+confident, and `risk.danger_occupancy` is the occupancy share a confident cell must strictly
+exceed to count as dangerous. Single-frame CLIs (`geometry ground`) and multi-frame fusion
+(`occupancy layer`) share the same ray and grid model, so the pixel-to-footprint math is
+identical.
 
 ## Dataset policy
 
@@ -185,12 +212,13 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
    (core): radial-polynomial projection/inverse, rigid transforms, calibrated cameras, surround
    rig, ground-plane intersection, and BEV grid scaffolding with geometry CLIs.
 3. Deployment-oriented semantic segmentation, metrics, and reproducible experiments. In progress
-   (foundation): numpy-only confusion/IoU and box-IoU metrics exist; no models, training, or
-   measured scores yet.
+   (foundation): numpy-only confusion/IoU, box-IoU metrics, prediction parsing, and an atomic
+   evaluation CLI exist; no models, training, or measured scores yet.
 4. Object detection, temporal tracking, and camera-soiling awareness. Next: detection parsing
    exists; tracking and soiling are unstarted.
-5. Multi-camera BEV fusion, uncertainty propagation, and transparent safety zones. Next: grid
-   scaffolding exists; occupancy belief and uncertainty are unstarted.
+5. Multi-camera BEV fusion, uncertainty propagation, and transparent safety zones. Implemented
+   (core): weighted occupancy evidence, distance-decayed confidence, corridor/circle risk zones,
+   and fusion/zone CLIs; multi-camera fusion across views is next.
 6. Controlled robustness evaluation and automated plots.
 7. ONNX parity, optional TensorRT benchmarking, and a modular C++ runtime.
 8. Integrated four-camera demo, measured performance report, and release audit.
