@@ -74,6 +74,40 @@ class BevConfig(BaseModel):
     resolution: float = Field(default=0.05, gt=0.0, allow_inf_nan=False)
 
 
+class OccupancyConfig(BaseModel):
+    """Which semantic classes vote free/occupied and how evidence is weighted.
+
+    Class lists are resolved against the WoodScape semantic palette by name
+    and must stay disjoint. Weight decay reduces the contribution of distant,
+    uncertainty-dominated measurements.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    free_classes: tuple[str, ...] = ("road", "lanemarks", "curb")
+    occupied_classes: tuple[str, ...] = (
+        "person",
+        "rider",
+        "vehicles",
+        "bicycle",
+        "motorcycle",
+        "traffic_sign",
+    )
+    confidence_slope: float = Field(default=0.5, ge=0.0, allow_inf_nan=False)
+    min_evidence: int = Field(default=1, ge=1)
+
+
+class RiskConfig(BaseModel):
+    """Spatial risk filtering over the fused occupancy layer."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    front_length: float = Field(default=3.0, gt=0.0, allow_inf_nan=False)
+    half_width: float = Field(default=0.9, ge=0.0, allow_inf_nan=False)
+    start_x: float = Field(default=0.0, allow_inf_nan=False)
+    danger_occupancy: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -95,6 +129,8 @@ class ProjectConfig(BaseSettings):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     geometry: GeometryConfig = Field(default_factory=GeometryConfig)
     bev: BevConfig = Field(default_factory=BevConfig)
+    occupancy: OccupancyConfig = Field(default_factory=OccupancyConfig)
+    risk: RiskConfig = Field(default_factory=RiskConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -144,8 +180,10 @@ __all__ = [
     "ConfigurationError",
     "GeometryConfig",
     "LoggingConfig",
+    "OccupancyConfig",
     "PathsConfig",
     "ProjectConfig",
+    "RiskConfig",
     "RuntimeConfig",
     "load_config",
 ]
