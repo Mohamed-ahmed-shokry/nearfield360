@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from nearfield360 import __version__
 from nearfield360.cli.data_commands import data_app
+from nearfield360.cli.eval import eval_app
 from nearfield360.cli.geometry import geometry_app
 from nearfield360.cli.state import CliState, get_state
 from nearfield360.config import ConfigurationError, LoggingConfig, ProjectConfig, load_config
@@ -39,6 +40,7 @@ app = typer.Typer(
 config_app = typer.Typer(help="Inspect and validate project configuration.", no_args_is_help=True)
 app.add_typer(config_app, name="config")
 app.add_typer(data_app, name="data")
+app.add_typer(eval_app, name="eval")
 app.add_typer(geometry_app, name="geometry")
 
 
