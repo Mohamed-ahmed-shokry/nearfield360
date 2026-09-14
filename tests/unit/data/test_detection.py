@@ -10,8 +10,10 @@ from nearfield360.data.detection import (
     DetectionAnnotation,
     DetectionAnnotationError,
     DetectionLimits,
+    DetectionPrediction,
     detection_class,
     load_detection_annotations,
+    load_detection_predictions,
 )
 
 
@@ -218,3 +220,57 @@ def test_limits_require_positive_integers(kwargs: dict[str, object]) -> None:
 def test_direct_annotation_construction_validates_coordinates(coordinate: object) -> None:
     with pytest.raises(DetectionAnnotationError, match="finite"):
         DetectionAnnotation(0, "vehicles", coordinate, 0.0, 1.0, 2.0)
+
+
+def test_prediction_parser_reads_scored_rows(tmp_path: Path) -> None:
+    document = "\n".join(
+        f"{item.name},{item.class_id},10,20,30,50,0.95" for item in WOODSCAPE_DETECTION_CLASSES
+    )
+    predictions = load_detection_predictions(_write_annotations(tmp_path, document))
+
+    assert isinstance(predictions, tuple)
+    assert len(predictions) == 5
+    assert predictions[0] == DetectionPrediction(0, "vehicles", 10.0, 20.0, 30.0, 50.0, 0.95)
+    assert predictions[0].area == 600.0
+    with pytest.raises(FrozenInstanceError):
+        predictions[0].score = 0.1
+
+
+def test_prediction_parser_tolerates_scientific_scores_and_bom(tmp_path: Path) -> None:
+    path = _write_annotations(tmp_path, "\ufeffperson,1,0,0,2,3,1e-1\rperson,1,0,0,2,3,.5")
+    assert [item.score for item in load_detection_predictions(path)] == pytest.approx([0.1, 0.5])
+
+
+@pytest.mark.parametrize(
+    ("row", "message"),
+    [
+        ("person,1,0,0,2,3", "seven CSV fields"),
+        ("person,1,0,0,2,3,8,0.5", "seven CSV fields"),
+        ("person,1,0,0,2,3,1.5", r"\[0, 1\]"),
+        ("person,1,0,0,2,3,1..0", "finite numeric value"),
+        ("person,1,0,0,2,3,nan", "finite numeric value"),
+        ("person,1,0,0,2,3,inf", "finite numeric value"),
+        ("person,1,0,0,2,3,0.5,", "seven CSV fields"),
+        ("person,1,0,0,2,3,-0.1", r"\[0, 1\]"),
+    ],
+)
+def test_prediction_parser_rejects_invalid_rows_with_line(
+    tmp_path: Path, row: str, message: str
+) -> None:
+    path = _write_annotations(tmp_path, "\nperson,1,0,0,2,3,0.3\n" + row)
+
+    with pytest.raises(DetectionAnnotationError, match=message) as caught:
+        load_detection_predictions(path)
+
+    assert str(path) in str(caught.value)
+    assert "line 3:" in str(caught.value)
+
+
+def test_prediction_parser_checks_image_bounds_and_limits(tmp_path: Path) -> None:
+    path = _write_annotations(tmp_path, "vehicles,0,0,0,21,5,0.9")
+    with pytest.raises(DetectionAnnotationError, match="exceeds image size"):
+        load_detection_predictions(path, image_size=(5, 20))
+
+    path.write_text("\nvehicles,0,0,0,1,2,0.5\n\nperson,1,0,0,2,3,0.4", encoding="utf-8")
+    with pytest.raises(DetectionAnnotationError, match="line 4: exceeds the 1-object"):
+        load_detection_predictions(path, limits=DetectionLimits(max_objects=1))

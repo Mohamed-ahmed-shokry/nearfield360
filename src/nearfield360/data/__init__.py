@@ -15,8 +15,10 @@ from nearfield360.data.detection import (
     DetectionAnnotationError,
     DetectionClass,
     DetectionLimits,
+    DetectionPrediction,
     detection_class,
     load_detection_annotations,
+    load_detection_predictions,
 )
 from nearfield360.data.images import (
     DEFAULT_IMAGE_LIMITS,
@@ -89,6 +91,7 @@ __all__ = [
     "DetectionAnnotationError",
     "DetectionClass",
     "DetectionLimits",
+    "DetectionPrediction",
     "ExtrinsicParameters",
     "ImageLimits",
     "ImageReadError",
@@ -110,6 +113,7 @@ __all__ = [
     "detection_class",
     "load_calibration",
     "load_detection_annotations",
+    "load_detection_predictions",
     "load_label_image",
     "load_rgb_image",
     "load_semantic_mask",
