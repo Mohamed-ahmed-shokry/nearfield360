@@ -14,6 +14,7 @@ import math
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
+from nearfield360.data.detection import WOODSCAPE_DETECTION_CLASSES, detection_class
 from nearfield360.data.semantic import (
     WOODSCAPE_SEMANTIC_CLASSES,
     validate_semantic_mask,
@@ -209,11 +210,210 @@ def detection_iou_matrix(predictions: ArrayLike, targets: ArrayLike) -> NDArray[
     return np.ascontiguousarray(iou, dtype=np.float64)
 
 
+def _score_array(values: ArrayLike) -> NDArray[np.float64]:
+    try:
+        array = np.asarray(values, dtype=np.float64).ravel()
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("scores must be a real numeric array") from exc
+    if array.ndim != 1:
+        raise ValueError(f"scores must have shape (N,), got {array.shape}")
+    if not np.all(np.isfinite(array)) or np.any((array < 0.0) | (array > 1.0)):
+        raise ValueError("scores must be finite and lie in [0, 1]")
+    return np.ascontiguousarray(array, dtype=np.float64)
+
+
+def _class_ids(values: ArrayLike, name: str) -> NDArray[np.int64]:
+    try:
+        array = np.asarray(values)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"{name} must be an integer class array") from exc
+    if array.dtype.kind not in "iu":
+        raise ValueError(f"{name} must contain integer class IDs")
+    array = np.asarray(array, dtype=np.int64).ravel()
+    if array.ndim != 1:
+        raise ValueError(f"{name} must have shape (N,), got {array.shape}")
+    for class_id in array:
+        detection_class(int(class_id))
+    return array
+
+
+def _aligned_batch(
+    boxes: ArrayLike,
+    scores: ArrayLike,
+    class_ids: ArrayLike,
+    name: str,
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.int64]]:
+    """Validate one aligned prediction batch and return contiguous numeric arrays."""
+    box_array = _box_array(boxes, name, batched=True)
+    score_array = _score_array(scores)
+    class_array = _class_ids(class_ids, f"{name} classes")
+    if len(box_array) != len(score_array) or len(score_array) != len(class_array):
+        raise ValueError(f"{name} boxes, scores, and classes must have matching lengths")
+    return box_array, score_array, class_array
+
+
+def _greedy_matches(iou_matrix: NDArray[np.float64], iou_threshold: float) -> NDArray[np.bool_]:
+    """Assign each prediction to at most one yet-unclaimed ground truth.
+
+    A prediction is a true positive when at least one ground truth exceeds
+    the threshold; ties are resolved by best IoU and then by ascending
+    ground-truth index so the result is fully deterministic.
+    """
+    pred_count, target_count = iou_matrix.shape
+    matched = np.zeros(pred_count, dtype=bool)
+    if pred_count == 0 or target_count == 0:
+        return matched
+    taken = np.zeros(target_count, dtype=bool)
+    for pred_index in range(pred_count):
+        for target_index in np.argsort(iou_matrix[pred_index])[::-1]:
+            if taken[target_index] or iou_matrix[pred_index, target_index] < iou_threshold:
+                continue
+            taken[target_index] = True
+            matched[pred_index] = True
+            break
+    return matched
+
+
+def detection_average_precision(
+    pred_boxes: ArrayLike,
+    pred_scores: ArrayLike,
+    pred_classes: ArrayLike,
+    target_boxes: ArrayLike,
+    target_classes: ArrayLike,
+    *,
+    iou_threshold: float = 0.5,
+) -> float:
+    """Return class-pooled, greedy mean average precision over WoodScape classes.
+
+    Predictions are pooled across the whole evaluation set per class before
+    computing a single precision-recall curve (VOC-style 101-point
+    interpolation), which keeps the score independent of evaluation batching.
+    A class absent from both predictions and targets reports NaN rather than a
+    perfect or zero score. A class with targets but no predictions (or vice
+    versa) honestly reports 0.0.
+    """
+    scores = woodscape_detection_scores(
+        pred_boxes,
+        pred_scores,
+        pred_classes,
+        target_boxes,
+        target_classes,
+        iou_threshold=iou_threshold,
+    )
+    values = [value for value in scores.values() if value is not None]
+    if not values:
+        return math.nan
+    return float(sum(values) / len(values))
+
+
+def _interpolated_average_precision(
+    recalls: NDArray[np.float64], precisions: NDArray[np.float64]
+) -> float:
+    """Return VOC 101-point interpolated average precision from PR steps."""
+    if recalls.size == 0:
+        return 0.0
+    decision_points = np.concatenate(
+        (np.asarray([0.0], dtype=np.float64), recalls, np.asarray([1.0], dtype=np.float64))
+    )
+    envelope = np.concatenate(
+        (
+            np.asarray([0.0], dtype=np.float64),
+            precisions,
+            np.asarray([0.0], dtype=np.float64),
+        )
+    )
+    envelope = np.flip(np.maximum.accumulate(np.flip(envelope)))
+    rising = np.where(np.diff(decision_points) > 0.0)[0]
+    if rising.size == 0:
+        return 0.0
+    with np.errstate(all="ignore"):
+        average = float(
+            np.sum((decision_points[rising + 1] - decision_points[rising]) * envelope[rising + 1])
+        )
+    if not math.isfinite(average):
+        return 0.0
+    return float(max(0.0, min(average, 1.0)))
+
+
+def woodscape_detection_scores(
+    pred_boxes: ArrayLike,
+    pred_scores: ArrayLike,
+    pred_classes: ArrayLike,
+    target_boxes: ArrayLike,
+    target_classes: ArrayLike,
+    *,
+    iou_threshold: float = 0.5,
+) -> dict[str, float | None]:
+    """Score XYXY detection batches against WoodScape detection annotations.
+
+    ``pred_classes``/``target_classes`` use the official detection-specific
+    five-class IDs, not the semantic-segmentation IDs. Predictions are matched
+    greedily to ground truths per class within a single pooled evaluation set;
+    absent classes map to ``None`` (JSON-safe) instead of NaN. The threshold is
+    an open endpoint: an IoU equal to the threshold counts as a match.
+    """
+    if (
+        isinstance(iou_threshold, bool)
+        or not isinstance(iou_threshold, (int, float))
+        or not math.isfinite(float(iou_threshold))
+        or not 0.0 <= float(iou_threshold) <= 1.0
+    ):
+        raise ValueError("iou_threshold must lie in [0, 1]")
+    pred_boxes_array, pred_scores_array, pred_classes_array = _aligned_batch(
+        pred_boxes, pred_scores, pred_classes, "prediction"
+    )
+    target_boxes_array = _box_array(target_boxes, "target", batched=True)
+    target_classes_array = _class_ids(target_classes, "target classes")
+    if len(target_boxes_array) != len(target_classes_array):
+        raise ValueError("target boxes and classes must have matching lengths")
+
+    class_to_targets: dict[int, list[NDArray[np.float64]]] = {
+        item.class_id: [] for item in WOODSCAPE_DETECTION_CLASSES
+    }
+    for box, class_id in zip(target_boxes_array, target_classes_array, strict=True):
+        class_to_targets[int(class_id)].append(box)
+
+    per_class_predictions: dict[int, list[tuple[NDArray[np.float64], float]]] = {
+        item.class_id: [] for item in WOODSCAPE_DETECTION_CLASSES
+    }
+    for box, score, class_id in zip(
+        pred_boxes_array, pred_scores_array, pred_classes_array, strict=True
+    ):
+        per_class_predictions[int(class_id)].append((box, float(score)))
+
+    results: dict[str, float | None] = {}
+    for detection in WOODSCAPE_DETECTION_CLASSES:
+        class_id = detection.class_id
+        targets = np.asarray(class_to_targets[class_id], dtype=np.float64)
+        predictions = per_class_predictions[class_id]
+        if targets.size == 0:
+            results[detection.name] = None if not predictions else 0.0
+            continue
+        if not predictions:
+            results[detection.name] = 0.0
+            continue
+        pred = np.asarray([item[0] for item in predictions], dtype=np.float64)
+        pred_scores = np.asarray([item[1] for item in predictions], dtype=np.float64)
+        order = np.argsort(-pred_scores, kind="stable")
+        pred = pred[order]
+        pred_scores = pred_scores[order]
+        iou_matrix = detection_iou_matrix(pred, targets)
+        matched = _greedy_matches(iou_matrix, float(iou_threshold))
+        true_positives = np.cumsum(matched).astype(np.float64)
+        false_positives = np.cumsum(~matched).astype(np.float64)
+        recalls = true_positives / float(len(targets))
+        precisions = true_positives / (true_positives + false_positives)
+        results[detection.name] = _interpolated_average_precision(recalls, precisions)
+    return results
+
+
 __all__ = [
+    "detection_average_precision",
     "detection_box_iou",
     "detection_iou_matrix",
     "mean_iou",
     "semantic_confusion_matrix",
     "semantic_iou",
+    "woodscape_detection_scores",
     "woodscape_semantic_scores",
 ]

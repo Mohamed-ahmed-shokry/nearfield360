@@ -4,11 +4,13 @@ import numpy as np
 import pytest
 
 from nearfield360.perception.metrics import (
+    detection_average_precision,
     detection_box_iou,
     detection_iou_matrix,
     mean_iou,
     semantic_confusion_matrix,
     semantic_iou,
+    woodscape_detection_scores,
     woodscape_semantic_scores,
 )
 
@@ -120,3 +122,129 @@ def test_detection_iou_matrix_shape_and_empty_corners() -> None:
     assert detection_iou_matrix([], []).shape == (0, 0)
     assert detection_iou_matrix(predictions, []).shape == (2, 0)
     assert detection_iou_matrix([], targets).shape == (0, 2)
+
+
+def test_detection_scores_perfect_pooled_detections() -> None:
+    boxes = np.array([[0.0, 0.0, 2.0, 2.0], [10.0, 10.0, 12.0, 12.0]])
+    scores = np.array([0.9, 0.8])
+    classes = np.array([0, 0])
+
+    scores_result = woodscape_detection_scores(boxes, scores, classes, boxes, classes)
+
+    assert scores_result["vehicles"] == pytest.approx(1.0)
+    assert scores_result["person"] is None
+    assert set(scores_result) == {
+        "vehicles",
+        "person",
+        "bicycle",
+        "traffic_light",
+        "traffic_sign",
+    }
+    assert detection_average_precision(boxes, scores, classes, boxes, classes) == pytest.approx(1.0)
+
+
+def test_detection_average_precision_from_pr_steps() -> None:
+    targets = np.array([[0.0, 0.0, 2.0, 2.0], [5.0, 5.0, 7.0, 7.0]])
+    target_classes = np.array([0, 0])
+    predictions = np.array([[0.0, 0.0, 2.0, 2.0], [20.0, 20.0, 21.0, 21.0]])
+    pred_classes = np.array([0, 0])
+    pred_scores = np.array([0.9, 0.4])
+
+    result = woodscape_detection_scores(
+        predictions, pred_scores, pred_classes, targets, target_classes
+    )
+
+    assert result["vehicles"] == pytest.approx(0.5)
+
+
+def test_detection_scores_without_targets_or_predictions() -> None:
+    boxes = np.array([[0.0, 0.0, 2.0, 2.0]])
+    scores = np.array([0.9])
+    classes = np.array([0])
+
+    with_targets = woodscape_detection_scores(
+        boxes, scores, classes, np.empty((0, 4)), np.empty((0,), dtype=np.int64)
+    )
+    assert with_targets["vehicles"] == 0.0
+
+    empty_targets = np.empty((0, 4))
+    empty_classes = np.empty((0,), dtype=np.int64)
+    no_and_no = woodscape_detection_scores(
+        np.empty((0, 4)), np.empty((0,)), empty_classes, empty_targets, empty_classes
+    )
+    assert no_and_no["vehicles"] is None
+
+
+def test_detection_average_precision_is_nan_when_all_classes_absent() -> None:
+    empty_boxes = np.empty((0, 4))
+    empty_scores = np.empty((0,))
+    empty_classes = np.empty((0,), dtype=np.int64)
+
+    assert math.isnan(
+        detection_average_precision(
+            empty_boxes, empty_scores, empty_classes, empty_boxes, empty_classes
+        )
+    )
+
+
+def test_detection_scores_pool_predictions_across_images() -> None:
+    first_targets = np.array([[0.0, 0.0, 2.0, 2.0]])
+    second_targets = np.array([[5.0, 5.0, 7.0, 7.0]])
+    combined = np.array([[0.0, 0.0, 2.0, 2.0], [5.0, 5.0, 7.0, 7.0]])
+
+    pooled = woodscape_detection_scores(
+        combined,
+        np.array([1.0, 1.0]),
+        np.array([0, 0]),
+        np.concatenate((first_targets, second_targets)),
+        np.array([0, 0]),
+    )
+    assert pooled["vehicles"] == pytest.approx(1.0)
+
+
+def test_detection_scores_respect_iou_threshold_boundary() -> None:
+    ground_truth = np.array([[0.0, 0.0, 2.0, 2.0]])
+    prediction = np.array([[0.0, 0.0, 2.0, 1.0]])
+    scores = np.array([1.0])
+    classes = np.array([0])
+
+    at_threshold = woodscape_detection_scores(
+        prediction, scores, classes, ground_truth, classes, iou_threshold=0.5
+    )
+    assert at_threshold["vehicles"] == pytest.approx(1.0)
+
+    above_threshold = woodscape_detection_scores(
+        prediction, scores, classes, ground_truth, classes, iou_threshold=0.6
+    )
+    assert above_threshold["vehicles"] == pytest.approx(0.0)
+
+
+def test_detection_scores_prefer_higher_scored_match() -> None:
+    ground_truth = np.array([[0.0, 0.0, 6.0, 6.0]])
+    target_class = np.array([0])
+    predictions = np.array([[0.0, 0.0, 5.0, 5.0], [0.0, 0.0, 6.0, 5.0]])
+    classes = np.array([0, 0])
+
+    first = woodscape_detection_scores(
+        predictions, np.array([0.95, 0.1]), classes, ground_truth, target_class
+    )
+    second = woodscape_detection_scores(
+        predictions, np.array([0.1, 0.95]), classes, ground_truth, target_class
+    )
+
+    assert first["vehicles"] == pytest.approx(1.0)
+    assert second["vehicles"] == pytest.approx(1.0)
+
+
+def test_detection_scores_reject_malformed_inputs() -> None:
+    boxes = np.array([[0.0, 0.0, 2.0, 2.0]])
+    with pytest.raises(ValueError, match="matching lengths"):
+        woodscape_detection_scores(boxes, np.array([1.0]), np.array([0, 0]), boxes, np.array([0]))
+    with pytest.raises(ValueError, match="iou_threshold"):
+        woodscape_detection_scores(
+            boxes, np.array([1.0]), np.array([0]), boxes, np.array([0]), iou_threshold=1.5
+        )
+    with pytest.raises(ValueError, match="Unknown WoodScape detection class"):
+        woodscape_detection_scores(boxes, np.array([1.0]), np.array([9]), boxes, np.array([0]))
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        woodscape_detection_scores(boxes, np.array([2.0]), np.array([0]), boxes, np.array([0]))
