@@ -103,8 +103,15 @@ class RiskConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     front_length: float = Field(default=3.0, gt=0.0, allow_inf_nan=False)
+    rear_length: float = Field(default=3.0, gt=0.0, allow_inf_nan=False)
     half_width: float = Field(default=0.9, ge=0.0, allow_inf_nan=False)
     start_x: float = Field(default=0.0, allow_inf_nan=False)
+    rear_start_x: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    lateral_width: float = Field(default=0.8, gt=0.0, allow_inf_nan=False)
+    vehicle_x_min: float = Field(default=-2.0, allow_inf_nan=False)
+    vehicle_x_max: float = Field(default=2.0, allow_inf_nan=False)
+    near_radius: float = Field(default=0.5, gt=0.0, allow_inf_nan=False)
+    warning_radius: float = Field(default=1.5, gt=0.0, allow_inf_nan=False)
     danger_occupancy: float = Field(default=0.5, ge=0.0, le=1.0)
 
 

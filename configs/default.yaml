@@ -33,6 +33,13 @@ occupancy:
   min_evidence: 1
 risk:
   front_length: 3.0
+  rear_length: 3.0
   half_width: 0.9
   start_x: 0.0
+  rear_start_x: 0.0
+  lateral_width: 0.8
+  vehicle_x_min: -2.0
+  vehicle_x_max: 2.0
+  near_radius: 0.5
+  warning_radius: 1.5
   danger_occupancy: 0.5

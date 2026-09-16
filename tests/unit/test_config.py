@@ -21,6 +21,16 @@ def test_load_config_uses_typed_defaults() -> None:
     assert (config.bev.x_min, config.bev.x_max) == (-6.0, 10.0)
     assert (config.bev.y_min, config.bev.y_max) == (-6.0, 6.0)
     assert config.bev.resolution == 0.05
+    assert config.risk.front_length == 3.0
+    assert config.risk.rear_length == 3.0
+    assert config.risk.half_width == 0.9
+    assert config.risk.start_x == 0.0
+    assert config.risk.rear_start_x == 0.0
+    assert config.risk.lateral_width == 0.8
+    assert (config.risk.vehicle_x_min, config.risk.vehicle_x_max) == (-2.0, 2.0)
+    assert config.risk.near_radius == 0.5
+    assert config.risk.warning_radius == 1.5
+    assert config.risk.danger_occupancy == 0.5
 
 
 def test_load_config_reads_yaml(tmp_path: Path) -> None:
@@ -138,4 +148,12 @@ def test_geometry_config_rejects_nonpositive_resolution(tmp_path: Path) -> None:
     config_path.write_text("bev:\n  resolution: 0.0\n", encoding="utf-8")
 
     with pytest.raises(ValidationError, match="resolution"):
+        load_config(config_path)
+
+
+def test_risk_config_validates_bounds(tmp_path: Path) -> None:
+    config_path = tmp_path / "invalid-risk.yaml"
+    config_path.write_text("risk:\n  rear_length: -1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="rear_length"):
         load_config(config_path)
