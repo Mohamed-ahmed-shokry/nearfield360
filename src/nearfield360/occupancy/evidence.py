@@ -118,6 +118,31 @@ class OccupancyEvidence:
         with np.errstate(divide="ignore", invalid="ignore"):
             return np.where(total > 0.0, self.occupied / total, np.nan)
 
+    def uncertainty(self) -> NDArray[np.float64]:
+        """Return the posterior standard deviation of occupancy per cell.
+
+        Uses a uniform Beta(1, 1) prior over each cell's evidence, so the
+        posterior is ``Beta(occupied + 1, free + 1)``. The standard deviation
+        is ``sqrt(alpha * beta / ((alpha + beta)^2 * (alpha + beta + 1)))``
+        where ``alpha = occupied + 1`` and ``beta = free + 1``. Higher values
+        indicate less certainty about the occupancy estimate.
+
+        Returns NaN for cells with no evidence (unknown).
+        """
+        alpha = self.occupied + 1.0
+        beta = self.free + 1.0
+        total = alpha + beta
+        total_sq = total * total
+        with np.errstate(divide="ignore", invalid="ignore"):
+            variance = (alpha * beta) / (total_sq * (total + 1.0))
+            std = np.sqrt(variance)
+        has_evidence = (self.occupied + self.free) > 0.0
+        return np.where(has_evidence, std, np.nan)
+
+    def evidence_mass(self) -> NDArray[np.float64]:
+        """Return the total weighted evidence per cell (zero where unknown)."""
+        return self.occupied + self.free
+
     def add(self, other: OccupancyEvidence) -> OccupancyEvidence:
         """Fuse another frame into a new layer; the grids must match exactly."""
         if not _same_grid(self.grid, other.grid):

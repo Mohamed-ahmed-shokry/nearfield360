@@ -128,6 +128,8 @@ class ZoneRisk:
     occupied_area_m2: float
     mean_occupancy: float | None
     max_occupancy: float | None
+    mean_uncertainty: float | None
+    max_uncertainty: float | None
 
 
 def risk_report(
@@ -157,6 +159,7 @@ def risk_report(
     if not isinstance(evidence, OccupancyEvidence):
         raise ValueError("evidence must be an OccupancyEvidence layer")
     occupancy = evidence.occupancy()
+    uncertainty = evidence.uncertainty()
     step = evidence.grid.resolution
     cell_area = step * step
     confident = evidence.observed >= min_evidence
@@ -172,6 +175,9 @@ def risk_report(
         values = occupancy[observed_mask]
         mean = float(np.mean(values)) if values.size > 0 else None
         maximum = float(np.max(values)) if values.size > 0 else None
+        unc_values = uncertainty[observed_mask]
+        mean_unc = float(np.mean(unc_values)) if unc_values.size > 0 else None
+        max_unc = float(np.max(unc_values)) if unc_values.size > 0 else None
         reports.append(
             ZoneRisk(
                 name=zone.name,
@@ -183,6 +189,8 @@ def risk_report(
                 occupied_area_m2=occupied_cells * cell_area,
                 mean_occupancy=mean,
                 max_occupancy=maximum,
+                mean_uncertainty=mean_unc,
+                max_uncertainty=max_unc,
             )
         )
     return tuple(reports)

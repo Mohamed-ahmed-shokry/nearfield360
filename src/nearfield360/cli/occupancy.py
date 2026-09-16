@@ -346,6 +346,8 @@ def occupancy_layer(
                 "occupied_area_m2": report.occupied_area_m2,
                 "mean_occupancy": report.mean_occupancy,
                 "max_occupancy": report.max_occupancy,
+                "mean_uncertainty": report.mean_uncertainty,
+                "max_uncertainty": report.max_uncertainty,
             }
             for report in reports
         ],
