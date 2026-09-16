@@ -185,3 +185,71 @@ def test_distance_weights_decay_with_distance_and_preserve_invalid() -> None:
     np.testing.assert_array_equal(distance_weights([0.0, 3.0]), np.ones(2))
     with pytest.raises(ValueError, match="slope"):
         distance_weights([1.0], slope=-1.0)
+
+
+def test_uncertainty_returns_nan_for_unknown_cells() -> None:
+    grid = _grid()
+    evidence = OccupancyEvidence(
+        grid=grid,
+        occupied=np.zeros(grid.shape, dtype=np.float64),
+        free=np.zeros(grid.shape, dtype=np.float64),
+        observed=np.zeros(grid.shape, dtype=np.int64),
+    )
+
+    result = evidence.uncertainty()
+    assert result.shape == grid.shape
+    assert np.all(np.isnan(result))
+
+
+def test_uncertainty_decreases_with_more_evidence() -> None:
+    grid = _grid()
+    occupied_low = np.zeros(grid.shape, dtype=np.float64)
+    free_low = np.zeros(grid.shape, dtype=np.float64)
+    observed_low = np.zeros(grid.shape, dtype=np.int64)
+    occupied_low[0, 0] = 1.0
+    free_low[0, 0] = 1.0
+    observed_low[0, 0] = 2
+    low = OccupancyEvidence(
+        grid=grid,
+        occupied=occupied_low,
+        free=free_low,
+        observed=observed_low,
+    )
+    occupied_high = np.zeros(grid.shape, dtype=np.float64)
+    free_high = np.zeros(grid.shape, dtype=np.float64)
+    observed_high = np.zeros(grid.shape, dtype=np.int64)
+    occupied_high[0, 0] = 10.0
+    free_high[0, 0] = 10.0
+    observed_high[0, 0] = 20
+    high = OccupancyEvidence(
+        grid=grid,
+        occupied=occupied_high,
+        free=free_high,
+        observed=observed_high,
+    )
+
+    low_unc = low.uncertainty()
+    high_unc = high.uncertainty()
+    assert low_unc[0, 0] > high_unc[0, 0]
+    assert not np.isnan(low_unc[0, 0])
+    assert np.isnan(low_unc[0, 1])
+
+
+def test_evidence_mass_returns_total_weighted_evidence() -> None:
+    grid = _grid()
+    occupied = np.zeros(grid.shape, dtype=np.float64)
+    free = np.zeros(grid.shape, dtype=np.float64)
+    observed = np.zeros(grid.shape, dtype=np.int64)
+    occupied[0, 0] = 2.5
+    free[0, 0] = 1.5
+    observed[0, 0] = 4
+    evidence = OccupancyEvidence(
+        grid=grid,
+        occupied=occupied,
+        free=free,
+        observed=observed,
+    )
+
+    mass = evidence.evidence_mass()
+    assert mass[0, 0] == pytest.approx(4.0)
+    assert mass[0, 1] == pytest.approx(0.0)
