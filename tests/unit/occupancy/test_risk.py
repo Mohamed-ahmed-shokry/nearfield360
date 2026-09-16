@@ -132,6 +132,26 @@ def test_risk_report_without_observed_zone_cells_uses_none() -> None:
     assert report.observed_cells == 0
     assert report.mean_occupancy is None
     assert report.max_occupancy is None
+    assert report.mean_uncertainty is None
+    assert report.max_uncertainty is None
+
+
+def test_risk_report_computes_uncertainty_metrics() -> None:
+    grid = _grid()
+    evidence = _evidence(
+        grid,
+        observed=[(0, 0), (0, 1)],
+        occupied=[(0, 0)],
+        free=[(0, 1)],
+    )
+    corridor = corridor_zone(grid, front_length=1.0, half_width=0.25, start=0.0)
+
+    report = risk_report([corridor], evidence)[0]
+    assert report.mean_uncertainty is not None
+    assert report.max_uncertainty is not None
+    assert 0.0 < report.mean_uncertainty < 1.0
+    assert 0.0 < report.max_uncertainty < 1.0
+    assert report.max_uncertainty >= report.mean_uncertainty
 
 
 def test_risk_report_validates_parameters() -> None:
