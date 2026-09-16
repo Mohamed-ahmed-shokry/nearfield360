@@ -22,12 +22,12 @@ the corresponding experiments have run.
 | --- | --- | --- |
 | Reproducible Python package | Implemented | Locked uv environment; wheel and sdist isolated-install smokes |
 | Typed configuration and logging | Implemented | Strict validation, environment overrides, human/JSON logs; geometry and BEV sections |
-| CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, and `data` commands |
+| CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, `data`, and `occupancy` commands |
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
 | WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration/detection contracts, integrity, statistics, explicit-group splits, semantic overlays; synthetic tests |
 | Fisheye calibration and geometry | Implemented core | Fourth-order radial projection/inverse, rigid transforms, vehicle cameras, surround rig, ground intersection, BEV grid; synthetic tests |
 | Segmentation and detection metrics | Implemented foundation | Numpy-only confusion/IoU and XYXY box IoU without models or accelerators |
-| BEV occupancy and risk | Implemented core | Weighted evidence rasterization, distance-decayed confidence, corridor/circle zones, danger thresholding, fusion and zone CLIs |
+| BEV occupancy and risk | Implemented | Multi-camera surround fusion (`--all-cameras`), Bayesian uncertainty propagation, 360-degree parking zones (corridors/clearance/circles), occupancy & uncertainty rendering |
 | Segmentation, detection, and tracking models | Planned | No model weights or training runs yet; no results reported |
 | Camera health | Planned | Soiling/temporal analysis unstarted |
 | ONNX, TensorRT, and C++ runtime | Planned | Optional native toolchains are not assumed to be installed |
@@ -98,9 +98,10 @@ uv run nearfield360 config show
 plane (`geometry.ground_z`), the footprint range gate (`geometry.max_distance`), the local
 BEV extent (`bev.x_min/x_max/y_min/y_max/resolution`), the occupancy policy
 (`occupancy.free_classes`/`occupied_classes`/`confidence_slope`/`min_evidence`), and the risk
-filter (`risk.front_length`/`half_width`/`start_x`/`danger_occupancy`). Older configuration
-files without the `geometry`, `bev`, `occupancy`, or `risk` sections continue to load with
-these defaults.
+filter (`risk.front_length`/`half_width`/`start_x`/`rear_length`/`rear_start_x`/`lateral_width`/
+`vehicle_x_min`/`vehicle_x_max`/`near_radius`/`warning_radius`/`danger_occupancy`). Older
+configuration files without the `geometry`, `bev`, `occupancy`, or `risk` sections continue to
+load with these defaults.
 
 Relative paths are interpreted from the process working directory. Dataset presence is not
 required for `--help`, `--version`, configuration validation, or the test suite.
@@ -121,26 +122,33 @@ unknown rather than extrapolated footprints.
 
 ### Occupancy fusion and risk
 
-Fuse all semantic-grounded frames into one local occupancy layer and score the configured
-zones. Only pixels whose class votes free/occupied are rasterized; every voter is weighted by
-`1 / (1 + confidence_slope * distance)` so distant measurements contribute less:
+Fuse semantic-grounded frames into a local bird's-eye-view occupancy layer and evaluate
+configured safety zones. Supports single-camera inspection or synchronized surround fusion
+(`--all-cameras` combining front, rear, left, and right cameras). Only pixels whose semantic
+class votes free or occupied are rasterized; each measurement is weighted by
+`1 / (1 + confidence_slope * distance)` so distant observations contribute less. Per-cell
+Bayesian uncertainty `Var(p) = (alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1))` is
+tracked alongside occupancy probability, with mean and maximum uncertainty reported per zone:
 
 ```powershell
-uv run nearfield360 occupancy layer --root D:\datasets\woodscape --camera FV --output outputs/occupancy/front.json --png outputs/occupancy/front.png
+uv run nearfield360 occupancy layer --root D:\datasets\woodscape --all-cameras --output outputs/occupancy/surround.json --png outputs/occupancy/surround.png --uncertainty-png outputs/occupancy/uncertainty.png
 uv run nearfield360 occupancy zones --json
 ```
 
-`--samples N` limits how many frames are fused (0 fuses all). Each layer report records the
-environment, active configuration, selected samples, per-zone confident/danger cell counts,
-and the fused grid. The PNG overlay shades observed cells from free (green) to occupied (red)
-with zone borders drawn on top. Unknown cells stay black.
+`--samples N` limits how many frames per camera are fused (0 fuses all). The command outputs a
+structured JSON risk report documenting active parameters, fused samples, per-zone cell metrics
+(total, confident, danger count, danger ratio, mean and max uncertainty), and grid matrices.
+Optional PNG outputs render:
+- `--png`: BEV occupancy map shading cells from free (green) to occupied (red) with vector zone
+  overlays (`forward_corridor`, `rear_corridor`, `left_clearance`, `right_clearance`,
+  `near_circle`, and `warning_circle`).
+- `--uncertainty-png`: Bayesian variance heatmap visualized using an inferno colormap.
 
 The scene-level policy is configurable: `occupancy.free_classes` vote for free space,
-`occupancy.occupied_classes` vote for occupancy, `min_evidence` gates which cells are
-confident, and `risk.danger_occupancy` is the occupancy share a confident cell must strictly
-exceed to count as dangerous. Single-frame CLIs (`geometry ground`) and multi-frame fusion
-(`occupancy layer`) share the same ray and grid model, so the pixel-to-footprint math is
-identical.
+`occupancy.occupied_classes` vote for occupancy, `min_evidence` gates cell confidence, and
+`risk.danger_occupancy` sets the occupancy threshold above which confident cells are marked
+dangerous. Single-frame CLIs (`geometry ground`) and multi-camera fusion (`occupancy layer`)
+share the identical ray, calibration, and grid models.
 
 ## Dataset policy
 
@@ -216,10 +224,13 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
    evaluation CLI exist; no models, training, or measured scores yet.
 4. Object detection, temporal tracking, and camera-soiling awareness. Next: detection parsing
    exists; tracking and soiling are unstarted.
-5. Multi-camera BEV fusion, uncertainty propagation, and transparent safety zones. Implemented
-   (core): weighted occupancy evidence, distance-decayed confidence, corridor/circle risk zones,
-   and fusion/zone CLIs; multi-camera fusion across views is next.
-6. Controlled robustness evaluation and automated plots.
+5. ~~Multi-camera BEV fusion, uncertainty propagation, and transparent safety zones.~~ Done
+   (core): 360-degree multi-camera surround fusion (`--all-cameras`), distance-decayed evidence
+   rasterization, per-cell Bayesian uncertainty estimation, transparent parking safety zones
+   (forward/rear corridors, lateral clearance, near/warning circles), and dual
+   occupancy/uncertainty map rendering.
+6. Controlled robustness evaluation and automated plots. Next: synthetic sensor corruption
+   benchmarking, calibration perturbation tests, and evaluation visualization scripts.
 7. ONNX parity, optional TensorRT benchmarking, and a modular C++ runtime.
 8. Integrated four-camera demo, measured performance report, and release audit.
 
