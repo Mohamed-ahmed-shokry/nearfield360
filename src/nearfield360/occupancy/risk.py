@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -96,6 +97,110 @@ def corridor_zone(
         & (np.abs(y_centers) <= half_width)
     )
     return RiskZone(name="forward_corridor", mask=inside)
+
+
+def rear_corridor_zone(
+    grid: BevGrid,
+    *,
+    rear_length: float,
+    half_width: float,
+    start: float = 0.0,
+) -> RiskZone:
+    """Build a rear driving corridor ``X`` in ``(-(start + rear_length), -start]``.
+
+    The corridor covers the backward collision path behind the vehicle
+    within the lateral span ``|Y| <= half_width``.
+    """
+    rear_length = _finite_number(rear_length, "rear_length", positive=True)
+    half_width = _finite_number(half_width, "half_width", positive=False)
+    start = _finite_number(start, "start", positive=False)
+    if half_width < 0.0:
+        raise ValueError("half_width must be non-negative")
+    if start < 0.0:
+        raise ValueError("start must be non-negative")
+    x_centers, y_centers = _centers(grid)
+    inside = (
+        (x_centers > -(start + rear_length))
+        & (x_centers <= -start)
+        & (np.abs(y_centers) <= half_width)
+    )
+    return RiskZone(name="rear_corridor", mask=inside)
+
+
+def lateral_clearance_zone(
+    grid: BevGrid,
+    side: Literal["left", "right"],
+    *,
+    width: float,
+    x_min: float,
+    x_max: float,
+    start_y: float = 0.0,
+) -> RiskZone:
+    """Build a side clearance zone along the vehicle flank.
+
+    ``side="left"`` monitors ``Y`` in ``[start_y, start_y + width)``;
+    ``side="right"`` monitors ``Y`` in ``(-(start_y + width), -start_y]``.
+    ``X`` is bounded in ``[x_min, x_max)``.
+    """
+    if side not in ("left", "right"):
+        raise ValueError(f"side must be 'left' or 'right', got {side!r}")
+    width = _finite_number(width, "width", positive=True)
+    start_y = _finite_number(start_y, "start_y", positive=False)
+    if start_y < 0.0:
+        raise ValueError("start_y must be non-negative")
+    x_min_val = _finite_number(x_min, "x_min", positive=False)
+    x_max_val = _finite_number(x_max, "x_max", positive=False)
+    if x_min_val >= x_max_val:
+        raise ValueError("x_min must be strictly less than x_max")
+
+    x_centers, y_centers = _centers(grid)
+    x_inside = (x_centers >= x_min_val) & (x_centers < x_max_val)
+    if side == "left":
+        y_inside = (y_centers >= start_y) & (y_centers < start_y + width)
+    else:
+        y_inside = (y_centers > -(start_y + width)) & (y_centers <= -start_y)
+    return RiskZone(name=f"{side}_clearance", mask=x_inside & y_inside)
+
+
+def surround_parking_zones(
+    grid: BevGrid,
+    *,
+    front_length: float = 3.0,
+    rear_length: float = 3.0,
+    half_width: float = 0.9,
+    start_x: float = 0.0,
+    rear_start_x: float = 0.0,
+    lateral_width: float = 0.8,
+    vehicle_x_min: float = -2.0,
+    vehicle_x_max: float = 2.0,
+    near_radius: float = 0.5,
+    warning_radius: float = 1.5,
+) -> tuple[RiskZone, ...]:
+    """Construct a full 360-degree suite of explainable parking risk zones."""
+    return (
+        corridor_zone(grid, front_length=front_length, half_width=half_width, start=start_x),
+        rear_corridor_zone(
+            grid, rear_length=rear_length, half_width=half_width, start=rear_start_x
+        ),
+        lateral_clearance_zone(
+            grid,
+            "left",
+            width=lateral_width,
+            x_min=vehicle_x_min,
+            x_max=vehicle_x_max,
+            start_y=half_width,
+        ),
+        lateral_clearance_zone(
+            grid,
+            "right",
+            width=lateral_width,
+            x_min=vehicle_x_min,
+            x_max=vehicle_x_max,
+            start_y=half_width,
+        ),
+        circular_zone(grid, center_xy=(0.0, 0.0), radius=near_radius, name="near_circle"),
+        circular_zone(grid, center_xy=(0.0, 0.0), radius=warning_radius, name="warning_circle"),
+    )
 
 
 def circular_zone(
@@ -201,6 +306,9 @@ __all__ = [
     "ZoneRisk",
     "circular_zone",
     "corridor_zone",
+    "lateral_clearance_zone",
+    "rear_corridor_zone",
     "risk_report",
+    "surround_parking_zones",
     "validate_zone_mask",
 ]

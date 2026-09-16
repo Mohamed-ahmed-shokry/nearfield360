@@ -7,13 +7,20 @@ from nearfield360.occupancy.risk import (
     RiskZone,
     circular_zone,
     corridor_zone,
+    lateral_clearance_zone,
+    rear_corridor_zone,
     risk_report,
+    surround_parking_zones,
     validate_zone_mask,
 )
 
 
 def _grid() -> BevGrid:
     return BevGrid(x_min=0.0, x_max=2.0, y_min=0.0, y_max=2.0, resolution=0.5)
+
+
+def _centered_grid() -> BevGrid:
+    return BevGrid(x_min=-2.0, x_max=2.0, y_min=-2.0, y_max=2.0, resolution=0.5)
 
 
 def test_corridor_zone_covers_the_forward_band() -> None:
@@ -24,6 +31,76 @@ def test_corridor_zone_covers_the_forward_band() -> None:
     assert zone.mask[0, 0] and zone.mask[0, 1]
     assert not zone.mask[0, 2]
     assert not zone.mask[1, 0]
+
+
+def test_rear_corridor_zone_covers_the_backward_band() -> None:
+    grid = _centered_grid()
+    zone = rear_corridor_zone(grid, rear_length=1.0, half_width=0.25, start=0.0)
+
+    assert zone.name == "rear_corridor"
+    assert zone.mask.shape == (8, 8)
+    # In BevGrid: row corresponds to Y, col corresponds to X
+    # Cols 2 (X=-0.75) and 3 (X=-0.25) are in (-1.0, 0.0]
+    # Rows 3 (Y=-0.25) and 4 (Y=+0.25) are in [-0.25, 0.25]
+    assert zone.mask[3, 2] and zone.mask[4, 3]
+    # Forward cells (col 4, X=0.25 > 0) are excluded
+    assert not zone.mask[3, 4]
+    # Cells further back (col 1, X=-1.25 <= -1.0) are excluded
+    assert not zone.mask[3, 1]
+
+
+def test_rear_corridor_zone_validates_parameters() -> None:
+    grid = _centered_grid()
+    with pytest.raises(ValueError, match="rear_length"):
+        rear_corridor_zone(grid, rear_length=0.0, half_width=0.5)
+    with pytest.raises(ValueError, match="half_width"):
+        rear_corridor_zone(grid, rear_length=1.0, half_width=-0.1)
+    with pytest.raises(ValueError, match="start"):
+        rear_corridor_zone(grid, rear_length=1.0, half_width=0.5, start=-0.5)
+
+
+def test_lateral_clearance_zone_covers_flanks() -> None:
+    grid = _centered_grid()
+    left_zone = lateral_clearance_zone(grid, "left", width=0.5, x_min=-1.0, x_max=1.0, start_y=0.25)
+    right_zone = lateral_clearance_zone(
+        grid, "right", width=0.5, x_min=-1.0, x_max=1.0, start_y=0.25
+    )
+
+    assert left_zone.name == "left_clearance"
+    assert right_zone.name == "right_clearance"
+    # left flank has Y in [0.25, 0.75), row 4 (Y=0.25) is inside, row 3 (Y=-0.25) is outside
+    assert left_zone.mask[4, 3]
+    assert not left_zone.mask[3, 3]
+    # right flank has Y in (-0.75, -0.25], row 3 (Y=-0.25) is inside, row 4 is outside
+    assert right_zone.mask[3, 3]
+    assert not right_zone.mask[4, 3]
+
+
+def test_lateral_clearance_zone_validates_parameters() -> None:
+    grid = _centered_grid()
+    with pytest.raises(ValueError, match="side"):
+        lateral_clearance_zone(grid, "top", width=0.5, x_min=-1.0, x_max=1.0)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="width"):
+        lateral_clearance_zone(grid, "left", width=0.0, x_min=-1.0, x_max=1.0)
+    with pytest.raises(ValueError, match="x_min"):
+        lateral_clearance_zone(grid, "left", width=0.5, x_min=1.0, x_max=-1.0)
+    with pytest.raises(ValueError, match="start_y"):
+        lateral_clearance_zone(grid, "left", width=0.5, x_min=-1.0, x_max=1.0, start_y=-0.1)
+
+
+def test_surround_parking_zones_creates_full_suite() -> None:
+    grid = _centered_grid()
+    zones = surround_parking_zones(grid)
+    names = {zone.name for zone in zones}
+    assert names == {
+        "forward_corridor",
+        "rear_corridor",
+        "left_clearance",
+        "right_clearance",
+        "near_circle",
+        "warning_circle",
+    }
+    assert all(zone.mask.shape == grid.shape for zone in zones)
 
 
 def test_corridor_zone_is_half_open_on_the_forward_edge() -> None:
