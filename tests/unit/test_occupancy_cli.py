@@ -131,3 +131,117 @@ def test_occupancy_zones_reports_configured_geometry(tmp_path: Path) -> None:
     names = [zone["name"] for zone in payload["zones"]]
     assert "forward_corridor" in names
     assert all(zone["cells"] > 0 for zone in payload["zones"])
+
+
+def _write_surround_dataset(root: Path, frame_ids: list[str]) -> None:
+    cameras = ["FV", "RV", "MVL", "MVR"]
+    for frame_id in frame_ids:
+        for cam in cameras:
+            stem = f"{frame_id}_{cam}"
+            (root / "rgb_images").mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(root / f"rgb_images/{stem}.png"), np.zeros((2, 3, 3), dtype=np.uint8))
+            (root / "semantic_annotations/gtLabels").mkdir(parents=True, exist_ok=True)
+            mask = np.array([[1, 1, 1], [6, 6, 6]], dtype=np.uint8)
+            cv2.imwrite(str(root / f"semantic_annotations/gtLabels/{stem}.png"), mask)
+            calib = root / f"calibration_data/{stem}.json"
+            calib.parent.mkdir(parents=True, exist_ok=True)
+            calib.write_text(
+                json.dumps(
+                    {
+                        "extrinsic": {
+                            "quaternion": list(_DOWN_QUATERNION),
+                            "translation": [0.0, 0.0, 1.0],
+                        },
+                        "intrinsic": {
+                            "aspect_ratio": 1.0,
+                            "cx_offset": 0.0,
+                            "cy_offset": 0.0,
+                            "height": 2,
+                            "k1": 100.0,
+                            "k2": 0.0,
+                            "k3": 0.0,
+                            "k4": 0.0,
+                            "model": "radial_poly",
+                            "poly_order": 4,
+                            "width": 3,
+                        },
+                        "name": cam,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+
+def test_occupancy_layer_all_cameras_fuses_surround_views(tmp_path: Path) -> None:
+    _write_surround_dataset(tmp_path, ["00001", "00002"])
+    output = tmp_path / "all_cameras_occupancy.json"
+    png = tmp_path / "all_cameras.png"
+
+    result = runner.invoke(
+        app,
+        [
+            "occupancy",
+            "layer",
+            "--all-cameras",
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(output),
+            "--png",
+            str(png),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "fused frame 00001" in result.stdout
+    assert "fused frame 00002" in result.stdout
+    payload = read_json(output)
+    assert payload["samples"]["camera"] == "all"
+    assert payload["samples"]["evaluated"] == 2
+    assert payload["samples"]["per_camera"] == {"FV": 2, "RV": 2, "MVL": 2, "MVR": 2}
+    assert payload["evidence"]["observed_cells"] > 0
+    assert (tmp_path / "all_cameras.png").is_file()
+
+
+def test_occupancy_layer_all_cameras_handles_incomplete_and_missing(tmp_path: Path) -> None:
+    # Frame 00001 only has FV (incomplete), frame 00002 has all 4 cameras
+    _write_dataset(tmp_path, camera="FV")
+    _write_surround_dataset(tmp_path, ["00002"])
+
+    out_file = tmp_path / "fused_surround.json"
+    result = runner.invoke(
+        app,
+        [
+            "occupancy",
+            "layer",
+            "--all-cameras",
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(out_file),
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Skipping frame 00001: missing cameras" in result.stderr
+    assert "fused frame 00002" in result.stdout
+    payload = read_json(out_file)
+    assert payload["samples"]["evaluated"] == 1
+
+
+def test_occupancy_layer_all_cameras_fails_when_no_complete_frame(tmp_path: Path) -> None:
+    _write_dataset(tmp_path, camera="FV")
+
+    result = runner.invoke(
+        app,
+        [
+            "occupancy",
+            "layer",
+            "--all-cameras",
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(tmp_path / "out.json"),
+        ],
+    )
+    assert result.exit_code == 1
+    assert "No frames with all four cameras" in result.stderr
