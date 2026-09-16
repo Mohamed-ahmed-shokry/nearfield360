@@ -358,83 +358,46 @@ def occupancy_layer(
     if all_cameras:
         frames = _select_all_cameras(context, root, samples)
         per_camera_counts: dict[str, int] = {cam.value: 0 for cam in CameraId}
-        fused = None
+        fused: OccupancyEvidence | None = None
         for frame_index, (frame_id, frame_samples) in enumerate(frames, start=1):
-            frame_evidence = None
+            frame_evidence: OccupancyEvidence | None = None
             for sample in frame_samples:
                 evidence = _frame_evidence(context, sample, grid, policy, theta_max)
                 per_camera_counts[sample.key.camera.value] += 1
-                frame_evidence = evidence if frame_evidence is None else frame_evidence.add(evidence)
-            fused = frame_evidence if fused is None else fused.add(frame_evidence)  # type: ignore[union-attr]
+                frame_evidence = (
+                    evidence if frame_evidence is None else frame_evidence.add(evidence)
+                )
+            if frame_evidence is not None:
+                fused = frame_evidence if fused is None else fused.add(frame_evidence)
             typer.echo(f"[{frame_index}/{len(frames)}] fused frame {frame_id}")
-        assert fused is not None  # guaranteed by _select_all_cameras non-empty check
-        min_evidence = get_state(context).config.occupancy.min_evidence
-        zones = _configured_zones(grid, context)
-        reports = risk_report(
-            zones,
-            fused,
-            min_evidence=min_evidence,
-            danger_occupancy=get_state(context).config.risk.danger_occupancy,
-        )
-        payload: dict[str, Any] = {
-            "environment": environment_metadata(),
-            "config": get_state(context).config.model_dump(mode="json"),
-            "samples": {
-                "requested": len(frames) if samples == 0 else samples,
-                "evaluated": len(frames),
-                "camera": "all",
-                "per_camera": per_camera_counts,
-            },
-            "grid": {
-                "x_min": grid.x_min,
-                "x_max": grid.x_max,
-                "y_min": grid.y_min,
-                "y_max": grid.y_max,
-                "resolution": grid.resolution,
-                "width": grid.width,
-                "height": grid.height,
-            },
-            "evidence": _evidence_summary(fused, min_evidence),
-            "zones": [_zone_summary(grid, zone) for zone in zones],
-            "risk": [
-                {
-                    "name": report.name,
-                    "cells": report.cells,
-                    "observed_cells": report.observed_cells,
-                    "occupied_cells": report.occupied_cells,
-                    "area_m2": report.area_m2,
-                    "observed_area_m2": report.observed_area_m2,
-                    "occupied_area_m2": report.occupied_area_m2,
-                    "mean_occupancy": report.mean_occupancy,
-                    "max_occupancy": report.max_occupancy,
-                    "mean_uncertainty": report.mean_uncertainty,
-                    "max_uncertainty": report.max_uncertainty,
-                }
-                for report in reports
-            ],
+        if fused is None:
+            typer.secho(
+                "No occupancy evidence could be fused.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        samples_payload: dict[str, Any] = {
+            "requested": len(frames) if samples == 0 else samples,
+            "evaluated": len(frames),
+            "camera": "all",
+            "per_camera": per_camera_counts,
         }
-        try:
-            write_json(output, payload, overwrite=overwrite)
-        except ArtifactError as exc:
-            typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
-            raise typer.Exit(code=1) from None
-        typer.echo(f"Wrote {output}")
-        if png is not None:
-            try:
-                _render_occupancy_png(grid, fused, zones, png)
-            except (OSError, ValueError) as exc:
-                typer.secho(f"PNG error: {exc}", fg=typer.colors.RED, err=True)
-                raise typer.Exit(code=1) from None
-        return
+    else:
+        selected = _select_samples(context, root, camera, samples)
+        first = selected[0]
+        fused = _frame_evidence(context, first, grid, policy, theta_max)
+        typer.echo(f"[1/{len(selected)}] fused {first.key.stem}")
+        for index, sample in enumerate(selected[1:], start=2):
+            frame = _frame_evidence(context, sample, grid, policy, theta_max)
+            fused = fused.add(frame)
+            typer.echo(f"[{index}/{len(selected)}] fused {sample.key.stem}")
+        samples_payload = {
+            "requested": len(selected) if samples == 0 else samples,
+            "evaluated": len(selected),
+            "camera": camera.value,
+        }
 
-    selected = _select_samples(context, root, camera, samples)
-    first = selected[0]
-    fused = _frame_evidence(context, first, grid, policy, theta_max)
-    typer.echo(f"[1/{len(selected)}] fused {first.key.stem}")
-    for index, sample in enumerate(selected[1:], start=2):
-        frame = _frame_evidence(context, sample, grid, policy, theta_max)
-        fused = fused.add(frame)
-        typer.echo(f"[{index}/{len(selected)}] fused {sample.key.stem}")
     min_evidence = get_state(context).config.occupancy.min_evidence
     zones = _configured_zones(grid, context)
     reports = risk_report(
@@ -443,14 +406,10 @@ def occupancy_layer(
         min_evidence=min_evidence,
         danger_occupancy=get_state(context).config.risk.danger_occupancy,
     )
-    payload = {
+    payload: dict[str, Any] = {
         "environment": environment_metadata(),
         "config": get_state(context).config.model_dump(mode="json"),
-        "samples": {
-            "requested": len(selected) if samples == 0 else samples,
-            "evaluated": len(selected),
-            "camera": camera.value,
-        },
+        "samples": samples_payload,
         "grid": {
             "x_min": grid.x_min,
             "x_max": grid.x_max,
