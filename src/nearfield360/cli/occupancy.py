@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from pathlib import Path
 from typing import Annotated, Any, cast
 
@@ -44,7 +45,7 @@ CameraOption = Annotated[
     typer.Option(
         "--camera",
         case_sensitive=True,
-        help="Camera view to fuse evidence from (FV, MV, ML, MR).",
+        help="Camera view to fuse evidence from (FV, RV, MVL, MVR).",
     ),
 ]
 
@@ -152,6 +153,52 @@ def _select_samples(
         )
         raise typer.Exit(code=1) from None
     return selected[:samples_limit] if samples_limit > 0 else selected
+
+
+def _select_all_cameras(
+    context: typer.Context, root: Path | None, samples_limit: int
+) -> list[tuple[str, list[WoodScapeSample]]]:
+    """Group samples by frame_id across all cameras.
+
+    Returns a list of ``(frame_id, [samples...])`` tuples where each frame
+    contains one sample per camera with calibration and semantic mask. Frames
+    with incomplete camera coverage are skipped with a warning.
+    """
+    dataset = discover_dataset(context, root)
+    by_frame: dict[str, list[WoodScapeSample]] = defaultdict(list)
+    for sample in dataset:
+        if sample.calibration_path is None or sample.semantic_mask_path is None:
+            continue
+        by_frame[sample.key.frame_id].append(sample)
+    frames = sorted(by_frame.keys())
+    complete_frames: list[tuple[str, list[WoodScapeSample]]] = []
+    for frame_id in frames:
+        cameras = {sample.key.camera for sample in by_frame[frame_id]}
+        missing = set(CameraId) - cameras
+        if missing:
+            missing_names = ", ".join(cam.value for cam in sorted(missing, key=lambda c: c.value))
+            typer.echo(
+                f"Skipping frame {frame_id}: missing cameras {missing_names}",
+                err=True,
+            )
+            continue
+        complete_frames.append((frame_id, by_frame[frame_id]))
+    if not complete_frames:
+        typer.secho(
+            "No frames with all four cameras and required annotations found.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+    if samples_limit > 0 and len(complete_frames) < samples_limit:
+        typer.secho(
+            f"Requested {samples_limit} frames but only {len(complete_frames)} complete "
+            "multi-camera frames found.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+    return complete_frames[:samples_limit] if samples_limit > 0 else complete_frames
 
 
 def _frame_evidence(
@@ -289,6 +336,13 @@ def occupancy_layer(
     output: OutputOption,
     root: DatasetRootOption = None,
     camera: CameraOption = CameraId.FRONT,
+    all_cameras: Annotated[
+        bool,
+        typer.Option(
+            "--all-cameras",
+            help="Fuse evidence from all four cameras per frame (overrides --camera).",
+        ),
+    ] = False,
     samples: Annotated[
         int,
         typer.Option("--samples", min=0, help="Number of frames to fuse (0 for all)."),
@@ -297,9 +351,82 @@ def occupancy_layer(
     png: PngOption = None,
     theta_max: ThetaMaxOption = None,
 ) -> None:
-    """Fuse semantic-grounded evidence from all frames into one occupancy layer."""
+    """Fuse semantic-grounded evidence into one occupancy layer."""
     grid = _configured_grid(context)
     policy = _configured_policy(context)
+
+    if all_cameras:
+        frames = _select_all_cameras(context, root, samples)
+        per_camera_counts: dict[str, int] = {cam.value: 0 for cam in CameraId}
+        fused = None
+        for frame_index, (frame_id, frame_samples) in enumerate(frames, start=1):
+            frame_evidence = None
+            for sample in frame_samples:
+                evidence = _frame_evidence(context, sample, grid, policy, theta_max)
+                per_camera_counts[sample.key.camera.value] += 1
+                frame_evidence = evidence if frame_evidence is None else frame_evidence.add(evidence)
+            fused = frame_evidence if fused is None else fused.add(frame_evidence)  # type: ignore[union-attr]
+            typer.echo(f"[{frame_index}/{len(frames)}] fused frame {frame_id}")
+        assert fused is not None  # guaranteed by _select_all_cameras non-empty check
+        min_evidence = get_state(context).config.occupancy.min_evidence
+        zones = _configured_zones(grid, context)
+        reports = risk_report(
+            zones,
+            fused,
+            min_evidence=min_evidence,
+            danger_occupancy=get_state(context).config.risk.danger_occupancy,
+        )
+        payload: dict[str, Any] = {
+            "environment": environment_metadata(),
+            "config": get_state(context).config.model_dump(mode="json"),
+            "samples": {
+                "requested": len(frames) if samples == 0 else samples,
+                "evaluated": len(frames),
+                "camera": "all",
+                "per_camera": per_camera_counts,
+            },
+            "grid": {
+                "x_min": grid.x_min,
+                "x_max": grid.x_max,
+                "y_min": grid.y_min,
+                "y_max": grid.y_max,
+                "resolution": grid.resolution,
+                "width": grid.width,
+                "height": grid.height,
+            },
+            "evidence": _evidence_summary(fused, min_evidence),
+            "zones": [_zone_summary(grid, zone) for zone in zones],
+            "risk": [
+                {
+                    "name": report.name,
+                    "cells": report.cells,
+                    "observed_cells": report.observed_cells,
+                    "occupied_cells": report.occupied_cells,
+                    "area_m2": report.area_m2,
+                    "observed_area_m2": report.observed_area_m2,
+                    "occupied_area_m2": report.occupied_area_m2,
+                    "mean_occupancy": report.mean_occupancy,
+                    "max_occupancy": report.max_occupancy,
+                    "mean_uncertainty": report.mean_uncertainty,
+                    "max_uncertainty": report.max_uncertainty,
+                }
+                for report in reports
+            ],
+        }
+        try:
+            write_json(output, payload, overwrite=overwrite)
+        except ArtifactError as exc:
+            typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
+        typer.echo(f"Wrote {output}")
+        if png is not None:
+            try:
+                _render_occupancy_png(grid, fused, zones, png)
+            except (OSError, ValueError) as exc:
+                typer.secho(f"PNG error: {exc}", fg=typer.colors.RED, err=True)
+                raise typer.Exit(code=1) from None
+        return
+
     selected = _select_samples(context, root, camera, samples)
     first = selected[0]
     fused = _frame_evidence(context, first, grid, policy, theta_max)
@@ -316,7 +443,7 @@ def occupancy_layer(
         min_evidence=min_evidence,
         danger_occupancy=get_state(context).config.risk.danger_occupancy,
     )
-    payload: dict[str, Any] = {
+    payload = {
         "environment": environment_metadata(),
         "config": get_state(context).config.model_dump(mode="json"),
         "samples": {
