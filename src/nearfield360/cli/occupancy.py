@@ -39,11 +39,6 @@ occupancy_app = typer.Typer(
     no_args_is_help=True,
 )
 
-occupancy_app = typer.Typer(
-    help="Fuse camera evidence onto a local BEV grid and score risk zones.",
-    no_args_is_help=True,
-)
-
 CameraOption = Annotated[
     CameraId,
     typer.Option(
@@ -85,15 +80,6 @@ OverwriteOption = Annotated[
     bool,
     typer.Option("--overwrite", help="Replace an existing occupancy artifact."),
 ]
-
-
-def _camera_choice(value: str) -> CameraId:
-    try:
-        return CameraId(value)
-    except ValueError as exc:  # pragma: no cover - typer already constrains choices
-        raise typer.BadParameter(
-            f"camera must be one of {', '.join(camera.value for camera in CameraId)}"
-        ) from exc
 
 
 def _configured_grid(context: typer.Context) -> BevGrid:
