@@ -65,15 +65,48 @@ def test_occupancy_layer_fuses_evidence_and_writes_report(tmp_path: Path) -> Non
     assert payload["samples"] == {"requested": 1, "evaluated": 1, "camera": "FV"}
     assert payload["grid"]["resolution"] == 0.05
     assert payload["evidence"]["observed_cells"] > 0
-    assert {"forward_corridor", "near_circle", "warning_circle"} == {
-        entry["name"] for entry in payload["zones"]
-    }
-    assert len(payload["risk"]) == 3
+    assert {
+        "forward_corridor",
+        "rear_corridor",
+        "left_clearance",
+        "right_clearance",
+        "near_circle",
+        "warning_circle",
+    } == {entry["name"] for entry in payload["zones"]}
+    assert len(payload["risk"]) == 6
     corridor = next(entry for entry in payload["risk"] if entry["name"] == "forward_corridor")
     assert corridor["cells"] > 0
     assert corridor["occupied_cells"] >= 0
+    assert "mean_uncertainty" in payload["evidence"]
     assert json.dumps(payload)  # fully JSON-serializable
     rendered = cv2.imread(str(png))
+    assert rendered is not None and rendered.shape[:2] == (240, 320)
+
+
+def test_occupancy_layer_renders_uncertainty_png(tmp_path: Path) -> None:
+    _write_dataset(tmp_path)
+    output = tmp_path / "reports/occupancy.json"
+    uncertainty_png = tmp_path / "uncertainty.png"
+
+    result = runner.invoke(
+        app,
+        [
+            "occupancy",
+            "layer",
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(output),
+            "--uncertainty-png",
+            str(uncertainty_png),
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = read_json(output)
+    assert payload["evidence"]["mean_uncertainty"] is not None
+    assert payload["evidence"]["max_uncertainty"] is not None
+    rendered = cv2.imread(str(uncertainty_png))
     assert rendered is not None and rendered.shape[:2] == (240, 320)
 
 

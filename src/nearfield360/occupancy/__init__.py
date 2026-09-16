@@ -14,7 +14,10 @@ from nearfield360.occupancy.risk import (
     ZoneRisk,
     circular_zone,
     corridor_zone,
+    lateral_clearance_zone,
+    rear_corridor_zone,
     risk_report,
+    surround_parking_zones,
     validate_zone_mask,
 )
 
@@ -29,7 +32,10 @@ __all__ = [
     "corridor_zone",
     "distance_weights",
     "fuse_occupancy",
+    "lateral_clearance_zone",
     "rasterize_occupancy",
+    "rear_corridor_zone",
     "risk_report",
+    "surround_parking_zones",
     "validate_zone_mask",
 ]

@@ -26,11 +26,10 @@ from nearfield360.occupancy import (
     OccupancyPolicy,
     OccupancyPolicyError,
     RiskZone,
-    circular_zone,
-    corridor_zone,
     distance_weights,
     rasterize_occupancy,
     risk_report,
+    surround_parking_zones,
 )
 from nearfield360.perception.evaluation import environment_metadata
 from nearfield360.utils.artifacts import ArtifactError, write_json
@@ -74,6 +73,15 @@ PngOption = Annotated[
         "--png",
         resolve_path=True,
         help="Optional PNG visualization of the fused occupancy and zones.",
+    ),
+]
+
+UncertaintyPngOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--uncertainty-png",
+        resolve_path=True,
+        help="Optional PNG visualization of per-cell Bayesian occupancy uncertainty.",
     ),
 ]
 
@@ -246,16 +254,21 @@ def _frame_evidence(
 
 def _configured_zones(grid: BevGrid, context: typer.Context) -> list[RiskZone]:
     config = get_state(context).config.risk
-    return [
-        corridor_zone(
+    return list(
+        surround_parking_zones(
             grid,
             front_length=config.front_length,
+            rear_length=config.rear_length,
             half_width=config.half_width,
-            start=config.start_x,
-        ),
-        circular_zone(grid, center_xy=(0.0, 0.0), radius=0.5, name="near_circle"),
-        circular_zone(grid, center_xy=(0.0, 0.0), radius=1.5, name="warning_circle"),
-    ]
+            start_x=config.start_x,
+            rear_start_x=config.rear_start_x,
+            lateral_width=config.lateral_width,
+            vehicle_x_min=config.vehicle_x_min,
+            vehicle_x_max=config.vehicle_x_max,
+            near_radius=config.near_radius,
+            warning_radius=config.warning_radius,
+        )
+    )
 
 
 def _zone_summary(grid: BevGrid, zone: RiskZone) -> dict[str, Any]:
@@ -293,6 +306,9 @@ def _border(mask: np.ndarray) -> NDArray[np.bool_]:
 
 _ZONE_COLORS = {
     "forward_corridor": (0, 255, 255),
+    "rear_corridor": (0, 165, 255),
+    "left_clearance": (255, 191, 0),
+    "right_clearance": (255, 144, 30),
     "near_circle": (255, 255, 255),
     "warning_circle": (255, 0, 255),
 }
@@ -318,15 +334,40 @@ def _render_occupancy_png(
     typer.echo(f"Wrote {path}")
 
 
+def _render_uncertainty_png(
+    grid: BevGrid, evidence: OccupancyEvidence, zones: list[RiskZone], path: Path
+) -> None:
+    uncertainty = evidence.uncertainty()
+    observed = evidence.observed > 0
+    norm_unc = np.zeros(grid.shape, dtype=np.uint8)
+    if np.any(observed):
+        clipped = np.clip(np.nan_to_num(uncertainty, nan=0.0) / 0.5, 0.0, 1.0)
+        norm_unc[observed] = np.asarray(clipped[observed] * 255.0, dtype=np.uint8)
+    colored = cv2.applyColorMap(norm_unc, cv2.COLORMAP_INFERNO)
+    colored[~observed] = (0, 0, 0)
+    for zone in zones:
+        color = _ZONE_COLORS.get(zone.name, (128, 128, 128))
+        for row, col in np.argwhere(_border(zone.mask)):
+            colored[row, col] = color
+    if not cv2.imwrite(str(path), colored):
+        raise ValueError(f"unable to write PNG: {path}")
+    typer.echo(f"Wrote {path}")
+
+
 def _evidence_summary(evidence: OccupancyEvidence, min_evidence: int) -> dict[str, Any]:
     confident = evidence.observed >= min_evidence
     occupancy = evidence.occupancy()[confident]
-    mean = float(np.mean(occupancy)) if occupancy.size else None
+    uncertainty = evidence.uncertainty()[confident]
+    mean_occ = float(np.mean(occupancy)) if occupancy.size else None
+    mean_unc = float(np.mean(uncertainty)) if uncertainty.size else None
+    max_unc = float(np.max(uncertainty)) if uncertainty.size else None
     return {
         "cells": evidence.grid.height * evidence.grid.width,
         "observed_cells": int(confident.sum()),
         "observations": int(evidence.observed.sum()),
-        "mean_occupancy": mean,
+        "mean_occupancy": mean_occ,
+        "mean_uncertainty": mean_unc,
+        "max_uncertainty": max_unc,
     }
 
 
@@ -349,6 +390,7 @@ def occupancy_layer(
     ] = 0,
     overwrite: OverwriteOption = False,
     png: PngOption = None,
+    uncertainty_png: UncertaintyPngOption = None,
     theta_max: ThetaMaxOption = None,
 ) -> None:
     """Fuse semantic-grounded evidence into one occupancy layer."""
@@ -449,6 +491,12 @@ def occupancy_layer(
             _render_occupancy_png(grid, fused, zones, png)
         except (OSError, ValueError) as exc:
             typer.secho(f"PNG error: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
+    if uncertainty_png is not None:
+        try:
+            _render_uncertainty_png(grid, fused, zones, uncertainty_png)
+        except (OSError, ValueError) as exc:
+            typer.secho(f"Uncertainty PNG error: {exc}", fg=typer.colors.RED, err=True)
             raise typer.Exit(code=1) from None
 
 
