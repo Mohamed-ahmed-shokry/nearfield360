@@ -1,0 +1,21 @@
+"""Controlled robustness evaluation, synthetic corruptions, and diagnostic plots."""
+
+from __future__ import annotations
+
+from nearfield360.robustness.corruptions import (
+    CorruptionType,
+    apply_fog,
+    apply_lens_soiling,
+    apply_low_light_noise,
+    apply_rain,
+    apply_sensor_corruption,
+)
+
+__all__ = [
+    "CorruptionType",
+    "apply_fog",
+    "apply_lens_soiling",
+    "apply_low_light_noise",
+    "apply_rain",
+    "apply_sensor_corruption",
+]
