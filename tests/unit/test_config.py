@@ -157,3 +157,45 @@ def test_risk_config_validates_bounds(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="rear_length"):
         load_config(config_path)
+
+
+def test_robustness_config_defaults() -> None:
+    config = load_config()
+
+    assert config.robustness.severities == (1, 2, 3, 4, 5)
+    assert config.robustness.rotation_perturbations_deg == (0.5, 1.0, 2.0, 3.0, 5.0)
+    assert config.robustness.translation_perturbations_m == (0.02, 0.05, 0.10)
+    assert config.robustness.seed == 42
+
+
+def test_robustness_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("robustness:\n  seed: 99\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_ROBUSTNESS__SEED", "123")
+
+    config = load_config(config_path)
+
+    assert config.robustness.seed == 123
+
+
+@pytest.mark.parametrize(
+    ("field", "bad_value", "pattern"),
+    [
+        ("severities", "[0, 1]", "severity 0"),
+        ("severities", "[1, 6]", "severity 6"),
+        ("severities", "[]", "severities must not be empty"),
+        ("rotation_perturbations_deg", "[-0.5]", "must be non-negative"),
+        ("translation_perturbations_m", "[-0.01]", "must be non-negative"),
+    ],
+)
+def test_robustness_config_validates_fields(
+    tmp_path: Path, field: str, bad_value: str, pattern: str
+) -> None:
+    config_path = tmp_path / "invalid-robustness.yaml"
+    config_path.write_text(f"robustness:\n  {field}: {bad_value}\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=pattern):
+        load_config(config_path)
+

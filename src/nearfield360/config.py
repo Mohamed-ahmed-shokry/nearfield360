@@ -115,6 +115,37 @@ class RiskConfig(BaseModel):
     danger_occupancy: float = Field(default=0.5, ge=0.0, le=1.0)
 
 
+class RobustnessConfig(BaseModel):
+    """Controlled perturbation and corruption benchmark options."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    severities: tuple[int, ...] = (1, 2, 3, 4, 5)
+    rotation_perturbations_deg: tuple[float, ...] = (0.5, 1.0, 2.0, 3.0, 5.0)
+    translation_perturbations_m: tuple[float, ...] = (0.02, 0.05, 0.10)
+    seed: int = Field(default=42, ge=0, le=2**32 - 1)
+
+    @field_validator("severities")
+    @classmethod
+    def validate_severities(cls, values: tuple[int, ...]) -> tuple[int, ...]:
+        if not values:
+            raise ValueError("severities must not be empty")
+        for s in values:
+            if s < 1 or s > 5:
+                raise ValueError(f"severity {s} out of bounds [1, 5]")
+        return values
+
+    @field_validator("rotation_perturbations_deg", "translation_perturbations_m")
+    @classmethod
+    def validate_non_negative_floats(cls, values: tuple[float, ...]) -> tuple[float, ...]:
+        if not values:
+            raise ValueError("perturbation list must not be empty")
+        for v in values:
+            if v < 0.0:
+                raise ValueError(f"perturbation value {v} must be non-negative")
+        return values
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -138,6 +169,7 @@ class ProjectConfig(BaseSettings):
     bev: BevConfig = Field(default_factory=BevConfig)
     occupancy: OccupancyConfig = Field(default_factory=OccupancyConfig)
     risk: RiskConfig = Field(default_factory=RiskConfig)
+    robustness: RobustnessConfig = Field(default_factory=RobustnessConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -191,6 +223,7 @@ __all__ = [
     "PathsConfig",
     "ProjectConfig",
     "RiskConfig",
+    "RobustnessConfig",
     "RuntimeConfig",
     "load_config",
 ]

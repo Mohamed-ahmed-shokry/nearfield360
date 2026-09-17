@@ -43,3 +43,22 @@ risk:
   near_radius: 0.5
   warning_radius: 1.5
   danger_occupancy: 0.5
+robustness:
+  severities:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  rotation_perturbations_deg:
+    - 0.5
+    - 1.0
+    - 2.0
+    - 3.0
+    - 5.0
+  translation_perturbations_m:
+    - 0.02
+    - 0.05
+    - 0.10
+  seed: 42
+
