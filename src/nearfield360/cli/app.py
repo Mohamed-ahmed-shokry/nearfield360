@@ -17,6 +17,7 @@ from nearfield360.cli.data_commands import data_app
 from nearfield360.cli.eval import eval_app
 from nearfield360.cli.geometry import geometry_app
 from nearfield360.cli.occupancy import occupancy_app
+from nearfield360.cli.robustness import robustness_app
 from nearfield360.cli.state import CliState, get_state
 from nearfield360.config import ConfigurationError, LoggingConfig, ProjectConfig, load_config
 from nearfield360.logging import configure_logging
@@ -44,6 +45,7 @@ app.add_typer(data_app, name="data")
 app.add_typer(eval_app, name="eval")
 app.add_typer(geometry_app, name="geometry")
 app.add_typer(occupancy_app, name="occupancy")
+app.add_typer(robustness_app, name="robustness")
 
 
 def _version_callback(value: bool) -> None:
