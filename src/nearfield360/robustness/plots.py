@@ -165,9 +165,7 @@ def render_svg_line_chart(
     for s_idx, (name, points) in enumerate(series_dict.items()):
         color = PALETTE[s_idx % len(PALETTE)]
         valid_pts = [
-            (to_svg_x(x), to_svg_y(y))
-            for x, y in points
-            if np.isfinite(x) and np.isfinite(y)
+            (to_svg_x(x), to_svg_y(y)) for x, y in points if np.isfinite(x) and np.isfinite(y)
         ]
         if not valid_pts:
             continue
@@ -195,9 +193,7 @@ def render_svg_line_chart(
             f'<line x1="{legend_x}" y1="{entry_y}" x2="{legend_x + 18}" y2="{entry_y}" '
             f'stroke="{color}" stroke-width="2.5"/>'
         )
-        svg.append(
-            f'<circle cx="{legend_x + 9}" cy="{entry_y}" r="3.5" fill="{color}"/>'
-        )
+        svg.append(f'<circle cx="{legend_x + 9}" cy="{entry_y}" r="3.5" fill="{color}"/>')
         svg.append(
             f'<text x="{legend_x + 26}" y="{entry_y + 4}" font-size="12" fill="#334155">'
             f"{html.escape(name)}</text>"
@@ -336,10 +332,10 @@ def render_raster_line_chart(
 
     # Palette in BGR for OpenCV
     bgr_palette = [
-        (235, 99, 37),   # Blue
-        (38, 38, 220),   # Red
-        (74, 163, 22),   # Green
-        (6, 119, 217),   # Amber
+        (235, 99, 37),  # Blue
+        (38, 38, 220),  # Red
+        (74, 163, 22),  # Green
+        (6, 119, 217),  # Amber
         (234, 51, 147),  # Purple
     ]
 
@@ -349,9 +345,7 @@ def render_raster_line_chart(
     for s_idx, (name, points) in enumerate(series_dict.items()):
         color = bgr_palette[s_idx % len(bgr_palette)]
         valid_pts = [
-            (to_cv_x(x), to_cv_y(y))
-            for x, y in points
-            if np.isfinite(x) and np.isfinite(y)
+            (to_cv_x(x), to_cv_y(y)) for x, y in points if np.isfinite(x) and np.isfinite(y)
         ]
         for idx in range(len(valid_pts) - 1):
             cv2.line(canvas, valid_pts[idx], valid_pts[idx + 1], color, 2, lineType=cv2.LINE_AA)
@@ -425,19 +419,11 @@ def generate_robustness_html_dashboard(
     )
 
     # Compute key performance indicators
-    max_corr_mae = max(
-        (rec["occupancy_metrics"]["mae"] for rec in corr_sweeps), default=0.0
-    )
-    max_calib_mae = max(
-        (rec["occupancy_metrics"]["mae"] for rec in calib_sweeps), default=0.0
-    )
-    worst_corr = max(
-        corr_sweeps, key=lambda r: r["occupancy_metrics"]["mae"], default=None
-    )
+    max_corr_mae = max((rec["occupancy_metrics"]["mae"] for rec in corr_sweeps), default=0.0)
+    max_calib_mae = max((rec["occupancy_metrics"]["mae"] for rec in calib_sweeps), default=0.0)
+    worst_corr = max(corr_sweeps, key=lambda r: r["occupancy_metrics"]["mae"], default=None)
     worst_corr_name = (
-        f"{worst_corr['corruption']} (sev {worst_corr['severity']})"
-        if worst_corr
-        else "N/A"
+        f"{worst_corr['corruption']} (sev {worst_corr['severity']})" if worst_corr else "N/A"
     )
 
     html_content = f"""<!DOCTYPE html>
@@ -540,9 +526,9 @@ def generate_robustness_html_dashboard(
   <div class="container">
     <h1>{html.escape(title)}</h1>
     <div class="meta">
-      NearField360 v{html.escape(str(env.get('nearfield360_version', '0.1.0')))} &bull;
-      Python {html.escape(str(env.get('python_version', '3.12')))} &bull;
-      Platform {html.escape(str(env.get('platform', 'unknown')))}
+      NearField360 v{html.escape(str(env.get("nearfield360_version", "0.1.0")))} &bull;
+      Python {html.escape(str(env.get("python_version", "3.12")))} &bull;
+      Platform {html.escape(str(env.get("platform", "unknown")))}
     </div>
 
     <div class="kpi-grid">
@@ -592,12 +578,12 @@ def generate_robustness_html_dashboard(
     for rec in corr_sweeps:
         occ = rec["occupancy_metrics"]
         html_content += f"""          <tr>
-            <td>{html.escape(str(rec['corruption']))}</td>
-            <td>{rec['severity']}</td>
-            <td>{occ['mae']:.4f}</td>
-            <td>{occ['occupied_iou']:.4f}</td>
-            <td>{occ['free_iou']:.4f}</td>
-            <td>{occ['uncertainty_shift']:+.4f}</td>
+            <td>{html.escape(str(rec["corruption"]))}</td>
+            <td>{rec["severity"]}</td>
+            <td>{occ["mae"]:.4f}</td>
+            <td>{occ["occupied_iou"]:.4f}</td>
+            <td>{occ["free_iou"]:.4f}</td>
+            <td>{occ["uncertainty_shift"]:+.4f}</td>
           </tr>
 """
 
@@ -624,13 +610,13 @@ def generate_robustness_html_dashboard(
     for rec in calib_sweeps:
         occ = rec["occupancy_metrics"]
         html_content += f"""          <tr>
-            <td>{html.escape(str(rec['axis']))}</td>
-            <td>{html.escape(str(rec['unit']))}</td>
-            <td>{rec['magnitude']}</td>
-            <td>{occ['mae']:.4f}</td>
-            <td>{occ['occupied_iou']:.4f}</td>
-            <td>{occ['free_iou']:.4f}</td>
-            <td>{occ['uncertainty_shift']:+.4f}</td>
+            <td>{html.escape(str(rec["axis"]))}</td>
+            <td>{html.escape(str(rec["unit"]))}</td>
+            <td>{rec["magnitude"]}</td>
+            <td>{occ["mae"]:.4f}</td>
+            <td>{occ["occupied_iou"]:.4f}</td>
+            <td>{occ["free_iou"]:.4f}</td>
+            <td>{occ["uncertainty_shift"]:+.4f}</td>
           </tr>
 """
 

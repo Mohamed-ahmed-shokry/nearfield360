@@ -122,9 +122,7 @@ def corrupt_image_command(
     output.parent.mkdir(parents=True, exist_ok=True)
     bgr = cv2.cvtColor(corrupted_rgb, cv2.COLOR_RGB2BGR)
     cv2.imwrite(str(output), bgr)
-    typer.echo(
-        f"Saved corrupted image ({corruption_type.value}, severity {severity}) to {output}"
-    )
+    typer.echo(f"Saved corrupted image ({corruption_type.value}, severity {severity}) to {output}")
 
 
 @robustness_app.command("perturb-calibration")
@@ -317,9 +315,7 @@ def benchmark_command(
                 valid=valid,
             )
             clean_evidence = (
-                frame_evidence
-                if clean_evidence is None
-                else clean_evidence.add(frame_evidence)
+                frame_evidence if clean_evidence is None else clean_evidence.add(frame_evidence)
             )
             fused_count += 1
             if fused_count >= samples_limit:

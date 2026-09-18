@@ -198,4 +198,3 @@ def test_robustness_config_validates_fields(
 
     with pytest.raises(ValidationError, match=pattern):
         load_config(config_path)
-
