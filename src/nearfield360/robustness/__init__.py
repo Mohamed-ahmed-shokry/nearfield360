@@ -26,6 +26,11 @@ from nearfield360.robustness.corruptions import (
     apply_rain,
     apply_sensor_corruption,
 )
+from nearfield360.robustness.plots import (
+    generate_robustness_html_dashboard,
+    render_raster_line_chart,
+    render_svg_line_chart,
+)
 
 __all__ = [
     "CorruptionType",
@@ -40,9 +45,12 @@ __all__ = [
     "compare_occupancy_grids",
     "compare_zone_risks",
     "euler_to_rotation_matrix",
+    "generate_robustness_html_dashboard",
     "perturb_calibrated_camera",
     "perturb_camera_calibration",
     "perturb_rigid_transform",
+    "render_raster_line_chart",
+    "render_svg_line_chart",
     "rotation_matrix_to_quaternion",
     "run_calibration_sweep",
     "run_corruption_sweep",
