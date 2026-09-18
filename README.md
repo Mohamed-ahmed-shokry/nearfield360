@@ -22,12 +22,13 @@ the corresponding experiments have run.
 | --- | --- | --- |
 | Reproducible Python package | Implemented | Locked uv environment; wheel and sdist isolated-install smokes |
 | Typed configuration and logging | Implemented | Strict validation, environment overrides, human/JSON logs; geometry and BEV sections |
-| CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, `data`, and `occupancy` commands |
+| CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, `data`, `occupancy`, and `robustness` commands |
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
 | WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration/detection contracts, integrity, statistics, explicit-group splits, semantic overlays; synthetic tests |
 | Fisheye calibration and geometry | Implemented core | Fourth-order radial projection/inverse, rigid transforms, vehicle cameras, surround rig, ground intersection, BEV grid; synthetic tests |
 | Segmentation and detection metrics | Implemented foundation | Numpy-only confusion/IoU and XYXY box IoU without models or accelerators |
 | BEV occupancy and risk | Implemented | Multi-camera surround fusion (`--all-cameras`), Bayesian uncertainty propagation, 360-degree parking zones (corridors/clearance/circles), occupancy & uncertainty rendering |
+| Controlled robustness evaluation | Implemented | Synthetic sensor corruptions (soiling, fog, noise, rain), extrinsic calibration perturbation engine, quantitative metrics (occupancy MAE, IoU, risk error), SVG/PNG charts, interactive HTML report dashboard |
 | Segmentation, detection, and tracking models | Planned | No model weights or training runs yet; no results reported |
 | Camera health | Planned | Soiling/temporal analysis unstarted |
 | ONNX, TensorRT, and C++ runtime | Planned | Optional native toolchains are not assumed to be installed |
@@ -99,9 +100,10 @@ plane (`geometry.ground_z`), the footprint range gate (`geometry.max_distance`),
 BEV extent (`bev.x_min/x_max/y_min/y_max/resolution`), the occupancy policy
 (`occupancy.free_classes`/`occupied_classes`/`confidence_slope`/`min_evidence`), and the risk
 filter (`risk.front_length`/`half_width`/`start_x`/`rear_length`/`rear_start_x`/`lateral_width`/
-`vehicle_x_min`/`vehicle_x_max`/`near_radius`/`warning_radius`/`danger_occupancy`). Older
-configuration files without the `geometry`, `bev`, `occupancy`, or `risk` sections continue to
-load with these defaults.
+`vehicle_x_min`/`vehicle_x_max`/`near_radius`/`warning_radius`/`danger_occupancy`), and the robustness
+benchmark settings (`robustness.severities`/`seed`/`rotation_perturbations_deg`/
+`translation_perturbations_m`). Older configuration files without these sections continue to load with
+these defaults.
 
 Relative paths are interpreted from the process working directory. Dataset presence is not
 required for `--help`, `--version`, configuration validation, or the test suite.
@@ -149,6 +151,36 @@ The scene-level policy is configurable: `occupancy.free_classes` vote for free s
 `risk.danger_occupancy` sets the occupancy threshold above which confident cells are marked
 dangerous. Single-frame CLIs (`geometry ground`) and multi-camera fusion (`occupancy layer`)
 share the identical ray, calibration, and grid models.
+
+### Robustness evaluation and diagnostic plots
+
+Evaluate BEV occupancy resilience under controlled sensor corruptions and extrinsic calibration
+misalignment, and export publication-quality diagnostic plots or interactive HTML dashboards:
+
+```powershell
+# 1. Apply synthetic sensor corruptions (lens_soiling, fog, low_light_noise, rain)
+uv run nearfield360 robustness corrupt --image sample.png --type lens_soiling --severity 3 --output outputs/soiled.png
+
+# 2. Simulate extrinsic calibration misalignment (Euler rotation angles and translation deltas)
+uv run nearfield360 robustness perturb-calibration --calibration D:\datasets\woodscape\calibration_data\00001_FV.json --roll 2.0 --dx 0.1 --output outputs/perturbed_calib.json
+
+# 3. Run full automated robustness benchmark sweeps against clean ground truth
+uv run nearfield360 robustness benchmark --root D:\datasets\woodscape --camera FV --samples 5 --output outputs/robustness/report.json
+
+# 4. Generate SVG vector charts, raster PNGs, and a self-contained interactive HTML dashboard
+uv run nearfield360 robustness plot --report outputs/robustness/report.json --output-dir outputs/robustness/plots
+```
+
+The benchmark computes quantitative degradation metrics across corruptions and calibration axes:
+- **Occupancy Mean Absolute Error (MAE):** Difference in occupancy probability against clean ground truth.
+- **Occupied & Free Space IoU:** Cell-level binary segmentation preservation at the configured risk threshold.
+- **Bayesian Uncertainty Shift:** Mean shift in Dirichlet/Beta variance across observed BEV cells.
+- **Parking Safety Zone Risk Error:** Absolute error in zone-level occupied risk cell count.
+
+The `plot` subcommand generates:
+- Pure-Python vector SVG performance degradation curves (`corruption_degradation.svg`, `calibration_sensitivity.svg`).
+- OpenCV rasterized PNG comparison charts (`corruption_degradation.png`, `calibration_sensitivity.png`).
+- A self-contained, responsive HTML diagnostic dashboard (`index.html`) with embedded vector charts, metric tables, and environmental metadata.
 
 ## Dataset policy
 
@@ -229,9 +261,13 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
    rasterization, per-cell Bayesian uncertainty estimation, transparent parking safety zones
    (forward/rear corridors, lateral clearance, near/warning circles), and dual
    occupancy/uncertainty map rendering.
-6. Controlled robustness evaluation and automated plots. Next: synthetic sensor corruption
-   benchmarking, calibration perturbation tests, and evaluation visualization scripts.
-7. ONNX parity, optional TensorRT benchmarking, and a modular C++ runtime.
+6. ~~Controlled robustness evaluation and automated plots.~~ Done (core): synthetic sensor corruptions
+   (lens soiling, fog, low-light noise, rain), extrinsic calibration perturbation engine (Euler
+   rotations and 3D translation shifts), quantitative occupancy/risk degradation benchmark runner,
+   pure-Python vector SVG and OpenCV raster PNG plot engines, self-contained interactive HTML
+   dashboard, and Typer `robustness` CLI suite.
+7. ONNX parity, optional TensorRT benchmarking, and a modular C++ runtime. Next: PyTorch model
+   integration, ONNX export with numerical parity testing, and execution profiling.
 8. Integrated four-camera demo, measured performance report, and release audit.
 
 ## License
