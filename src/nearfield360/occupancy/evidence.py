@@ -154,6 +154,24 @@ class OccupancyEvidence:
             observed=self.observed + other.observed,
         )
 
+    def scale(self, factor: float) -> OccupancyEvidence:
+        """Return a new layer with weighted evidence multiplied by a non-negative scalar factor.
+
+        Useful for health-aware confidence discounting where evidence from degraded
+        or soiled cameras is attenuated before multi-camera fusion.
+        """
+        if not isinstance(factor, (int, float)) or isinstance(factor, bool):
+            raise ValueError("factor must be a real numeric scalar")
+        factor_val = float(factor)
+        if not np.isfinite(factor_val) or factor_val < 0.0:
+            raise ValueError("factor must be non-negative and finite")
+        return OccupancyEvidence(
+            grid=self.grid,
+            occupied=self.occupied * factor_val,
+            free=self.free * factor_val,
+            observed=self.observed,
+        )
+
     def __add__(self, other: OccupancyEvidence) -> OccupancyEvidence:
         return self.add(other)
 

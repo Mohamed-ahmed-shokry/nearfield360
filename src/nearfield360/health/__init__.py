@@ -9,6 +9,7 @@ from nearfield360.health.detector import (
     detect_blockage,
     detect_lens_soiling,
 )
+from nearfield360.health.discount import apply_health_discount
 from nearfield360.health.models import (
     CameraHealthMetrics,
     CameraHealthReport,
@@ -21,6 +22,7 @@ __all__ = [
     "CameraHealthReport",
     "CameraHealthStatus",
     "HealthAnomaly",
+    "apply_health_discount",
     "assess_camera_health",
     "calculate_blur_score",
     "calculate_photometric_properties",
