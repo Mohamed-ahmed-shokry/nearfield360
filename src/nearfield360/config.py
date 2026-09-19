@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 MAX_CONFIG_BYTES = 1024 * 1024
@@ -146,6 +146,43 @@ class RobustnessConfig(BaseModel):
         return values
 
 
+class CameraHealthConfig(BaseModel):
+    """Thresholds and parameters for fisheye camera health assessment."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    soiling_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    blur_threshold: float = Field(default=100.0, gt=0.0)
+    min_brightness: float = Field(default=15.0, ge=0.0, le=255.0)
+    max_brightness: float = Field(default=240.0, ge=0.0, le=255.0)
+    blockage_ratio_threshold: float = Field(default=0.4, ge=0.0, le=1.0)
+    discount_factor: float = Field(default=0.5, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_brightness_range(self) -> Self:
+        if self.min_brightness >= self.max_brightness:
+            raise ValueError(
+                f"min_brightness ({self.min_brightness}) must be less than "
+                f"max_brightness ({self.max_brightness})"
+            )
+        return self
+
+
+class TrackingConfig(BaseModel):
+    """Parameters for multi-camera 2D metric Kalman tracking on the BEV plane."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    dt: float = Field(default=0.1, gt=0.0)
+    max_distance: float = Field(default=2.5, gt=0.0)
+    min_hits: int = Field(default=3, ge=1)
+    max_age: int = Field(default=5, ge=1)
+    process_noise_pos: float = Field(default=0.5, gt=0.0)
+    process_noise_vel: float = Field(default=1.0, gt=0.0)
+    measurement_noise: float = Field(default=0.5, gt=0.0)
+    forecast_horizon_s: float = Field(default=3.0, gt=0.0)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -170,6 +207,8 @@ class ProjectConfig(BaseSettings):
     occupancy: OccupancyConfig = Field(default_factory=OccupancyConfig)
     risk: RiskConfig = Field(default_factory=RiskConfig)
     robustness: RobustnessConfig = Field(default_factory=RobustnessConfig)
+    health: CameraHealthConfig = Field(default_factory=CameraHealthConfig)
+    tracking: TrackingConfig = Field(default_factory=TrackingConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -216,6 +255,7 @@ def load_config(path: Path | None = None) -> ProjectConfig:
 __all__ = [
     "MAX_CONFIG_BYTES",
     "BevConfig",
+    "CameraHealthConfig",
     "ConfigurationError",
     "GeometryConfig",
     "LoggingConfig",
@@ -225,5 +265,6 @@ __all__ = [
     "RiskConfig",
     "RobustnessConfig",
     "RuntimeConfig",
+    "TrackingConfig",
     "load_config",
 ]

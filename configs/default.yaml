@@ -61,3 +61,20 @@ robustness:
     - 0.05
     - 0.10
   seed: 42
+health:
+  soiling_threshold: 0.5
+  blur_threshold: 100.0
+  min_brightness: 15.0
+  max_brightness: 240.0
+  blockage_ratio_threshold: 0.4
+  discount_factor: 0.5
+tracking:
+  dt: 0.1
+  max_distance: 2.5
+  min_hits: 3
+  max_age: 5
+  process_noise_pos: 0.5
+  process_noise_vel: 1.0
+  measurement_noise: 0.5
+  forecast_horizon_s: 3.0
+

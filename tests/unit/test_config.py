@@ -31,6 +31,16 @@ def test_load_config_uses_typed_defaults() -> None:
     assert config.risk.near_radius == 0.5
     assert config.risk.warning_radius == 1.5
     assert config.risk.danger_occupancy == 0.5
+    assert config.health.soiling_threshold == 0.5
+    assert config.health.blur_threshold == 100.0
+    assert config.health.min_brightness == 15.0
+    assert config.health.max_brightness == 240.0
+    assert config.health.discount_factor == 0.5
+    assert config.tracking.dt == 0.1
+    assert config.tracking.max_distance == 2.5
+    assert config.tracking.min_hits == 3
+    assert config.tracking.max_age == 5
+    assert config.tracking.forecast_horizon_s == 3.0
 
 
 def test_load_config_reads_yaml(tmp_path: Path) -> None:
@@ -198,3 +208,26 @@ def test_robustness_config_validates_fields(
 
     with pytest.raises(ValidationError, match=pattern):
         load_config(config_path)
+
+
+def test_health_config_validates_brightness_range(tmp_path: Path) -> None:
+    config_path = tmp_path / "invalid-health.yaml"
+    config_path.write_text(
+        "health:\n  min_brightness: 200.0\n  max_brightness: 50.0\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValidationError, match=r"min_brightness.*must be less than.*max_brightness"):
+        load_config(config_path)
+
+
+def test_tracking_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("tracking:\n  max_age: 10\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_TRACKING__MAX_AGE", "15")
+
+    config = load_config(config_path)
+
+    assert config.tracking.max_age == 15
+
