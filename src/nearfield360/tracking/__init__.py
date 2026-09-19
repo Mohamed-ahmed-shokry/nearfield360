@@ -14,6 +14,10 @@ from nearfield360.tracking.projection import (
     project_detection_to_ground,
     project_detections,
 )
+from nearfield360.tracking.risk import (
+    forecast_all_trajectories,
+    forecast_obstacle_trajectory,
+)
 from nearfield360.tracking.tracker import MultiObjectTracker
 
 __all__ = [
@@ -24,6 +28,8 @@ __all__ = [
     "TrackState",
     "TrackedObstacle",
     "TrajectoryForecast",
+    "forecast_all_trajectories",
+    "forecast_obstacle_trajectory",
     "project_detection_to_ground",
     "project_detections",
 ]
