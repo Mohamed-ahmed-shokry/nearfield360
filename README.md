@@ -29,8 +29,9 @@ the corresponding experiments have run.
 | Segmentation and detection metrics | Implemented foundation | Numpy-only confusion/IoU and XYXY box IoU without models or accelerators |
 | BEV occupancy and risk | Implemented | Multi-camera surround fusion (`--all-cameras`), Bayesian uncertainty propagation, 360-degree parking zones (corridors/clearance/circles), occupancy & uncertainty rendering |
 | Controlled robustness evaluation | Implemented | Synthetic sensor corruptions (soiling, fog, noise, rain), extrinsic calibration perturbation engine, quantitative metrics (occupancy MAE, IoU, risk error), SVG/PNG charts, interactive HTML report dashboard |
-| Segmentation, detection, and tracking models | Planned | No model weights or training runs yet; no results reported |
-| Camera health | Planned | Soiling/temporal analysis unstarted |
+| Dynamic obstacle tracking and forecasting | Implemented core | 2D-to-3D ground footprint projection, 2D metric Kalman filter, state lifecycle, forward trajectory forecasting, collision TTC ingress, and BEV visual overlays |
+| Camera health monitoring and discounting | Implemented core | Laplacian blur variance, adaptive high-frequency lens soiling detection, blockage/underexposure detection, and health-aware Bayesian evidence discounting (`--health-aware`) |
+| Segmentation and detection models | Planned | No learned model weights or training runs yet; no results reported |
 | ONNX, TensorRT, and C++ runtime | Planned | Optional native toolchains are not assumed to be installed |
 
 ## System design
@@ -145,12 +146,49 @@ Optional PNG outputs render:
   overlays (`forward_corridor`, `rear_corridor`, `left_clearance`, `right_clearance`,
   `near_circle`, and `warning_circle`).
 - `--uncertainty-png`: Bayesian variance heatmap visualized using an inferno colormap.
+- `--health-aware`: Assess camera optical health and discount degraded/soiled evidence in BEV fusion.
 
 The scene-level policy is configurable: `occupancy.free_classes` vote for free space,
 `occupancy.occupied_classes` vote for occupancy, `min_evidence` gates cell confidence, and
 `risk.danger_occupancy` sets the occupancy threshold above which confident cells are marked
 dangerous. Single-frame CLIs (`geometry ground`) and multi-camera fusion (`occupancy layer`)
 share the identical ray, calibration, and grid models.
+
+### Camera health assessment
+
+Evaluate camera optical health, lens soiling, blur, and exposure anomalies for any surround camera frame:
+
+```powershell
+# Assess a single camera image and print formatted diagnostics
+uv run nearfield360 health assess --image D:\datasets\woodscape\rgb_images\00001_FV.png --camera FV
+
+# Emit machine-readable health metrics JSON or write atomically to an artifact
+uv run nearfield360 health assess --image D:\datasets\woodscape\rgb_images\00001_FV.png --camera FV --json
+uv run nearfield360 health assess --image D:\datasets\woodscape\rgb_images\00001_FV.png --output outputs/health/00001_FV.json
+```
+
+The report provides:
+- **Status & Anomalies:** `healthy`, `degraded`, or `blocked` classification with specific anomaly tags (`soiling`, `blur`, `blockage`, `underexposure`, `overexposure`).
+- **Quantitative Metrics:** Localized high-frequency Laplacian energy variance (sharpness), spatial blockage ratio, mean brightness, and contrast.
+- **Discount Weight:** Evidence multiplier in `[0.0, 1.0]` recommended for BEV fusion attenuation.
+
+### Dynamic obstacle tracking and collision forecasting
+
+Track dynamic obstacles across consecutive temporal frames, project 2D detections into vehicle-centric ground footprints via fisheye ray unprojection, filter motion with a 2D metric Kalman filter, forecast future trajectories, and evaluate collision Time-to-Collision (TTC) with surround parking zones:
+
+```powershell
+# Track obstacles from a single camera view
+uv run nearfield360 track run --root D:\datasets\woodscape --camera FV --output outputs/tracking/report.json --png outputs/tracking/overlay.png
+
+# Multi-camera temporal tracking across all 4 synchronized surround cameras
+uv run nearfield360 track run --root D:\datasets\woodscape --all-cameras --max-frames 20 --output outputs/tracking/multi_cam.json --png outputs/tracking/multi_cam.png
+```
+
+The tracking engine delivers:
+- **Fisheye Ground Projection:** Unprojects bottom-center contact points through radial-polynomial camera models onto the road plane (`Z == ground_z`) with class-specific 3D metric bounding footprints.
+- **2D Metric Kalman Filter:** State vector `[x, y, vx, vy]` under a constant velocity kinematic model with track lifecycle management (`tentative`, `confirmed`, `lost`, `deleted`).
+- **Trajectory Forecasting & Safety Zone Ingress:** Forward trajectory extrapolation over configurable horizon evaluating spatial intersection and Time-to-Collision against all surround safety zones (`forward_corridor`, `near_circle`, etc.).
+- **BEV Visual Overlay Rendering (`--png`):** Color-coded ground footprints, 1-second velocity heading arrows, past position trails, predicted forward trajectories, and collision warning badges.
 
 ### Robustness evaluation and diagnostic plots
 
@@ -254,8 +292,8 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
 3. Deployment-oriented semantic segmentation, metrics, and reproducible experiments. In progress
    (foundation): numpy-only confusion/IoU, box-IoU metrics, prediction parsing, and an atomic
    evaluation CLI exist; no models, training, or measured scores yet.
-4. Object detection, temporal tracking, and camera-soiling awareness. Next: detection parsing
-   exists; tracking and soiling are unstarted.
+4. ~~Object detection, temporal tracking, and camera-soiling awareness.~~ Done (core):
+   WoodScape 2D-to-3D ground footprint projection, 2D metric Kalman filtering with constant velocity kinematics, multi-object tracker with lifecycle management (tentative, confirmed, lost, deleted), forward trajectory forecasting over time horizon, collision TTC zone ingress detection, BEV visual overlays with velocity vectors and predicted paths, camera optical health assessment (soiling, blur, underexposure, overexposure, blockage), and health-aware occupancy evidence discounting (`--health-aware`).
 5. ~~Multi-camera BEV fusion, uncertainty propagation, and transparent safety zones.~~ Done
    (core): 360-degree multi-camera surround fusion (`--all-cameras`), distance-decayed evidence
    rasterization, per-cell Bayesian uncertainty estimation, transparent parking safety zones

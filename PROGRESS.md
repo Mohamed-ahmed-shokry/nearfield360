@@ -162,9 +162,93 @@ Phase 6 establishes a rigorous, reproducible framework for quantifying perceptio
 
 ---
 
-### 4. Roadmap Transition: Phase 7
+### 4. Roadmap Transition: Phase 4 & Phase 7
 
-With Phase 6 complete, the next major development phase is:
+With Phase 6 complete, Phase 4 (Multi-Camera Dynamic Obstacle Tracking, BEV Motion Estimation, and Camera Health Awareness) has also been implemented and verified.
+
+---
+
+## Phase 4: Multi-Camera Dynamic Obstacle Tracking, BEV Motion Estimation, and Camera Health Awareness
+
+**Status:** Completed
+**Repository Branch:** `main`
+**Test Suite:** 652 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (59 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >93% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 4 bridges 2D camera detections and optical health into the vehicle bird's-eye-view representation and real-time safety architecture:
+
+1. **Camera Optical Health Engine:**
+   - Multi-factor optical and sensor health diagnosis per surround camera frame:
+     - High-frequency Laplacian variance sharpness metric (`calculate_blur_score`).
+     - Spatial blockage and dead/saturated block detection (`detect_blockage`).
+     - Adaptive high-frequency and local contrast lens soiling detection (`detect_lens_soiling`).
+     - Mean luminance and contrast exposure monitoring (`calculate_photometric_properties`).
+   - `assess_camera_health` producing structured `CameraHealthReport` with qualitative status (`healthy`, `degraded`, `blocked`), detected anomalies, and continuous fusion discount weight in `[0.0, 1.0]`.
+2. **Health-Aware BEV Occupancy Discounting:**
+   - `OccupancyEvidence.scale(factor)` and `apply_health_discount` attenuating degraded camera evidence in BEV fusion (`--health-aware` flag in `occupancy layer`).
+3. **2D-to-3D Fisheye Ground Footprint Projection:**
+   - Bottom-center bounding box pixel unprojection via exact radial-polynomial camera models intersecting road plane ($Z = \text{ground\_z}$) to obtain metric vehicle coordinates $(x_v, y_v)$.
+   - Realistic metric class bounding boxes for vehicles, pedestrians, bicycles, traffic signs, and traffic lights.
+4. **2D Metric Kalman Filtering & Multi-Object Tracking:**
+   - State vector $\mathbf{x} = [x, y, v_x, v_y]^T$ with constant velocity kinematic model and discrete Wiener process acceleration noise.
+   - Deterministic greedy minimum Euclidean distance association with class gating.
+   - Comprehensive track lifecycle management (`tentative`, `confirmed`, `lost`, `deleted`).
+5. **Dynamic Risk Evaluation & Collision Forecasting:**
+   - Forward trajectory extrapolation over configurable time horizon (e.g. 3.0s).
+   - Zone ingress detection against surround parking zones (`forward_corridor`, `near_circle`, etc.) computing Time-to-Collision (TTC).
+6. **BEV Visual Overlays & CLI Commands:**
+   - BEV visualization with color-coded ground footprints, 1-second velocity vectors, history trails, predicted paths, and collision warning badges (`--png`).
+   - `nearfield360 health assess` CLI command.
+   - `nearfield360 track run` CLI command.
+
+---
+
+### 2. Delivered Components & Architecture
+
+#### A. Camera Health Monitoring (`src/nearfield360/health/`)
+- `detector.py`: Physics-informed fisheye optical degradation analysis.
+- `discount.py`: Health-aware attenuation of occupancy evidence.
+- `models.py`: Pydantic domain models for metrics and reports.
+
+#### B. Dynamic Obstacle Tracking (`src/nearfield360/tracking/`)
+- `projection.py`: Ground contact unprojection from 2D bounding boxes.
+- `kalman.py`: 4D state vector kinematic Kalman filter with Mahalanobis distance gating.
+- `tracker.py`: `MultiObjectTracker` with lifecycle state transitions and temporal history.
+- `risk.py`: Forward trajectory simulation, polygon zone ingress tests, and minimum TTC calculation.
+- `viz.py`: OpenCV BEV rendering of obstacles, velocity arrows, historical paths, and risk badges.
+
+#### C. CLI Suite & Integration
+- `src/nearfield360/cli/health.py`: `nearfield360 health assess` supporting human-readable, JSON stdout, and atomic file outputs.
+- `src/nearfield360/cli/tracking.py`: `nearfield360 track run` supporting single-camera or all-camera tracking with JSON reports and BEV PNG overlays.
+- `src/nearfield360/cli/occupancy.py`: Added `--health-aware` flag to `occupancy layer` for real-time sensor discount during fusion.
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lockfile Integrity | `uv lock --check` | Pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Unit Tests | `uv run pytest -q` | 652 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >93% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 59 source files |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+### 4. Next Phase: Phase 7
+
+With Phase 4 and Phase 6 complete, the next major milestone is:
 
 **Phase 7: ONNX Parity, Optional TensorRT Benchmarking, and Modular C++ Runtime**
 - **Objective:** Export lightweight surround fisheye semantic segmentation and detection backbones to ONNX, verify numerical parity against PyTorch representations, and benchmark inference latency across runtimes.
@@ -172,3 +256,4 @@ With Phase 6 complete, the next major development phase is:
   - ONNX model export pipelines and parity test fixtures checking maximum absolute tensor tolerance $\le 10^{-4}$.
   - Runtime benchmark scripts measuring throughput (FPS), p50/p95/p99 latency, and VRAM utilization across CPU, ONNX Runtime (CUDA/DirectML), and optional TensorRT execution providers.
   - Modular C++ runtime scaffolding demonstrating zero-copy inference feeding and geometric BEV projection.
+
