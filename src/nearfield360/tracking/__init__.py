@@ -19,6 +19,7 @@ from nearfield360.tracking.risk import (
     forecast_obstacle_trajectory,
 )
 from nearfield360.tracking.tracker import MultiObjectTracker
+from nearfield360.tracking.viz import render_tracking_bev_overlay
 
 __all__ = [
     "DEFAULT_CLASS_DIMENSIONS",
@@ -32,4 +33,5 @@ __all__ = [
     "forecast_obstacle_trajectory",
     "project_detection_to_ground",
     "project_detections",
+    "render_tracking_bev_overlay",
 ]
