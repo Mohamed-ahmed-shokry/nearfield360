@@ -8,10 +8,18 @@ from nearfield360.tracking.models import (
     TrackState,
     TrajectoryForecast,
 )
+from nearfield360.tracking.projection import (
+    DEFAULT_CLASS_DIMENSIONS,
+    project_detection_to_ground,
+    project_detections,
+)
 
 __all__ = [
+    "DEFAULT_CLASS_DIMENSIONS",
     "GroundFootprint",
     "TrackState",
     "TrackedObstacle",
     "TrajectoryForecast",
+    "project_detection_to_ground",
+    "project_detections",
 ]
