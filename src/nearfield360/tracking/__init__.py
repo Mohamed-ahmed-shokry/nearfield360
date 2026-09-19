@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from nearfield360.tracking.kalman import KalmanFilter2D
 from nearfield360.tracking.models import (
     GroundFootprint,
     TrackedObstacle,
@@ -13,10 +14,13 @@ from nearfield360.tracking.projection import (
     project_detection_to_ground,
     project_detections,
 )
+from nearfield360.tracking.tracker import MultiObjectTracker
 
 __all__ = [
     "DEFAULT_CLASS_DIMENSIONS",
     "GroundFootprint",
+    "KalmanFilter2D",
+    "MultiObjectTracker",
     "TrackState",
     "TrackedObstacle",
     "TrajectoryForecast",
