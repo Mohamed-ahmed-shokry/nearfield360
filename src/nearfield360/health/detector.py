@@ -170,17 +170,12 @@ def assess_camera_health(
     if mean_bright < config.min_brightness:
         exposure_factor = max(0.0, mean_bright / max(config.min_brightness, 1e-6))
     elif mean_bright > config.max_brightness:
-        exposure_factor = max(
-            0.0, (255.0 - mean_bright) / max(255.0 - config.max_brightness, 1e-6)
-        )
+        exposure_factor = max(0.0, (255.0 - mean_bright) / max(255.0 - config.max_brightness, 1e-6))
     else:
         exposure_factor = 1.0
 
     raw_conf = (
-        0.35 * soiling_factor
-        + 0.25 * blur_factor
-        + 0.25 * blockage_factor
-        + 0.15 * exposure_factor
+        0.35 * soiling_factor + 0.25 * blur_factor + 0.25 * blockage_factor + 0.15 * exposure_factor
     )
     confidence = float(np.clip(raw_conf, 0.0, 1.0))
 

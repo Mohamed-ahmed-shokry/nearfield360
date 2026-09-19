@@ -230,4 +230,3 @@ def test_tracking_config_environment_overrides(
     config = load_config(config_path)
 
     assert config.tracking.max_age == 15
-

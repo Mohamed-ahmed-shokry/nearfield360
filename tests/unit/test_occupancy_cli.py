@@ -278,3 +278,28 @@ def test_occupancy_layer_all_cameras_fails_when_no_complete_frame(tmp_path: Path
     )
     assert result.exit_code == 1
     assert "No frames with all four cameras" in result.stderr
+
+
+def test_occupancy_layer_health_aware(tmp_path: Path) -> None:
+    _write_dataset(tmp_path, camera="FV")
+    out_file = tmp_path / "health_fused.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "occupancy",
+            "layer",
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(out_file),
+            "--health-aware",
+        ],
+    )
+    assert result.exit_code == 0
+    payload = read_json(out_file)
+    assert payload["samples"]["health_aware"] is True
+    assert "health" in payload
+    assert len(payload["health"]) == 1
+    assert payload["health"][0]["camera"] == "FV"
+    assert "discount_weight" in payload["health"][0]

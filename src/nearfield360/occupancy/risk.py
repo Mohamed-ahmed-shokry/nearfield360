@@ -278,11 +278,13 @@ def risk_report(
         occupied_mask = observed_mask & (occupancy > danger_occupancy)
         occupied_cells = int(np.count_nonzero(occupied_mask))
         values = occupancy[observed_mask]
-        mean = float(np.mean(values)) if values.size > 0 else None
-        maximum = float(np.max(values)) if values.size > 0 else None
+        valid_values = values[np.isfinite(values)]
+        mean = float(np.mean(valid_values)) if valid_values.size > 0 else None
+        maximum = float(np.max(valid_values)) if valid_values.size > 0 else None
         unc_values = uncertainty[observed_mask]
-        mean_unc = float(np.mean(unc_values)) if unc_values.size > 0 else None
-        max_unc = float(np.max(unc_values)) if unc_values.size > 0 else None
+        valid_unc = unc_values[np.isfinite(unc_values)]
+        mean_unc = float(np.mean(valid_unc)) if valid_unc.size > 0 else None
+        max_unc = float(np.max(valid_unc)) if valid_unc.size > 0 else None
         reports.append(
             ZoneRisk(
                 name=zone.name,

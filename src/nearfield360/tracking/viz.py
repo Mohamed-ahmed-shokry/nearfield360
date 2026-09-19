@@ -19,11 +19,11 @@ if TYPE_CHECKING:
 
 # Visual colors in BGR format
 _CLASS_COLORS: dict[int, tuple[int, int, int]] = {
-    0: (0, 165, 255),    # Orange for vehicles
-    1: (255, 255, 0),    # Cyan for pedestrians
-    2: (255, 0, 255),    # Magenta for bicycles
-    3: (0, 255, 255),    # Yellow for traffic lights
-    4: (0, 255, 0),      # Green for traffic signs
+    0: (0, 165, 255),  # Orange for vehicles
+    1: (255, 255, 0),  # Cyan for pedestrians
+    2: (255, 0, 255),  # Magenta for bicycles
+    3: (0, 255, 255),  # Yellow for traffic lights
+    4: (0, 255, 0),  # Green for traffic signs
 }
 
 _ZONE_COLORS: dict[str, tuple[int, int, int]] = {

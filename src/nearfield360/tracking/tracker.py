@@ -130,9 +130,7 @@ class MultiObjectTracker:
                 min_val = float(np.min(cost_matrix))
                 if np.isinf(min_val):
                     break
-                row_idx, col_idx = np.unravel_index(
-                    int(np.argmin(cost_matrix)), cost_matrix.shape
-                )
+                row_idx, col_idx = np.unravel_index(int(np.argmin(cost_matrix)), cost_matrix.shape)
                 tid = track_ids[row_idx]
                 col = int(col_idx)
                 matches[tid] = col

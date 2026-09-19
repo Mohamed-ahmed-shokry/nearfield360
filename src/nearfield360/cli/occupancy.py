@@ -15,12 +15,18 @@ from numpy.typing import NDArray
 from nearfield360.cli.data_common import DatasetRootOption, discover_dataset
 from nearfield360.cli.state import get_state
 from nearfield360.data.calibration import CalibrationError, load_calibration
-from nearfield360.data.images import ImageReadError
+from nearfield360.data.images import ImageReadError, load_rgb_image
 from nearfield360.data.semantic import SemanticMaskError, load_semantic_mask
 from nearfield360.data.woodscape import CameraId, WoodScapeSample
 from nearfield360.geometry.bev import BevGrid
 from nearfield360.geometry.camera import CalibratedCamera
 from nearfield360.geometry.ground import intersect_ground
+from nearfield360.health import (
+    CameraHealthReport,
+    CameraHealthStatus,
+    apply_health_discount,
+    assess_camera_health,
+)
 from nearfield360.occupancy import (
     OccupancyEvidence,
     OccupancyPolicy,
@@ -88,6 +94,14 @@ UncertaintyPngOption = Annotated[
 OverwriteOption = Annotated[
     bool,
     typer.Option("--overwrite", help="Replace an existing occupancy artifact."),
+]
+
+HealthAwareOption = Annotated[
+    bool,
+    typer.Option(
+        "--health-aware",
+        help="Assess camera optical health and discount degraded or soiled camera evidence.",
+    ),
 ]
 
 
@@ -215,7 +229,8 @@ def _frame_evidence(
     grid: BevGrid,
     policy: OccupancyPolicy,
     theta_max: float | None,
-) -> OccupancyEvidence:
+    health_aware: bool = False,
+) -> tuple[OccupancyEvidence, CameraHealthReport | None]:
     config = get_state(context).config
     camera = _build_camera(context, sample, theta_max)
     mask_path = sample.semantic_mask_path
@@ -242,7 +257,7 @@ def _frame_evidence(
     )
     valid = rays.valid & footprints.valid
     weights = distance_weights(footprints.distances, slope=config.occupancy.confidence_slope)
-    return rasterize_occupancy(
+    evidence = rasterize_occupancy(
         grid,
         footprints.points[..., :2],
         labels=mask,
@@ -250,6 +265,28 @@ def _frame_evidence(
         weights=weights,
         valid=valid,
     )
+
+    report: CameraHealthReport | None = None
+    if health_aware:
+        try:
+            rgb = load_rgb_image(sample.image_path)
+            report = assess_camera_health(rgb, camera=sample.key.camera.value, config=config.health)
+            evidence = apply_health_discount(evidence, report)
+            if report.status != CameraHealthStatus.HEALTHY:
+                typer.echo(
+                    f"Camera {sample.key.camera.value} ({sample.key.stem}) degraded: "
+                    f"{report.status.value} (discount factor: "
+                    f"{report.discount_weight:.2f})",
+                    err=True,
+                )
+        except (ImageReadError, OSError) as exc:
+            typer.secho(
+                f"Warning: could not read image for health assessment {sample.key.stem}: {exc}",
+                fg=typer.colors.YELLOW,
+                err=True,
+            )
+
+    return evidence, report
 
 
 def _configured_zones(grid: BevGrid, context: typer.Context) -> list[RiskZone]:
@@ -358,9 +395,11 @@ def _evidence_summary(evidence: OccupancyEvidence, min_evidence: int) -> dict[st
     confident = evidence.observed >= min_evidence
     occupancy = evidence.occupancy()[confident]
     uncertainty = evidence.uncertainty()[confident]
-    mean_occ = float(np.mean(occupancy)) if occupancy.size else None
-    mean_unc = float(np.mean(uncertainty)) if uncertainty.size else None
-    max_unc = float(np.max(uncertainty)) if uncertainty.size else None
+    valid_occ = occupancy[np.isfinite(occupancy)]
+    valid_unc = uncertainty[np.isfinite(uncertainty)]
+    mean_occ = float(np.mean(valid_occ)) if valid_occ.size else None
+    mean_unc = float(np.mean(valid_unc)) if valid_unc.size else None
+    max_unc = float(np.max(valid_unc)) if valid_unc.size else None
     return {
         "cells": evidence.grid.height * evidence.grid.width,
         "observed_cells": int(confident.sum()),
@@ -392,11 +431,13 @@ def occupancy_layer(
     png: PngOption = None,
     uncertainty_png: UncertaintyPngOption = None,
     theta_max: ThetaMaxOption = None,
+    health_aware: HealthAwareOption = False,
 ) -> None:
     """Fuse semantic-grounded evidence into one occupancy layer."""
     grid = _configured_grid(context)
     policy = _configured_policy(context)
 
+    health_reports: list[CameraHealthReport] = []
     if all_cameras:
         frames = _select_all_cameras(context, root, samples)
         per_camera_counts: dict[str, int] = {cam.value: 0 for cam in CameraId}
@@ -404,7 +445,11 @@ def occupancy_layer(
         for frame_index, (frame_id, frame_samples) in enumerate(frames, start=1):
             frame_evidence: OccupancyEvidence | None = None
             for sample in frame_samples:
-                evidence = _frame_evidence(context, sample, grid, policy, theta_max)
+                evidence, report = _frame_evidence(
+                    context, sample, grid, policy, theta_max, health_aware=health_aware
+                )
+                if report is not None:
+                    health_reports.append(report)
                 per_camera_counts[sample.key.camera.value] += 1
                 frame_evidence = (
                     evidence if frame_evidence is None else frame_evidence.add(evidence)
@@ -425,13 +470,23 @@ def occupancy_layer(
             "camera": "all",
             "per_camera": per_camera_counts,
         }
+        if health_aware:
+            samples_payload["health_aware"] = True
     else:
         selected = _select_samples(context, root, camera, samples)
         first = selected[0]
-        fused = _frame_evidence(context, first, grid, policy, theta_max)
+        fused, first_report = _frame_evidence(
+            context, first, grid, policy, theta_max, health_aware=health_aware
+        )
+        if first_report is not None:
+            health_reports.append(first_report)
         typer.echo(f"[1/{len(selected)}] fused {first.key.stem}")
         for index, sample in enumerate(selected[1:], start=2):
-            frame = _frame_evidence(context, sample, grid, policy, theta_max)
+            frame, report = _frame_evidence(
+                context, sample, grid, policy, theta_max, health_aware=health_aware
+            )
+            if report is not None:
+                health_reports.append(report)
             fused = fused.add(frame)
             typer.echo(f"[{index}/{len(selected)}] fused {sample.key.stem}")
         samples_payload = {
@@ -439,6 +494,8 @@ def occupancy_layer(
             "evaluated": len(selected),
             "camera": camera.value,
         }
+        if health_aware:
+            samples_payload["health_aware"] = True
 
     min_evidence = get_state(context).config.occupancy.min_evidence
     zones = _configured_zones(grid, context)
@@ -480,6 +537,8 @@ def occupancy_layer(
             for report in reports
         ],
     }
+    if health_aware:
+        payload["health"] = [r.model_dump(mode="json") for r in health_reports]
     try:
         write_json(output, payload, overwrite=overwrite)
     except ArtifactError as exc:

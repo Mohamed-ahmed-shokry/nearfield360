@@ -17,9 +17,9 @@ from nearfield360.tracking.models import (
 from nearfield360.tracking.viz import render_tracking_bev_overlay
 
 
-def _setup_test_data() -> (
-    tuple[BevGrid, list[RiskZone], list[TrackedObstacle], list[TrajectoryForecast]]
-):
+def _setup_test_data() -> tuple[
+    BevGrid, list[RiskZone], list[TrackedObstacle], list[TrajectoryForecast]
+]:
     grid = BevGrid(x_min=-4.0, x_max=8.0, y_min=-4.0, y_max=4.0, resolution=0.1)
     zones = list(
         surround_parking_zones(

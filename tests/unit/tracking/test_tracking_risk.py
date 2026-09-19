@@ -159,7 +159,5 @@ def test_forecast_all_trajectories_filters_confirmed() -> None:
     assert forecasts[0].track_id == 1
 
     # Include all
-    all_forecasts = forecast_all_trajectories(
-        all_obs, grid=grid, zones=zones, confirmed_only=False
-    )
+    all_forecasts = forecast_all_trajectories(all_obs, grid=grid, zones=zones, confirmed_only=False)
     assert len(all_forecasts) == 2
