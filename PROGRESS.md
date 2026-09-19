@@ -256,4 +256,3 @@ With Phase 4 and Phase 6 complete, the next major milestone is:
   - ONNX model export pipelines and parity test fixtures checking maximum absolute tensor tolerance $\le 10^{-4}$.
   - Runtime benchmark scripts measuring throughput (FPS), p50/p95/p99 latency, and VRAM utilization across CPU, ONNX Runtime (CUDA/DirectML), and optional TensorRT execution providers.
   - Modular C++ runtime scaffolding demonstrating zero-copy inference feeding and geometric BEV projection.
-

@@ -77,4 +77,3 @@ tracking:
   process_noise_vel: 1.0
   measurement_noise: 0.5
   forecast_horizon_s: 3.0
-
