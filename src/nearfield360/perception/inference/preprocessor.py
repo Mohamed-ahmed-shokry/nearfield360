@@ -199,6 +199,41 @@ class FisheyeImagePreprocessor:
             dtype=mask.dtype,
         )
 
+    @staticmethod
+    def unscale_continuous_map(
+        heatmap: np.ndarray,
+        transform: PreprocessTransform,
+    ) -> np.ndarray:
+        """Map a 2D float heatmap from model input space back to original image pixels."""
+        if heatmap.ndim != 2:
+            raise PreprocessorError(f"heatmap must have shape (H, W), got {heatmap.shape}")
+
+        if transform.scale == 1.0 and transform.pad_left == 0 and transform.pad_top == 0:
+            return np.asarray(
+                cv2.resize(
+                    heatmap,
+                    (transform.orig_width, transform.orig_height),
+                    interpolation=cv2.INTER_LINEAR,
+                ),
+                dtype=np.float32,
+            )
+
+        scaled_h = max(1, round(transform.orig_height * transform.scale))
+        scaled_w = max(1, round(transform.orig_width * transform.scale))
+
+        cropped = heatmap[
+            transform.pad_top : transform.pad_top + scaled_h,
+            transform.pad_left : transform.pad_left + scaled_w,
+        ]
+        return np.asarray(
+            cv2.resize(
+                cropped,
+                (transform.orig_width, transform.orig_height),
+                interpolation=cv2.INTER_LINEAR,
+            ),
+            dtype=np.float32,
+        )
+
 
 __all__ = [
     "FisheyeImagePreprocessor",

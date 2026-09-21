@@ -20,6 +20,7 @@ from nearfield360.perception.inference.preprocessor import (
     PreprocessorError,
     PreprocessTransform,
 )
+from nearfield360.perception.inference.semantic import SemanticSegmentationEngine
 
 __all__ = [
     "BenchmarkSummary",
@@ -33,5 +34,6 @@ __all__ = [
     "OpenCVDNNBackend",
     "PreprocessTransform",
     "PreprocessorError",
+    "SemanticSegmentationEngine",
     "create_backend",
 ]
