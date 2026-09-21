@@ -210,3 +210,35 @@ def test_track_run_no_matching_samples(tmp_path: Path) -> None:
     )
     assert result.exit_code == 1
     assert "No matching samples found" in result.stderr
+
+
+def test_track_run_with_live_detection_model(tmp_path: Path) -> None:
+    from nearfield360.perception.inference.test_utils import create_dummy_detection_onnx
+
+    model_path = tmp_path / "models" / "det.onnx"
+    create_dummy_detection_onnx(model_path, num_classes=5, num_boxes=2, height=32, width=32)
+
+    dataset_dir = tmp_path / "dataset"
+    _setup_dataset(dataset_dir, [("00001", "FV"), ("00002", "FV")], with_detections=False)
+
+    output = tmp_path / "tracking_report.json"
+    result = runner.invoke(
+        app,
+        [
+            "track",
+            "run",
+            "--root",
+            str(dataset_dir),
+            "--camera",
+            "FV",
+            "--output",
+            str(output),
+            "--model",
+            str(model_path),
+        ],
+    )
+    assert result.exit_code == 0
+    payload = read_json(output)
+    assert payload["frames_evaluated"] == 2
+    assert payload["model"] == str(model_path)
+    assert "summary" in payload

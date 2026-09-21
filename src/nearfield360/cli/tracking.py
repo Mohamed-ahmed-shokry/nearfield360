@@ -11,11 +11,18 @@ from nearfield360.cli.data_common import DatasetRootOption, discover_dataset
 from nearfield360.cli.state import get_state
 from nearfield360.data.calibration import load_calibration
 from nearfield360.data.detection import load_detection_annotations
+from nearfield360.data.images import load_rgb_image
 from nearfield360.data.woodscape import CameraId, WoodScapeSample
 from nearfield360.geometry.bev import BevGrid
 from nearfield360.geometry.camera import CalibratedCamera
 from nearfield360.occupancy.risk import surround_parking_zones
 from nearfield360.perception.evaluation import environment_metadata
+from nearfield360.perception.inference import (
+    InferenceBackendType,
+    InferenceDevice,
+    ObjectDetectionEngine,
+    create_backend,
+)
 from nearfield360.tracking.models import GroundFootprint, TrackedObstacle, TrackState
 from nearfield360.tracking.projection import project_detections
 from nearfield360.tracking.risk import forecast_all_trajectories
@@ -74,11 +81,41 @@ def run_tracking_command(
         typer.Option("--overwrite", help="Replace existing report output."),
     ] = False,
     root: DatasetRootOption = None,
+    model: Annotated[
+        Path | None,
+        typer.Option(
+            "--model",
+            "-m",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Path to object detection ONNX model for live perception.",
+        ),
+    ] = None,
 ) -> None:
     """Track dynamic obstacles across temporal frames and forecast safety zone ingress."""
     state = get_state(context)
     config = state.config
     dataset = discover_dataset(context, root)
+
+    det_engine: ObjectDetectionEngine | None = None
+    if model is not None:
+        try:
+            backend = create_backend(
+                model,
+                backend_type=InferenceBackendType.OPENCV,
+                device=InferenceDevice.CPU,
+            )
+            det_engine = ObjectDetectionEngine(backend=backend)
+        except Exception as exc:
+            typer.secho(
+                f"Failed to load detection model {model}: {exc}",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1) from None
 
     bev_cfg = config.bev
     grid = BevGrid(
@@ -112,6 +149,11 @@ def run_tracking_command(
     for sample in dataset:
         if not all_cameras and sample.key.camera != camera:
             continue
+        missing_ann = sample.calibration_path is None or (
+            False if model is not None else sample.detection_path is None
+        )
+        if missing_ann:
+            continue
         frame_id = sample.key.frame_id
         frames_dict.setdefault(frame_id, []).append(sample)
 
@@ -132,7 +174,9 @@ def run_tracking_command(
         footprints: list[GroundFootprint] = []
 
         for sample in frame_samples:
-            if sample.calibration_path is None or sample.detection_path is None:
+            if sample.calibration_path is None:
+                continue
+            if det_engine is None and sample.detection_path is None:
                 continue
 
             try:
@@ -140,10 +184,16 @@ def run_tracking_command(
                 cam_model = CalibratedCamera.from_calibration(
                     calib, theta_max=config.geometry.theta_max
                 )
-                detections = load_detection_annotations(sample.detection_path)
+                if det_engine is not None:
+                    rgb_img = load_rgb_image(sample.image_path)
+                    detections = det_engine.predict_annotations(rgb_img)
+                elif sample.detection_path is not None:
+                    detections = load_detection_annotations(sample.detection_path)
+                else:
+                    continue
             except Exception as exc:
                 typer.secho(
-                    f"Error loading {sample.key.stem}: {exc}", fg=typer.colors.RED, err=True
+                    f"Error processing {sample.key.stem}: {exc}", fg=typer.colors.RED, err=True
                 )
                 raise typer.Exit(code=1) from None
 
@@ -177,6 +227,7 @@ def run_tracking_command(
         "config": config.model_dump(mode="json"),
         "camera_mode": "all" if all_cameras else camera.value,
         "frames_evaluated": frames_evaluated,
+        "model": str(model) if model is not None else None,
         "summary": {
             "total_active_tracks": len(active_obstacles),
             "confirmed_tracks": confirmed_count,

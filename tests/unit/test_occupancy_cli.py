@@ -303,3 +303,63 @@ def test_occupancy_layer_health_aware(tmp_path: Path) -> None:
     assert len(payload["health"]) == 1
     assert payload["health"][0]["camera"] == "FV"
     assert "discount_weight" in payload["health"][0]
+
+
+def test_occupancy_layer_with_live_model(tmp_path: Path) -> None:
+    from nearfield360.perception.inference.test_utils import create_dummy_segmentation_onnx
+
+    model_path = tmp_path / "models" / "seg.onnx"
+    create_dummy_segmentation_onnx(model_path, num_classes=10, height=32, width=32)
+
+    # Dataset has calibration and rgb images, but NO semantic annotations
+    ds_path = tmp_path / "dataset"
+    (ds_path / "rgb_images").mkdir(parents=True)
+    img = np.full((32, 32, 3), 120, dtype=np.uint8)
+    assert cv2.imwrite(str(ds_path / "rgb_images/00001_FV.png"), img)
+
+    calibration = ds_path / "calibration_data/00001_FV.json"
+    calibration.parent.mkdir(parents=True)
+    calibration.write_text(
+        json.dumps(
+            {
+                "extrinsic": {
+                    "quaternion": [1.0, 0.0, 0.0, 0.0],
+                    "translation": [0.0, 0.0, 1.0],
+                },
+                "intrinsic": {
+                    "aspect_ratio": 1.0,
+                    "cx_offset": 0.0,
+                    "cy_offset": 0.0,
+                    "height": 32,
+                    "k1": 100.0,
+                    "k2": 0.0,
+                    "k3": 0.0,
+                    "k4": 0.0,
+                    "model": "radial_poly",
+                    "poly_order": 4,
+                    "width": 32,
+                },
+                "name": "FV",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    out_file = tmp_path / "model_fused.json"
+    result = runner.invoke(
+        app,
+        [
+            "occupancy",
+            "layer",
+            "--root",
+            str(ds_path),
+            "--output",
+            str(out_file),
+            "--model",
+            str(model_path),
+        ],
+    )
+    assert result.exit_code == 0
+    payload = read_json(out_file)
+    assert payload["samples"]["evaluated"] == 1
+    assert payload["samples"]["model"] == str(model_path)

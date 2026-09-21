@@ -38,6 +38,12 @@ from nearfield360.occupancy import (
     surround_parking_zones,
 )
 from nearfield360.perception.evaluation import environment_metadata
+from nearfield360.perception.inference import (
+    InferenceBackendType,
+    InferenceDevice,
+    SemanticSegmentationEngine,
+    create_backend,
+)
 from nearfield360.utils.artifacts import ArtifactError, write_json
 
 occupancy_app = typer.Typer(
@@ -104,6 +110,20 @@ HealthAwareOption = Annotated[
     ),
 ]
 
+ModelOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--model",
+        "-m",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="ONNX semantic segmentation model path for live perception.",
+    ),
+]
+
 
 def _configured_grid(context: typer.Context) -> BevGrid:
     config = get_state(context).config.bev
@@ -144,24 +164,33 @@ def _build_camera(
 
 
 def _select_samples(
-    context: typer.Context, root: Path | None, camera: CameraId, samples_limit: int
+    context: typer.Context,
+    root: Path | None,
+    camera: CameraId,
+    samples_limit: int,
+    allow_live_model: bool = False,
 ) -> list[WoodScapeSample]:
     dataset = discover_dataset(context, root)
     selected: list[WoodScapeSample] = []
     for sample in dataset:
         if sample.key.camera is not camera:
             continue
-        if sample.calibration_path is None or sample.semantic_mask_path is None:
+        missing_ann = sample.calibration_path is None or (
+            False if allow_live_model else sample.semantic_mask_path is None
+        )
+        if missing_ann:
+            desc = "calibration" if allow_live_model else "calibration or semantic mask"
             typer.secho(
-                f"Sample {sample.key.stem} lacks calibration or semantic mask.",
+                f"Sample {sample.key.stem} lacks {desc}.",
                 fg=typer.colors.RED,
                 err=True,
             )
             raise typer.Exit(code=1) from None
         selected.append(sample)
     if not selected:
+        desc = "image" if allow_live_model else "semantic mask"
         typer.secho(
-            f"No {camera.value} samples with calibration and semantic mask found.",
+            f"No {camera.value} samples with calibration and {desc} found.",
             fg=typer.colors.RED,
             err=True,
         )
@@ -178,18 +207,19 @@ def _select_samples(
 
 
 def _select_all_cameras(
-    context: typer.Context, root: Path | None, samples_limit: int
+    context: typer.Context,
+    root: Path | None,
+    samples_limit: int,
+    allow_live_model: bool = False,
 ) -> list[tuple[str, list[WoodScapeSample]]]:
-    """Group samples by frame_id across all cameras.
-
-    Returns a list of ``(frame_id, [samples...])`` tuples where each frame
-    contains one sample per camera with calibration and semantic mask. Frames
-    with incomplete camera coverage are skipped with a warning.
-    """
+    """Group samples by frame_id across all cameras."""
     dataset = discover_dataset(context, root)
     by_frame: dict[str, list[WoodScapeSample]] = defaultdict(list)
     for sample in dataset:
-        if sample.calibration_path is None or sample.semantic_mask_path is None:
+        missing_ann = sample.calibration_path is None or (
+            False if allow_live_model else sample.semantic_mask_path is None
+        )
+        if missing_ann:
             continue
         by_frame[sample.key.frame_id].append(sample)
     frames = sorted(by_frame.keys())
@@ -230,18 +260,35 @@ def _frame_evidence(
     policy: OccupancyPolicy,
     theta_max: float | None,
     health_aware: bool = False,
+    model_engine: SemanticSegmentationEngine | None = None,
 ) -> tuple[OccupancyEvidence, CameraHealthReport | None]:
     config = get_state(context).config
     camera = _build_camera(context, sample, theta_max)
-    mask_path = sample.semantic_mask_path
-    if mask_path is None:
-        typer.secho(f"Sample {sample.key.stem} lacks semantic mask.", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from None
-    try:
-        mask = load_semantic_mask(mask_path)
-    except (ImageReadError, SemanticMaskError, OSError) as exc:
-        typer.secho(f"Mask error for {sample.key.stem}: {exc}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from None
+    if model_engine is not None:
+        try:
+            rgb_img = load_rgb_image(sample.image_path)
+            mask, _ = model_engine.predict(rgb_img)
+        except Exception as exc:
+            typer.secho(
+                f"Segmentation inference error for {sample.key.stem}: {exc}",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1) from None
+    else:
+        mask_path = sample.semantic_mask_path
+        if mask_path is None:
+            typer.secho(
+                f"Sample {sample.key.stem} lacks semantic mask.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1) from None
+        try:
+            mask = load_semantic_mask(mask_path)
+        except (ImageReadError, SemanticMaskError, OSError) as exc:
+            typer.secho(f"Mask error for {sample.key.stem}: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
     rows, cols = np.meshgrid(
         np.arange(mask.shape[0], dtype=np.float32),
         np.arange(mask.shape[1], dtype=np.float32),
@@ -432,21 +479,45 @@ def occupancy_layer(
     uncertainty_png: UncertaintyPngOption = None,
     theta_max: ThetaMaxOption = None,
     health_aware: HealthAwareOption = False,
+    model: ModelOption = None,
 ) -> None:
     """Fuse semantic-grounded evidence into one occupancy layer."""
     grid = _configured_grid(context)
     policy = _configured_policy(context)
 
+    model_engine: SemanticSegmentationEngine | None = None
+    if model is not None:
+        try:
+            backend = create_backend(
+                model,
+                backend_type=InferenceBackendType.OPENCV,
+                device=InferenceDevice.CPU,
+            )
+            model_engine = SemanticSegmentationEngine(backend=backend)
+        except Exception as exc:
+            typer.secho(
+                f"Failed to load segmentation model {model}: {exc}",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1) from None
+
     health_reports: list[CameraHealthReport] = []
     if all_cameras:
-        frames = _select_all_cameras(context, root, samples)
+        frames = _select_all_cameras(context, root, samples, allow_live_model=model is not None)
         per_camera_counts: dict[str, int] = {cam.value: 0 for cam in CameraId}
         fused: OccupancyEvidence | None = None
         for frame_index, (frame_id, frame_samples) in enumerate(frames, start=1):
             frame_evidence: OccupancyEvidence | None = None
             for sample in frame_samples:
                 evidence, report = _frame_evidence(
-                    context, sample, grid, policy, theta_max, health_aware=health_aware
+                    context,
+                    sample,
+                    grid,
+                    policy,
+                    theta_max,
+                    health_aware=health_aware,
+                    model_engine=model_engine,
                 )
                 if report is not None:
                     health_reports.append(report)
@@ -472,18 +543,34 @@ def occupancy_layer(
         }
         if health_aware:
             samples_payload["health_aware"] = True
+        if model is not None:
+            samples_payload["model"] = str(model)
     else:
-        selected = _select_samples(context, root, camera, samples)
+        selected = _select_samples(
+            context, root, camera, samples, allow_live_model=model is not None
+        )
         first = selected[0]
         fused, first_report = _frame_evidence(
-            context, first, grid, policy, theta_max, health_aware=health_aware
+            context,
+            first,
+            grid,
+            policy,
+            theta_max,
+            health_aware=health_aware,
+            model_engine=model_engine,
         )
         if first_report is not None:
             health_reports.append(first_report)
         typer.echo(f"[1/{len(selected)}] fused {first.key.stem}")
         for index, sample in enumerate(selected[1:], start=2):
             frame, report = _frame_evidence(
-                context, sample, grid, policy, theta_max, health_aware=health_aware
+                context,
+                sample,
+                grid,
+                policy,
+                theta_max,
+                health_aware=health_aware,
+                model_engine=model_engine,
             )
             if report is not None:
                 health_reports.append(report)
@@ -496,6 +583,8 @@ def occupancy_layer(
         }
         if health_aware:
             samples_payload["health_aware"] = True
+        if model is not None:
+            samples_payload["model"] = str(model)
 
     min_evidence = get_state(context).config.occupancy.min_evidence
     zones = _configured_zones(grid, context)

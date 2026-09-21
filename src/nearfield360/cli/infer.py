@@ -18,12 +18,12 @@ from nearfield360.perception.inference.backend import (
     InferenceError,
     create_backend,
 )
+from nearfield360.perception.inference.benchmark import benchmark_inference
+from nearfield360.perception.inference.detection import ObjectDetectionEngine
 from nearfield360.perception.inference.models import (
     InferenceBackendType,
     InferenceDevice,
 )
-from nearfield360.perception.inference.benchmark import benchmark_inference
-from nearfield360.perception.inference.detection import ObjectDetectionEngine
 from nearfield360.perception.inference.preprocessor import (
     FisheyeImagePreprocessor,
     PreprocessorError,
