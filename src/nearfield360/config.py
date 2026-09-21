@@ -183,6 +183,30 @@ class TrackingConfig(BaseModel):
     forecast_horizon_s: float = Field(default=3.0, gt=0.0)
 
 
+class InferenceConfig(BaseModel):
+    """Neural network perception inference and runtime settings."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    backend: Literal["opencv", "onnxruntime"] = "opencv"
+    device: Literal["cpu", "cuda", "directml"] = "cpu"
+    precision: Literal["fp32", "fp16"] = "fp32"
+    input_height: int = Field(default=480, gt=0, le=4096)
+    input_width: int = Field(default=640, gt=0, le=4096)
+    mean: tuple[float, float, float] = (0.485, 0.456, 0.406)
+    std: tuple[float, float, float] = (0.229, 0.224, 0.225)
+    confidence_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    nms_threshold: float = Field(default=0.4, ge=0.0, le=1.0)
+    batch_size: int = Field(default=1, gt=0, le=64)
+
+    @field_validator("std")
+    @classmethod
+    def validate_std_positive(cls, value: tuple[float, float, float]) -> tuple[float, float, float]:
+        if any(s <= 0.0 for s in value):
+            raise ValueError("Normalization standard deviations must be strictly positive")
+        return value
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -209,6 +233,7 @@ class ProjectConfig(BaseSettings):
     robustness: RobustnessConfig = Field(default_factory=RobustnessConfig)
     health: CameraHealthConfig = Field(default_factory=CameraHealthConfig)
     tracking: TrackingConfig = Field(default_factory=TrackingConfig)
+    inference: InferenceConfig = Field(default_factory=InferenceConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -258,6 +283,7 @@ __all__ = [
     "CameraHealthConfig",
     "ConfigurationError",
     "GeometryConfig",
+    "InferenceConfig",
     "LoggingConfig",
     "OccupancyConfig",
     "PathsConfig",

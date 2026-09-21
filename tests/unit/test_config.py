@@ -230,3 +230,60 @@ def test_tracking_config_environment_overrides(
     config = load_config(config_path)
 
     assert config.tracking.max_age == 15
+
+
+def test_inference_config_defaults() -> None:
+    config = load_config()
+    assert config.inference.backend == "opencv"
+    assert config.inference.device == "cpu"
+    assert config.inference.precision == "fp32"
+    assert config.inference.input_height == 480
+    assert config.inference.input_width == 640
+    assert config.inference.mean == (0.485, 0.456, 0.406)
+    assert config.inference.std == (0.229, 0.224, 0.225)
+    assert config.inference.confidence_threshold == 0.5
+    assert config.inference.nms_threshold == 0.4
+    assert config.inference.batch_size == 1
+
+
+@pytest.mark.parametrize(
+    ("field", "bad_value", "pattern"),
+    [
+        ("input_height", "0", "greater than 0"),
+        ("input_width", "-10", "greater than 0"),
+        ("confidence_threshold", "1.5", "less than or equal to 1"),
+        ("nms_threshold", "-0.1", "greater than or equal to 0"),
+        ("backend", "tensorflow", "Input should be 'opencv' or 'onnxruntime'"),
+        ("device", "tpu", "Input should be 'cpu', 'cuda' or 'directml'"),
+    ],
+)
+def test_inference_config_validates_fields(
+    tmp_path: Path, field: str, bad_value: str, pattern: str
+) -> None:
+    config_path = tmp_path / "invalid-inference.yaml"
+    config_path.write_text(f"inference:\n  {field}: {bad_value}\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=pattern):
+        load_config(config_path)
+
+
+def test_inference_config_validates_positive_std(tmp_path: Path) -> None:
+    config_path = tmp_path / "invalid-std.yaml"
+    config_path.write_text("inference:\n  std: [0.2, -0.1, 0.2]\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="must be strictly positive"):
+        load_config(config_path)
+
+
+def test_inference_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("inference:\n  input_width: 800\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_INFERENCE__INPUT_WIDTH", "1280")
+    monkeypatch.setenv("NEARFIELD360_INFERENCE__DEVICE", "cuda")
+
+    config = load_config(config_path)
+
+    assert config.inference.input_width == 1280
+    assert config.inference.device == "cuda"

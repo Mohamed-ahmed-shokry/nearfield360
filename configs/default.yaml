@@ -77,3 +77,21 @@ tracking:
   process_noise_vel: 1.0
   measurement_noise: 0.5
   forecast_horizon_s: 3.0
+inference:
+  backend: opencv
+  device: cpu
+  precision: fp32
+  input_height: 480
+  input_width: 640
+  mean:
+    - 0.485
+    - 0.456
+    - 0.406
+  std:
+    - 0.229
+    - 0.224
+    - 0.225
+  confidence_threshold: 0.5
+  nms_threshold: 0.4
+  batch_size: 1
+

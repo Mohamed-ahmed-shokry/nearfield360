@@ -47,6 +47,7 @@ nearfield360 = "nearfield360.cli:app"
 dev = [
   "build>=1.2.2,<2",
   "mypy>=1.14,<2",
+  "onnx>=1.23.0",
   "pre-commit>=4.0,<5",
   "pytest>=8.3,<10",
   "pytest-cov>=6.0,<8",
