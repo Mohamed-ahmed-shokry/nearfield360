@@ -171,18 +171,42 @@ class OpenCVDNNBackend:
 
 
 def create_backend(
-    config: InferenceConfig,
-    model_path: Path,
+    model_or_config: InferenceConfig | Path,
+    model_path: Path | None = None,
+    *,
+    backend_type: InferenceBackendType | str = InferenceBackendType.OPENCV,
+    device: InferenceDevice | str = InferenceDevice.CPU,
+    precision: str = "fp32",
 ) -> InferenceBackend:
-    """Instantiate the appropriate inference backend according to configuration."""
-    backend_type = config.backend.lower()
-    device = InferenceDevice(config.device.lower())
-    if backend_type == InferenceBackendType.OPENCV.value:
-        return OpenCVDNNBackend(model_path, device=device, precision=config.precision)
-    elif backend_type == InferenceBackendType.ONNXRUNTIME.value:
+    """Instantiate the appropriate inference backend according to configuration or parameters."""
+    prec: str
+    if isinstance(model_or_config, InferenceConfig):
+        if model_path is None:
+            msg = "model_path is required when passing InferenceConfig"
+            raise ValueError(msg)
+        target_model = model_path
+        b_type = model_or_config.backend.lower()
+        dev = InferenceDevice(model_or_config.device.lower())
+        prec = model_or_config.precision
+    else:
+        target_model = model_or_config
+        b_type = (
+            backend_type.value.lower()
+            if isinstance(backend_type, InferenceBackendType)
+            else str(backend_type).lower()
+        )
+        dev = (
+            device if isinstance(device, InferenceDevice) else InferenceDevice(str(device).lower())
+        )
+        prec = precision
+
+    if b_type == InferenceBackendType.OPENCV.value:
+        return OpenCVDNNBackend(target_model, device=dev, precision=prec)
+    if b_type == InferenceBackendType.ONNXRUNTIME.value:
         logger.warning("onnxruntime requested but not installed. Falling back to OpenCV DNN.")
-        return OpenCVDNNBackend(model_path, device=device, precision=config.precision)
-    raise InferenceError(f"Unsupported inference backend: {config.backend}")
+        return OpenCVDNNBackend(target_model, device=dev, precision=prec)
+    msg = f"Unsupported inference backend: {b_type}"
+    raise InferenceError(msg)
 
 
 __all__ = [
