@@ -8,6 +8,7 @@ from nearfield360.perception.inference.backend import (
     OpenCVDNNBackend,
     create_backend,
 )
+from nearfield360.perception.inference.detection import ObjectDetectionEngine
 from nearfield360.perception.inference.models import (
     BenchmarkSummary,
     InferenceBackendType,
@@ -31,6 +32,7 @@ __all__ = [
     "InferenceError",
     "InferenceResult",
     "ModelMetadata",
+    "ObjectDetectionEngine",
     "OpenCVDNNBackend",
     "PreprocessTransform",
     "PreprocessorError",
