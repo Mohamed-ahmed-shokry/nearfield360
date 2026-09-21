@@ -32,6 +32,16 @@ class InferenceBackend(Protocol):
         """Inspect structural metadata of the loaded model."""
         ...
 
+    @property
+    def backend_type(self) -> InferenceBackendType:
+        """Type of inference runtime backend."""
+        ...
+
+    @property
+    def device(self) -> InferenceDevice:
+        """Target hardware compute device."""
+        ...
+
     def forward(self, blob: np.ndarray) -> np.ndarray | tuple[np.ndarray, ...]:
         """Execute forward pass on preprocessed batch tensor.
 
@@ -120,6 +130,14 @@ class OpenCVDNNBackend:
     @property
     def metadata(self) -> ModelMetadata:
         return self._metadata
+
+    @property
+    def backend_type(self) -> InferenceBackendType:
+        return InferenceBackendType.OPENCV
+
+    @property
+    def device(self) -> InferenceDevice:
+        return self._device
 
     def forward(self, blob: np.ndarray) -> np.ndarray | tuple[np.ndarray, ...]:
         if not isinstance(blob, np.ndarray):
