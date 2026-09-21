@@ -31,8 +31,8 @@ the corresponding experiments have run.
 | Controlled robustness evaluation | Implemented | Synthetic sensor corruptions (soiling, fog, noise, rain), extrinsic calibration perturbation engine, quantitative metrics (occupancy MAE, IoU, risk error), SVG/PNG charts, interactive HTML report dashboard |
 | Dynamic obstacle tracking and forecasting | Implemented core | 2D-to-3D ground footprint projection, 2D metric Kalman filter, state lifecycle, forward trajectory forecasting, collision TTC ingress, and BEV visual overlays |
 | Camera health monitoring and discounting | Implemented core | Laplacian blur variance, adaptive high-frequency lens soiling detection, blockage/underexposure detection, and health-aware Bayesian evidence discounting (`--health-aware`) |
-| Segmentation and detection models | Planned | No learned model weights or training runs yet; no results reported |
-| ONNX, TensorRT, and C++ runtime | Planned | Optional native toolchains are not assumed to be installed |
+| Modular ONNX perception runtime & inference engines | Implemented | OpenCV DNN backend, letterboxing/normalization, semantic segmentation & object detection engines, numerical parity verification, latency benchmarking, and live pipeline integration |
+| PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
 
@@ -220,6 +220,28 @@ The `plot` subcommand generates:
 - OpenCV rasterized PNG comparison charts (`corruption_degradation.png`, `calibration_sensitivity.png`).
 - A self-contained, responsive HTML diagnostic dashboard (`index.html`) with embedded vector charts, metric tables, and environmental metadata.
 
+### Neural perception inference and benchmarking
+
+Run live semantic segmentation or 2D object detection directly on fisheye camera feeds, benchmark ONNX model latency, or inspect neural network tensor shapes:
+
+```powershell
+# 1. Run semantic segmentation on a fisheye image with WoodScape palette visualization:
+uv run nearfield360 infer semantic --model models/segmentation.onnx --image D:\datasets\woodscape\rgb_images\00001_FV.png --output outputs/mask.png
+
+# 2. Run 2D object detection with box unscaling and non-maximum suppression (NMS):
+uv run nearfield360 infer detection --model models/detection.onnx --image D:\datasets\woodscape\rgb_images\00001_FV.png --output outputs/detections.json --json
+
+# 3. Benchmark inference latency distribution and throughput (FPS):
+uv run nearfield360 infer benchmark --model models/segmentation.onnx --iterations 50 --warmup 10 --output outputs/benchmark.json
+
+# 4. Inspect ONNX model input/output shapes and metadata:
+uv run nearfield360 infer inspect --model models/segmentation.onnx
+
+# 5. Run live perception directly within multi-camera BEV occupancy mapping and tracking:
+uv run nearfield360 occupancy layer --root D:\datasets\woodscape --model models/segmentation.onnx --output outputs/occupancy.json
+uv run nearfield360 track run --root D:\datasets\woodscape --model models/detection.onnx --output outputs/tracking.json
+```
+
 ## Dataset policy
 
 [WoodScape](https://github.com/valeoai/WoodScape) is the primary target dataset because it
@@ -289,9 +311,10 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
 2. ~~Fourth-order fisheye projection/inverse projection and camera-to-vehicle transforms.~~ Done
    (core): radial-polynomial projection/inverse, rigid transforms, calibrated cameras, surround
    rig, ground-plane intersection, and BEV grid scaffolding with geometry CLIs.
-3. Deployment-oriented semantic segmentation, metrics, and reproducible experiments. In progress
-   (foundation): numpy-only confusion/IoU, box-IoU metrics, prediction parsing, and an atomic
-   evaluation CLI exist; no models, training, or measured scores yet.
+3. ~~Deployment-oriented semantic segmentation, metrics, and reproducible experiments.~~ Done
+   (core): numpy-only confusion/IoU, box-IoU metrics, prediction parsing, evaluation CLI,
+   modular OpenCV DNN inference engine, letterbox preprocessing, continuous confidence heatmaps,
+   and `nearfield360 infer semantic` command.
 4. ~~Object detection, temporal tracking, and camera-soiling awareness.~~ Done (core):
    WoodScape 2D-to-3D ground footprint projection, 2D metric Kalman filtering with constant velocity kinematics, multi-object tracker with lifecycle management (tentative, confirmed, lost, deleted), forward trajectory forecasting over time horizon, collision TTC zone ingress detection, BEV visual overlays with velocity vectors and predicted paths, camera optical health assessment (soiling, blur, underexposure, overexposure, blockage), and health-aware occupancy evidence discounting (`--health-aware`).
 5. ~~Multi-camera BEV fusion, uncertainty propagation, and transparent safety zones.~~ Done
@@ -304,8 +327,12 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
    rotations and 3D translation shifts), quantitative occupancy/risk degradation benchmark runner,
    pure-Python vector SVG and OpenCV raster PNG plot engines, self-contained interactive HTML
    dashboard, and Typer `robustness` CLI suite.
-7. ONNX parity, optional TensorRT benchmarking, and a modular C++ runtime. Next: PyTorch model
-   integration, ONNX export with numerical parity testing, and execution profiling.
+7. ~~ONNX perception runtime, numerical parity, and latency benchmarking.~~ Done (core):
+   Modular `InferenceBackend` protocol, `OpenCVDNNBackend`, `FisheyeImagePreprocessor`,
+   `ObjectDetectionEngine` with NMS and spatial unscaling, numerical parity verification
+   (`verify_numerical_parity`), statistical latency benchmark engine (`BenchmarkSummary`, FPS,
+   p50/p95/p99), `nearfield360 infer` CLI suite, and live `--model` integration into `occupancy layer`
+   and `track run`. Next: native TensorRT execution provider and C++ runtime wrapper.
 8. Integrated four-camera demo, measured performance report, and release audit.
 
 ## License
