@@ -15,9 +15,15 @@ from nearfield360.perception.inference.models import (
     InferenceResult,
     ModelMetadata,
 )
+from nearfield360.perception.inference.preprocessor import (
+    FisheyeImagePreprocessor,
+    PreprocessorError,
+    PreprocessTransform,
+)
 
 __all__ = [
     "BenchmarkSummary",
+    "FisheyeImagePreprocessor",
     "InferenceBackend",
     "InferenceBackendType",
     "InferenceDevice",
@@ -25,5 +31,7 @@ __all__ = [
     "InferenceResult",
     "ModelMetadata",
     "OpenCVDNNBackend",
+    "PreprocessTransform",
+    "PreprocessorError",
     "create_backend",
 ]

@@ -93,4 +93,5 @@ def test_backend_cuda_fallback_graceful(tmp_path: Path) -> None:
     # CUDA device may fail on environments without CUDA-enabled OpenCV, must fallback or succeed
     backend = OpenCVDNNBackend(model_path, device=InferenceDevice.CUDA)
     out = backend.forward(np.zeros((1, 3, 32, 32), dtype=np.float32))
+    assert isinstance(out, np.ndarray)
     assert out.shape == (1, 10, 32, 32)
