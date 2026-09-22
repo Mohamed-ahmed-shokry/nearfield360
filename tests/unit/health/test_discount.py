@@ -42,7 +42,7 @@ def test_occupancy_evidence_scale_multiplies_mass() -> None:
     zero_scaled = ev.scale(0.0)
     np.testing.assert_allclose(zero_scaled.occupied, 0.0)
     np.testing.assert_allclose(zero_scaled.free, 0.0)
-    np.testing.assert_array_equal(zero_scaled.observed, 3)
+    np.testing.assert_array_equal(zero_scaled.observed, 0)
 
 
 @pytest.mark.parametrize("bad_factor", [-0.5, float("nan"), float("inf"), "0.5", None])
