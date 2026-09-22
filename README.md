@@ -23,6 +23,8 @@ the corresponding experiments have run.
 | Reproducible Python package | Implemented | Locked uv environment; wheel and sdist isolated-install smokes |
 | Typed configuration and logging | Implemented | Strict validation, environment overrides, human/JSON logs; geometry and BEV sections |
 | CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, `data`, `occupancy`, and `robustness` commands |
+| Integrated four-camera pipeline | Implemented | `nearfield360 pipeline run` with per-stage timings, FPS, health-aware fusion, tracking, risk, and occupancy PNG |
+| Release readiness audit | Implemented | `nearfield360 release audit` verifying license, version consistency, default config, and CLI surface |
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
 | WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration/detection contracts, integrity, statistics, explicit-group splits, semantic overlays; synthetic tests |
 | Fisheye calibration and geometry | Implemented core | Fourth-order radial projection/inverse, rigid transforms, vehicle cameras, surround rig, ground intersection, BEV grid; synthetic tests |
@@ -336,7 +338,40 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
    (`verify_numerical_parity`), statistical latency benchmark engine (`BenchmarkSummary`, FPS,
    p50/p95/p99), `nearfield360 infer` CLI suite, and live `--model` integration into `occupancy layer`
    and `track run`. Next: native TensorRT execution provider and C++ runtime wrapper.
-8. Integrated four-camera demo, measured performance report, and release audit.
+8. ~~Integrated four-camera demo, measured performance report, and release audit.~~ Done:
+   `nearfield360 pipeline run` orchestrates health, multi-camera occupancy fusion, dynamic
+   tracking, and risk evaluation over complete four-camera frames with per-stage timing and
+   FPS metrics in a JSON report; `nearfield360 release audit` verifies packaging metadata,
+   license, default config, and CLI surface consistency for release readiness.
+
+## Usage: integrated four-camera pipeline and release audit
+
+Run the full four-camera surround pipeline (discovery → health/occupancy/tracking → risk)
+with a measured performance report:
+
+```powershell
+# Process all complete four-camera frames and write a timed JSON report
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --output outputs/pipeline/report.json
+
+# Limit frames, render fused occupancy, and discount degraded camera evidence
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --samples 5 --health-aware --output outputs/pipeline/report.json --png outputs/pipeline/occupancy.png
+```
+
+The report includes `environment` provenance, effective `config`, per-stage timings
+(`discovery_ms`, `perception_ms`, `occupancy_ms`, `tracking_ms`, `risk_ms`, `forecast_ms`,
+`total_ms`), `frames_per_second`, fused `evidence`, per-zone `risk`, active `tracks`, and
+`forecasts`. Frames missing any of the four cameras, calibration, semantic masks, or
+detections are skipped with a warning.
+
+Verify release readiness (packaging metadata, Apache-2.0 license, version consistency,
+default config, and CLI subcommand surface):
+
+```powershell
+uv run nearfield360 release audit
+uv run nearfield360 release audit --json --output outputs/release/audit.json
+```
+
+The audit exits with status 1 if any check fails.
 
 ## License
 
