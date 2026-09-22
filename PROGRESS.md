@@ -393,3 +393,60 @@ Six integration tests using synthetic dummy ONNX models (no external dataset req
 | Code Formatting | `uv run ruff format --check .` | 0 errors |
 | Strict Typing | `uv run mypy` | 0 errors in 68 source files |
 | Package Build | `uv build` | Success (sdist + wheel) |
+
+---
+
+## Phase 9: Integrated Four-Camera Demo, Measured Performance Report, and Release Audit
+
+**Status:** Completed
+**Repository Branch:** `main`
+**Test Suite:** 733 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (70 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 92.97% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 9 closes README roadmap item 8 and delivers the first end-to-end, timed surround-view
+demo plus automated release readiness:
+
+1. **Integrated Four-Camera Pipeline (`nearfield360 pipeline run`):**
+   - Discover complete four-camera frames (calibration + semantic mask + detections required).
+   - Per frame: occupancy evidence rasterization (optional health discount) and detection →
+     ground-footprint projection into the multi-object tracker.
+   - Across frames: Bayesian evidence fusion, zone risk report, trajectory forecasting.
+   - Measured performance report: per-stage wall-clock timings (`discovery_ms`,
+     `perception_ms`, `occupancy_ms`, `tracking_ms`, `risk_ms`, `forecast_ms`, `total_ms`)
+     and frames-per-second in the JSON artifact, with `environment` provenance.
+   - Optional fused occupancy PNG via `--png`.
+2. **Release Audit (`nearfield360 release audit`):**
+   - Checks: project root, LICENSE (Apache-2.0), project name, version consistency
+     (pyproject vs package), license/readme metadata, console script entry point,
+     README presence, `py.typed`, default config load, and full CLI subcommand surface
+     (including `pipeline` and `release`).
+   - Human or `--json` output; atomic `--output` report; exit code 1 on any failure.
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Pipeline CLI | `src/nearfield360/cli/pipeline.py` |
+| Release audit CLI | `src/nearfield360/cli/release.py` |
+| Root registration | `src/nearfield360/cli/app.py` (`pipeline`, `release`) |
+| Pipeline unit tests | `tests/unit/test_pipeline_cli.py` (9 tests) |
+| Release audit unit tests | `tests/unit/test_release_cli.py` (6 tests) |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 733 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 92.97% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 70 source files |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
