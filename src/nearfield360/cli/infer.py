@@ -18,7 +18,10 @@ from nearfield360.perception.inference.backend import (
     InferenceError,
     create_backend,
 )
-from nearfield360.perception.inference.benchmark import benchmark_inference
+from nearfield360.perception.inference.benchmark import (
+    benchmark_inference,
+    compare_numerical_parity,
+)
 from nearfield360.perception.inference.detection import ObjectDetectionEngine
 from nearfield360.perception.inference.models import (
     InferenceBackendType,
@@ -492,6 +495,114 @@ def infer_benchmark(
     typer.echo(f"  95th Percentile:   {summary.p95_latency_ms:.2f} ms")
     typer.echo(f"  99th Percentile:   {summary.p99_latency_ms:.2f} ms")
     typer.echo(f"  Throughput (FPS):  {summary.fps:.1f} fps")
+
+
+@infer_app.command("parity")
+def infer_parity(
+    model_a: Annotated[
+        Path,
+        typer.Option(
+            "--model-a",
+            "-a",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Path to the first ONNX model file (actual).",
+        ),
+    ],
+    model_b: Annotated[
+        Path,
+        typer.Option(
+            "--model-b",
+            "-b",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Path to the second ONNX model file (reference).",
+        ),
+    ],
+    device: Annotated[
+        str,
+        typer.Option(
+            "--device",
+            "-d",
+            help="Execution device target (cpu, cuda, directml).",
+        ),
+    ] = "cpu",
+    height: Annotated[
+        int,
+        typer.Option("--height", min=1, help="Input tensor height in pixels."),
+    ] = 480,
+    width: Annotated[
+        int,
+        typer.Option("--width", min=1, help="Input tensor width in pixels."),
+    ] = 640,
+    atol: Annotated[
+        float,
+        typer.Option("--atol", help="Absolute tolerance for parity check."),
+    ] = 1e-4,
+    rtol: Annotated[
+        float,
+        typer.Option("--rtol", help="Relative tolerance for parity check."),
+    ] = 1e-4,
+) -> None:
+    """Verify numerical parity between two ONNX models on the same input."""
+    try:
+        dev_enum = InferenceDevice(device.lower())
+    except ValueError:
+        valid_devs = ", ".join(d.value for d in InferenceDevice)
+        typer.secho(
+            f"Invalid device {device!r}. Must be one of: {valid_devs}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+
+    try:
+        backend_a = create_backend(
+            model_a, backend_type=InferenceBackendType.OPENCV, device=dev_enum
+        )
+        backend_b = create_backend(
+            model_b, backend_type=InferenceBackendType.OPENCV, device=dev_enum
+        )
+    except InferenceError as exc:
+        typer.secho(f"Failed to load model: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    dummy_input = np.random.randn(1, 3, height, width).astype(np.float32)
+    try:
+        output_a = backend_a.forward(dummy_input)
+        output_b = backend_b.forward(dummy_input)
+    except InferenceError as exc:
+        typer.secho(f"Inference failed: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    result = compare_numerical_parity(output_a, output_b, atol=atol, rtol=rtol)
+
+    if result.is_match:
+        typer.secho(
+            "Parity check PASSED",
+            fg=typer.colors.GREEN,
+            bold=True,
+        )
+    else:
+        typer.secho(
+            "Parity check FAILED",
+            fg=typer.colors.RED,
+            bold=True,
+        )
+    typer.echo(f"  Max Absolute Diff:  {result.max_abs_diff:.2e}")
+    typer.echo(f"  Mean Absolute Diff: {result.mean_abs_diff:.2e}")
+    typer.echo(f"  Max Relative Diff:  {result.max_rel_diff:.2e}")
+    typer.echo(f"  ATol:               {result.atol}")
+    typer.echo(f"  RTol:               {result.rtol}")
+
+    if not result.is_match:
+        raise typer.Exit(code=1)
 
 
 @infer_app.command("inspect")
