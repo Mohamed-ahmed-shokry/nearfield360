@@ -89,11 +89,12 @@ class KalmanFilter2D:
         z = np.array([measurement[0], measurement[1]], dtype=np.float64)
         y = z - self.H @ self.x  # Innovation
         s = self.H @ self.P @ self.H.T + self.R  # Innovation covariance
-        k = self.P @ self.H.T @ np.linalg.inv(s)  # Kalman gain
+        k = self.P @ self.H.T @ np.linalg.solve(s, np.eye(2, dtype=np.float64))  # Kalman gain
 
         self.x = self.x + k @ y
         i = np.eye(4, dtype=np.float64)
-        self.P = (i - k @ self.H) @ self.P
+        ikh = i - k @ self.H
+        self.P = ikh @ self.P @ ikh.T + k @ self.R @ k.T  # Joseph form
 
         return float(self.x[0]), float(self.x[1])
 
