@@ -210,3 +210,71 @@ def test_infer_inspect_success(dummy_seg_model: Path, tmp_path: Path) -> None:
     assert out_json.is_file()
     data = json.loads(result.stdout)
     assert data["backend"] == "opencv"
+
+
+def test_infer_parity_success(dummy_seg_model: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "parity",
+            "--model-a",
+            str(dummy_seg_model),
+            "--model-b",
+            str(dummy_seg_model),
+            "--height",
+            "32",
+            "--width",
+            "32",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Parity check PASSED" in result.stdout
+    assert "Max Absolute Diff" in result.stdout
+
+
+def test_infer_parity_fails_on_different_models(
+    dummy_seg_model: Path, dummy_det_model: Path
+) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "parity",
+            "--model-a",
+            str(dummy_seg_model),
+            "--model-b",
+            str(dummy_det_model),
+            "--height",
+            "32",
+            "--width",
+            "32",
+        ],
+    )
+    assert result.exit_code == 1
+    output = result.stdout + result.stderr
+    assert "Parity comparison failed" in output
+
+
+def test_infer_parity_invalid_device(dummy_seg_model: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "parity",
+            "--model-a",
+            str(dummy_seg_model),
+            "--model-b",
+            str(dummy_seg_model),
+            "--device",
+            "invalid_device",
+        ],
+    )
+    assert result.exit_code == 1
+    assert "Invalid device" in result.stderr or "Invalid device" in result.stdout
+
+
+def test_infer_parity_in_help() -> None:
+    result = runner.invoke(app, ["infer", "--help"])
+    assert result.exit_code == 0
+    assert "parity" in result.stdout

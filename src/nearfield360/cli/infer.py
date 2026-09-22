@@ -581,7 +581,11 @@ def infer_parity(
         typer.secho(f"Inference failed: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from None
 
-    result = compare_numerical_parity(output_a, output_b, atol=atol, rtol=rtol)
+    try:
+        result = compare_numerical_parity(output_a, output_b, atol=atol, rtol=rtol)
+    except (ValueError, TypeError) as exc:
+        typer.secho(f"Parity comparison failed: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
 
     if result.is_match:
         typer.secho(
