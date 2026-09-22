@@ -330,3 +330,66 @@ Phase 7 delivers a production-grade neural perception inference stack for real-t
 | Strict Typing | `uv run mypy` | 0 errors in 68 source files |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 8: Integration Test Coverage, Missing CLI Command, and Documentation Accuracy
+
+**Status:** Completed
+**Repository Branch:** `main`
+**Test Suite:** 718 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (68 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 93.24% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 8 closes critical quality gaps identified in the codebase audit:
+
+1. **Missing Integration Tests:** No end-to-end pipeline tests existed despite a 7-module perception stack.
+2. **Missing CLI Command:** `nearfield360 infer parity` was documented but never implemented.
+3. **No Config YAML Deserialization Test:** Drift between `configs/default.yaml` and `ProjectConfig` would go undetected.
+4. **Documentation Mismatch:** README lacked the parity command usage example.
+
+---
+
+### 2. Delivered Components & Architecture
+
+#### A. `nearfield360 infer parity` CLI Command (`src/nearfield360/cli/infer.py`)
+- Loads two ONNX models via OpenCV DNN backend.
+- Runs inference on identical random input tensors.
+- Computes max absolute, mean absolute, and max relative differences.
+- Reports PASS/FAIL with configurable `--atol` and `--rtol` tolerances.
+- Catches `ValueError` from shape mismatches and `InferenceError` from model failures.
+
+#### B. Integration Test Suite (`tests/integration/test_pipeline.py`)
+Six integration tests using synthetic dummy ONNX models (no external dataset required):
+
+| Test | Pipeline Path | What It Verifies |
+| --- | --- | --- |
+| `test_single_frame_pipeline` | Image -> Semantic -> Occupancy -> Risk | Full single-frame perception chain |
+| `test_occupancy_evidence_accumulates_across_frames` | Multi-frame occupancy fusion | Evidence accumulation and grid consistency |
+| `test_detection_through_tracking` | Detection -> Projection -> Kalman -> Tracker | Object lifecycle and velocity estimation |
+| `test_kalman_filter_position_update` | Kalman predict/update loop | Filter convergence toward measured target |
+| `test_default_config_to_risk_report` | Config -> Grid -> Zones -> Risk | End-to-end config-driven pipeline |
+| `test_fuse_four_cameras` | 4-camera evidence -> Fusion -> Risk | Multi-camera surround evidence aggregation |
+
+#### C. Code Quality Fixes (from Phase 7 audit)
+- `health/discount.py`: Clamped discount weight to [0, 1] to prevent evidence inflation.
+- `tracking/kalman.py`: Joseph form covariance update for numerical stability; `np.linalg.solve` instead of `np.linalg.inv`.
+- `occupancy/evidence.py`: `scale(0.0)` now zeros observed counts for semantic consistency.
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 718 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 93.24% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 68 source files |
+| Package Build | `uv build` | Success (sdist + wheel) |
