@@ -165,11 +165,12 @@ class OccupancyEvidence:
         factor_val = float(factor)
         if not np.isfinite(factor_val) or factor_val < 0.0:
             raise ValueError("factor must be non-negative and finite")
+        scaled_obs = self.observed if factor_val > 0.0 else np.zeros_like(self.observed)
         return OccupancyEvidence(
             grid=self.grid,
             occupied=self.occupied * factor_val,
             free=self.free * factor_val,
-            observed=self.observed * (1.0 if factor_val > 0.0 else 0.0),
+            observed=scaled_obs,
         )
 
     def __add__(self, other: OccupancyEvidence) -> OccupancyEvidence:
