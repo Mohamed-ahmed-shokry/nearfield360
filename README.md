@@ -237,7 +237,10 @@ uv run nearfield360 infer benchmark --model models/segmentation.onnx --iteration
 # 4. Inspect ONNX model input/output shapes and metadata:
 uv run nearfield360 infer inspect --model models/segmentation.onnx
 
-# 5. Run live perception directly within multi-camera BEV occupancy mapping and tracking:
+# 5. Verify numerical parity between two ONNX models (e.g. after quantization):
+uv run nearfield360 infer parity --model-a models/original.onnx --model-b models/quantized.onnx
+
+# 6. Run live perception directly within multi-camera BEV occupancy mapping and tracking:
 uv run nearfield360 occupancy layer --root D:\datasets\woodscape --model models/segmentation.onnx --output outputs/occupancy.json
 uv run nearfield360 track run --root D:\datasets\woodscape --model models/detection.onnx --output outputs/tracking.json
 ```
