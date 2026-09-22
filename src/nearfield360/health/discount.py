@@ -22,7 +22,8 @@ def apply_health_discount(
     Returns:
         New discounted OccupancyEvidence layer.
     """
-    weight = float(health) if isinstance(health, (int, float)) else float(health.discount_weight)
+    raw = float(health) if isinstance(health, (int, float)) else float(health.discount_weight)
+    weight = max(0.0, min(1.0, raw))
     return evidence.scale(weight)
 
 
