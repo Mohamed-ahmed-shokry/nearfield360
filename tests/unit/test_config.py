@@ -287,3 +287,24 @@ def test_inference_config_environment_overrides(
 
     assert config.inference.input_width == 1280
     assert config.inference.device == "cuda"
+
+
+def test_repository_default_config_deserializes_completely() -> None:
+    """Verify configs/default.yaml loads into ProjectConfig without validation errors."""
+    config_path = Path(__file__).resolve().parents[2] / "configs" / "default.yaml"
+    if not config_path.exists():
+        pytest.skip("configs/default.yaml not found")
+
+    config = load_config(config_path)
+
+    assert config.paths.dataset_root is None
+    assert config.runtime.device == "auto"
+    assert config.logging.level == "INFO"
+    assert config.geometry.theta_max > 0
+    assert config.bev.resolution > 0
+    assert config.occupancy.confidence_slope > 0
+    assert config.risk.danger_occupancy > 0
+    assert config.health.blur_threshold > 0
+    assert config.tracking.dt > 0
+    assert config.inference.backend in ("opencv", "onnxruntime")
+    assert config.inference.device in ("cpu", "cuda", "directml")
