@@ -21,12 +21,20 @@ from nearfield360.cli.occupancy import (
 )
 from nearfield360.cli.state import get_state
 from nearfield360.data.calibration import load_calibration
-from nearfield360.data.detection import load_detection_annotations
+from nearfield360.data.detection import DetectionAnnotation, load_detection_annotations
+from nearfield360.data.images import load_rgb_image
 from nearfield360.data.woodscape import CameraId, WoodScapeSample
 from nearfield360.geometry.camera import CalibratedCamera
 from nearfield360.health import CameraHealthReport
 from nearfield360.occupancy import OccupancyEvidence, OccupancyPolicy, RiskZone, risk_report
 from nearfield360.perception.evaluation import environment_metadata
+from nearfield360.perception.inference import (
+    InferenceBackendType,
+    InferenceDevice,
+    ObjectDetectionEngine,
+    SemanticSegmentationEngine,
+    create_backend,
+)
 from nearfield360.tracking.models import (
     GroundFootprint,
     TrackedObstacle,
@@ -75,19 +83,108 @@ HealthAwareOption = Annotated[
     ),
 ]
 
+SegModelOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--seg-model",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="ONNX semantic segmentation model for live occupancy (replaces semantic masks).",
+    ),
+]
+
+DetModelOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--det-model",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="ONNX object detection model for live tracking (replaces detection files).",
+    ),
+]
+
+
+def _load_segmentation_engine(model: Path) -> SemanticSegmentationEngine:
+    try:
+        backend = create_backend(
+            model,
+            backend_type=InferenceBackendType.OPENCV,
+            device=InferenceDevice.CPU,
+        )
+        return SemanticSegmentationEngine(backend=backend)
+    except Exception as exc:
+        typer.secho(
+            f"Failed to load segmentation model {model}: {exc}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+
+
+def _load_detection_engine(model: Path) -> ObjectDetectionEngine:
+    try:
+        backend = create_backend(
+            model,
+            backend_type=InferenceBackendType.OPENCV,
+            device=InferenceDevice.CPU,
+        )
+        return ObjectDetectionEngine(backend=backend)
+    except Exception as exc:
+        typer.secho(
+            f"Failed to load detection model {model}: {exc}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+
+
+def _latency_stats(samples_ms: list[float]) -> dict[str, Any]:
+    """Compute latency distribution statistics from per-frame samples in milliseconds."""
+    if not samples_ms:
+        return {
+            "samples": 0,
+            "mean_ms": 0.0,
+            "p50_ms": 0.0,
+            "p95_ms": 0.0,
+            "p99_ms": 0.0,
+            "min_ms": 0.0,
+            "max_ms": 0.0,
+        }
+    arr = np.asarray(samples_ms, dtype=np.float64)
+    return {
+        "samples": len(samples_ms),
+        "mean_ms": round(float(np.mean(arr)), 3),
+        "p50_ms": round(float(np.percentile(arr, 50)), 3),
+        "p95_ms": round(float(np.percentile(arr, 95)), 3),
+        "p99_ms": round(float(np.percentile(arr, 99)), 3),
+        "min_ms": round(float(np.min(arr)), 3),
+        "max_ms": round(float(np.max(arr)), 3),
+    }
+
 
 def _group_complete_frames(
     context: typer.Context,
     root: Path | None,
     samples_limit: int,
+    *,
+    require_semantic: bool,
+    require_detection: bool,
 ) -> list[tuple[str, list[WoodScapeSample]]]:
     """Group samples by frame_id, keeping only frames with all four cameras annotated."""
     dataset = discover_dataset(context, root)
     by_frame: dict[str, list[WoodScapeSample]] = defaultdict(list)
     for sample in dataset:
-        if sample.calibration_path is None or sample.semantic_mask_path is None:
+        if sample.calibration_path is None:
             continue
-        if sample.detection_path is None:
+        if require_semantic and sample.semantic_mask_path is None:
+            continue
+        if require_detection and sample.detection_path is None:
             continue
         by_frame[sample.key.frame_id].append(sample)
     complete: list[tuple[str, list[WoodScapeSample]]] = []
@@ -100,8 +197,13 @@ def _group_complete_frames(
             continue
         complete.append((frame_id, by_frame[frame_id]))
     if not complete:
+        requirements = ["all four cameras and calibration"]
+        if require_semantic:
+            requirements.append("semantic masks")
+        if require_detection:
+            requirements.append("detections")
         typer.secho(
-            "No frames with all four cameras, calibration, semantic masks, and detections found.",
+            "No frames with " + ", ".join(requirements) + " found.",
             fg=typer.colors.RED,
             err=True,
         )
@@ -117,15 +219,50 @@ def _group_complete_frames(
     return complete[:samples_limit] if samples_limit > 0 else complete
 
 
-def _frame_footprints(context: typer.Context, sample: WoodScapeSample) -> list[GroundFootprint]:
+def _load_detections(
+    context: typer.Context,
+    sample: WoodScapeSample,
+    det_engine: ObjectDetectionEngine | None,
+) -> tuple[DetectionAnnotation, ...] | None:
+    if det_engine is not None:
+        try:
+            rgb = load_rgb_image(sample.image_path)
+            return det_engine.predict_annotations(rgb)
+        except Exception as exc:
+            typer.secho(
+                f"Detection inference error for {sample.key.stem}: {exc}",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1) from None
+    if sample.detection_path is None:
+        return None
+    try:
+        return load_detection_annotations(sample.detection_path)
+    except Exception as exc:
+        typer.secho(
+            f"Error loading detections for {sample.key.stem}: {exc}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+
+
+def _frame_footprints(
+    context: typer.Context,
+    sample: WoodScapeSample,
+    det_engine: ObjectDetectionEngine | None = None,
+) -> list[GroundFootprint]:
     """Load detections for one sample and project them onto the ground plane."""
     config = get_state(context).config
-    if sample.calibration_path is None or sample.detection_path is None:
+    if sample.calibration_path is None:
+        return []
+    detections = _load_detections(context, sample, det_engine)
+    if detections is None:
         return []
     try:
         calib = load_calibration(sample.calibration_path)
         camera = CalibratedCamera.from_calibration(calib, theta_max=config.geometry.theta_max)
-        detections = load_detection_annotations(sample.detection_path)
     except Exception as exc:
         typer.secho(
             f"Error processing {sample.key.stem}: {exc}",
@@ -198,17 +335,33 @@ def run_pipeline(
     overwrite: OverwriteOption = False,
     png: PngOption = None,
     health_aware: HealthAwareOption = False,
+    seg_model: SegModelOption = None,
+    det_model: DetModelOption = None,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
 
+    model_engine: SemanticSegmentationEngine | None = None
+    det_engine: ObjectDetectionEngine | None = None
+    if seg_model is not None:
+        model_engine = _load_segmentation_engine(seg_model)
+    if det_model is not None:
+        det_engine = _load_detection_engine(det_model)
+
     timings: dict[str, float] = {}
+    frame_latencies_ms: list[float] = []
     total_start = time.perf_counter()
 
     stage_start = time.perf_counter()
     grid = _configured_grid(context)
     policy: OccupancyPolicy = _configured_policy(context)
-    frames = _group_complete_frames(context, root, samples)
+    frames = _group_complete_frames(
+        context,
+        root,
+        samples,
+        require_semantic=model_engine is None,
+        require_detection=det_engine is None,
+    )
     timings["discovery_ms"] = (time.perf_counter() - stage_start) * 1000.0
 
     zones = _configured_zones(grid, context)
@@ -224,6 +377,7 @@ def run_pipeline(
 
     stage_start = time.perf_counter()
     for frame_index, (frame_id, frame_samples) in enumerate(frames, start=1):
+        frame_start = time.perf_counter()
         frame_evidence: OccupancyEvidence | None = None
         footprints: list[GroundFootprint] = []
         for sample in frame_samples:
@@ -235,6 +389,7 @@ def run_pipeline(
                 policy,
                 theta_max=None,
                 health_aware=health_aware,
+                model_engine=model_engine,
             )
             occupancy_ms += (time.perf_counter() - t_occ) * 1000.0
             if report is not None:
@@ -243,13 +398,14 @@ def run_pipeline(
             frame_evidence = evidence if frame_evidence is None else frame_evidence.add(evidence)
 
             t_trk = time.perf_counter()
-            footprints.extend(_frame_footprints(context, sample))
+            footprints.extend(_frame_footprints(context, sample, det_engine))
             tracking_ms += (time.perf_counter() - t_trk) * 1000.0
 
         if frame_evidence is not None:
             fused = frame_evidence if fused is None else fused.add(frame_evidence)
         active_obstacles = tracker.update(footprints)
         frames_evaluated += 1
+        frame_latencies_ms.append((time.perf_counter() - frame_start) * 1000.0)
         typer.echo(f"[{frame_index}/{len(frames)}] processed frame {frame_id}")
     timings["perception_ms"] = (time.perf_counter() - stage_start) * 1000.0
     timings["occupancy_ms"] = occupancy_ms
@@ -293,6 +449,10 @@ def run_pipeline(
     }
     if health_aware:
         samples_payload["health_aware"] = True
+    if seg_model is not None:
+        samples_payload["seg_model"] = str(seg_model)
+    if det_model is not None:
+        samples_payload["det_model"] = str(det_model)
 
     fps = (
         round(frames_evaluated / (timings["total_ms"] / 1000.0), 3)
@@ -306,6 +466,7 @@ def run_pipeline(
         "timings": {
             **{k: round(v, 3) for k, v in timings.items()},
             "frames_per_second": fps,
+            "frame_latency": _latency_stats(frame_latencies_ms),
         },
         "grid": {
             "x_min": grid.x_min,
@@ -349,11 +510,13 @@ def run_pipeline(
 
     typer.echo(f"Wrote {output}")
     summary = payload["summary"]
+    latency = payload["timings"]["frame_latency"]
     typer.echo(
         f"Pipeline complete: {frames_evaluated} frames, "
         f"{summary['total_active_tracks']} tracks "
         f"({summary['confirmed_tracks']} confirmed), "
-        f"total {timings['total_ms']:.1f} ms ({fps} fps)."
+        f"total {timings['total_ms']:.1f} ms ({fps} fps), "
+        f"frame p50={latency['p50_ms']} ms p95={latency['p95_ms']} ms."
     )
     if summary["intrusions_detected"]:
         typer.secho(
