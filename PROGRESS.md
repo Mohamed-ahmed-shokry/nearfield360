@@ -450,3 +450,63 @@ demo plus automated release readiness:
 | Release Audit | `uv run nearfield360 release audit` | All checks pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 10: Live ONNX Perception in the Integrated Pipeline and Latency Distribution Statistics
+
+**Status:** Completed
+**Repository Branch:** `main`
+**Test Suite:** 737 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (70 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 92.82% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 10 closes README roadmap item 9 and closes the integration gap between Phase 7
+(live ONNX engines) and Phase 9 (integrated pipeline):
+
+1. **Live ONNX models on `pipeline run`:**
+   - `--seg-model`: ONNX semantic segmentation for occupancy evidence (replaces semantic masks).
+   - `--det-model`: ONNX object detection for ground-footprint projection (replaces detection files).
+   - Annotation requirements relax when models are supplied (RGB + calibration suffice for
+     the corresponding stage); without models, prior annotation requirements are unchanged.
+   - Model paths recorded in `samples.seg_model` / `samples.det_model`.
+2. **Latency distribution statistics:**
+   - Per-frame wall-clock samples collected during the perception loop.
+   - `timings.frame_latency` reports `samples`, `mean_ms`, `p50_ms`, `p95_ms`, `p99_ms`,
+     `min_ms`, `max_ms` (milliseconds, rounded to 3 decimals).
+   - Human-readable summary prints `frame p50=... p95=...` after completion.
+3. **End-to-end integration coverage:**
+   - CLI integration test running `pipeline run` with synthetic ONNX models and
+     `--health-aware` over a complete four-camera frame.
+
+**Explicit exclusions:** TensorRT execution provider, C++ runtime wrapper, multi-run
+harness for percentile aggregation across process restarts (remain future work under
+roadmap item 7 residual).
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Live model loading + relaxed frame grouping | `src/nearfield360/cli/pipeline.py` |
+| `_latency_stats` percentile helper | `src/nearfield360/cli/pipeline.py` |
+| Unit tests (12 total, +3 for this phase) | `tests/unit/test_pipeline_cli.py` |
+| End-to-end CLI integration test | `tests/integration/test_pipeline.py` (`TestEndToEndCliPipeline`) |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 737 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 92.82% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 70 source files |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
