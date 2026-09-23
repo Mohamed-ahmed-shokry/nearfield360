@@ -143,9 +143,19 @@ def test_pipeline_run_writes_timed_report(tmp_path: Path) -> None:
         "forecast_ms",
         "total_ms",
         "frames_per_second",
+        "frame_latency",
     ):
         assert key in timings
-        assert timings[key] >= 0.0
+        if key != "frame_latency":
+            assert timings[key] >= 0.0
+
+    latency = timings["frame_latency"]
+    assert latency["samples"] == 2
+    assert latency["mean_ms"] > 0.0
+    assert latency["p50_ms"] > 0.0
+    assert latency["p95_ms"] >= latency["p50_ms"]
+    assert latency["p99_ms"] >= latency["p95_ms"]
+    assert latency["min_ms"] <= latency["max_ms"]
 
     assert png.is_file()
     assert json.dumps(payload)
@@ -278,3 +288,110 @@ def test_pipeline_run_requires_detections(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "No frames with all four cameras" in result.stderr
+
+
+def _write_live_dataset(root: Path, frame_id: str) -> None:
+    """Dataset with only RGB + calibration (no semantic masks or detection files)."""
+    (root / "rgb_images").mkdir(parents=True, exist_ok=True)
+    (root / "calibration_data").mkdir(parents=True, exist_ok=True)
+    img = np.full((32, 32, 3), 120, dtype=np.uint8)
+    for cam in _CAMERAS:
+        stem = f"{frame_id}_{cam}"
+        cv2.imwrite(str(root / f"rgb_images/{stem}.png"), img)
+        calib = root / f"calibration_data/{stem}.json"
+        calib.write_text(
+            json.dumps(
+                {
+                    "extrinsic": {
+                        "quaternion": _DOWN_QUATERNION,
+                        "translation": [0.0, 0.0, 1.5],
+                    },
+                    "intrinsic": {
+                        "aspect_ratio": 1.0,
+                        "cx_offset": 0.0,
+                        "cy_offset": 0.0,
+                        "height": 32,
+                        "k1": 50.0,
+                        "k2": 0.0,
+                        "k3": 0.0,
+                        "k4": 0.0,
+                        "model": "radial_poly",
+                        "poly_order": 4,
+                        "width": 32,
+                    },
+                    "name": cam,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+
+def test_pipeline_run_with_live_seg_and_det_models(tmp_path: Path) -> None:
+    from nearfield360.perception.inference.test_utils import (
+        create_dummy_detection_onnx,
+        create_dummy_segmentation_onnx,
+    )
+
+    seg_path = tmp_path / "models" / "seg.onnx"
+    det_path = tmp_path / "models" / "det.onnx"
+    create_dummy_segmentation_onnx(seg_path, num_classes=10, height=32, width=32)
+    create_dummy_detection_onnx(det_path, num_classes=5, num_boxes=3, height=32, width=32)
+
+    dataset = tmp_path / "dataset"
+    _write_live_dataset(dataset, "00001")
+    output = tmp_path / "live_pipeline.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "pipeline",
+            "run",
+            "--root",
+            str(dataset),
+            "--output",
+            str(output),
+            "--seg-model",
+            str(seg_path),
+            "--det-model",
+            str(det_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = read_json(output)
+    assert payload["samples"]["evaluated"] == 1
+    assert payload["samples"]["seg_model"] == str(seg_path)
+    assert payload["samples"]["det_model"] == str(det_path)
+    assert payload["timings"]["frame_latency"]["samples"] == 1
+    assert payload["evidence"]["observed_cells"] >= 0
+    assert json.dumps(payload)
+
+
+def test_pipeline_run_without_models_still_requires_annotations(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    _write_live_dataset(dataset, "00001")
+
+    result = runner.invoke(
+        app,
+        ["pipeline", "run", "--root", str(dataset), "--output", str(tmp_path / "out.json")],
+    )
+
+    assert result.exit_code == 1
+    assert "No frames with all four cameras" in result.stderr
+
+
+def test_latency_stats_helper_empty_and_populated() -> None:
+    from nearfield360.cli.pipeline import _latency_stats
+
+    empty = _latency_stats([])
+    assert empty["samples"] == 0
+    assert empty["p50_ms"] == 0.0
+
+    stats = _latency_stats([10.0, 20.0, 30.0, 40.0])
+    assert stats["samples"] == 4
+    assert stats["min_ms"] == 10.0
+    assert stats["max_ms"] == 40.0
+    assert stats["mean_ms"] == 25.0
+    assert 20.0 <= stats["p50_ms"] <= 30.0
+    assert stats["p95_ms"] >= stats["p50_ms"]
+    assert stats["p99_ms"] >= stats["p95_ms"]
