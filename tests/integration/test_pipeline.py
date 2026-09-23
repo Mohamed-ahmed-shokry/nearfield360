@@ -363,3 +363,93 @@ class TestMultiCameraFusion:
         zones = surround_parking_zones(bev_grid)
         reports = risk_report(zones, fused, min_evidence=1)
         assert len(reports) == 6
+
+
+# ---------------------------------------------------------------------------
+# Integration Test 5: Full CLI pipeline with live ONNX models
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+class TestEndToEndCliPipeline:
+    """Exercise `nearfield360 pipeline run` end-to-end with synthetic ONNX models."""
+
+    def test_pipeline_run_with_live_models(
+        self,
+        tmp_path: Path,
+        dummy_seg_model: Path,
+        dummy_det_model: Path,
+    ) -> None:
+        import json
+
+        from typer.testing import CliRunner
+
+        from nearfield360.cli import app
+        from nearfield360.utils.artifacts import read_json
+
+        dataset = tmp_path / "dataset"
+        cameras = ("FV", "RV", "MVL", "MVR")
+        img = np.full((32, 32, 3), 100, dtype=np.uint8)
+        for cam in cameras:
+            stem = f"00001_{cam}"
+            (dataset / "rgb_images").mkdir(parents=True, exist_ok=True)
+            (dataset / "calibration_data").mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(dataset / f"rgb_images/{stem}.png"), img)
+            calib = {
+                "extrinsic": {
+                    "quaternion": [1.0, 0.0, 0.0, 0.0],
+                    "translation": [0.0, 0.0, 1.5],
+                },
+                "intrinsic": {
+                    "aspect_ratio": 1.0,
+                    "cx_offset": 0.0,
+                    "cy_offset": 0.0,
+                    "height": 32,
+                    "k1": 50.0,
+                    "k2": 0.0,
+                    "k3": 0.0,
+                    "k4": 0.0,
+                    "model": "radial_poly",
+                    "poly_order": 4,
+                    "width": 32,
+                },
+                "name": cam,
+            }
+            (dataset / f"calibration_data/{stem}.json").write_text(
+                json.dumps(calib), encoding="utf-8"
+            )
+
+        output = tmp_path / "e2e_pipeline.json"
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "pipeline",
+                "run",
+                "--root",
+                str(dataset),
+                "--output",
+                str(output),
+                "--seg-model",
+                str(dummy_seg_model),
+                "--det-model",
+                str(dummy_det_model),
+                "--health-aware",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout + result.stderr
+        assert "Pipeline complete: 1 frames" in result.stdout
+
+        payload = read_json(output)
+        assert payload["samples"]["evaluated"] == 1
+        assert payload["samples"]["seg_model"] == str(dummy_seg_model)
+        assert payload["samples"]["det_model"] == str(dummy_det_model)
+        assert payload["samples"]["health_aware"] is True
+        assert len(payload["health"]) == 4
+        assert payload["timings"]["frame_latency"]["samples"] == 1
+        assert payload["timings"]["frame_latency"]["p95_ms"] >= 0.0
+        assert len(payload["risk"]) == 6
+        assert "summary" in payload
+        assert payload["environment"]["nearfield360_version"]
+        assert json.dumps(payload)
