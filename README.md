@@ -364,9 +364,22 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --samples 5 --heal
 
 The report includes `environment` provenance, effective `config`, per-stage timings
 (`discovery_ms`, `perception_ms`, `occupancy_ms`, `tracking_ms`, `risk_ms`, `forecast_ms`,
-`total_ms`), `frames_per_second`, fused `evidence`, per-zone `risk`, active `tracks`, and
-`forecasts`. Frames missing any of the four cameras, calibration, semantic masks, or
-detections are skipped with a warning.
+`total_ms`), `frames_per_second`, per-frame latency distribution (`frame_latency` with
+mean/p50/p95/p99/min/max in milliseconds), fused `evidence`, per-zone `risk`, active
+`tracks`, and `forecasts`. Frames missing any of the four cameras, calibration, semantic
+masks (unless `--seg-model` is provided), or detections (unless `--det-model` is provided)
+are skipped with a warning.
+
+For live neural perception without precomputed annotations, pass ONNX models:
+
+```powershell
+# Annotation-free live pipeline: RGB + calibration only, models supply masks and boxes
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/segmentation.onnx --det-model models/detection.onnx --output outputs/pipeline/live.json
+```
+
+`--seg-model` replaces semantic masks for occupancy evidence; `--det-model` replaces
+detection files for ground-footprint projection. Model paths are recorded under
+`samples.seg_model` / `samples.det_model` in the report.
 
 Verify release readiness (packaging metadata, Apache-2.0 license, version consistency,
 default config, and CLI subcommand surface):
