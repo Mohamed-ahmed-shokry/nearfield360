@@ -170,6 +170,119 @@ class OpenCVDNNBackend:
             self.forward(dummy)
 
 
+class OnnxRuntimeBackend:
+    """Inference backend powered by the optional ``onnxruntime`` package.
+
+    Requires ``pip install nearfield360[onnxruntime]`` (or ``uv sync --extra onnxruntime``).
+    Construction raises :class:`InferenceError` when the package is not installed.
+    """
+
+    def __init__(
+        self,
+        model_path: Path,
+        device: InferenceDevice = InferenceDevice.CPU,
+        precision: str = "fp32",
+    ) -> None:
+        del precision  # ONNX Runtime session options control precision externally.
+        if not model_path.is_file():
+            raise InferenceError(f"Model file not found: {model_path}")
+
+        try:
+            import onnxruntime as ort  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise InferenceError(
+                "onnxruntime is not installed. Install with "
+                "`pip install nearfield360[onnxruntime]` or "
+                "`uv sync --extra onnxruntime`, or use --backend opencv."
+            ) from exc
+
+        self._model_path = model_path
+        self._device = device
+        providers: list[str] = []
+        available = ort.get_available_providers()
+        if device == InferenceDevice.CUDA and "CUDAExecutionProvider" in available:
+            providers.append("CUDAExecutionProvider")
+        elif device == InferenceDevice.CUDA:
+            logger.warning(
+                "CUDA requested for onnxruntime but CUDAExecutionProvider is unavailable. "
+                "Falling back to CPU."
+            )
+            self._device = InferenceDevice.CPU
+        providers.append("CPUExecutionProvider")
+
+        so = ort.SessionOptions()
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        try:
+            self._session = ort.InferenceSession(
+                str(model_path), sess_options=so, providers=providers
+            )
+        except Exception as exc:
+            raise InferenceError(
+                f"onnxruntime failed to load ONNX model {model_path}: {exc}"
+            ) from exc
+
+        self._input_name = self._session.get_inputs()[0].name
+        self._output_names = tuple(out.name for out in self._session.get_outputs())
+        self._metadata = self._extract_metadata()
+
+    def _extract_metadata(self) -> ModelMetadata:
+        inputs = self._session.get_inputs()
+        outputs = self._session.get_outputs()
+        return ModelMetadata(
+            model_path=str(self._model_path),
+            backend=InferenceBackendType.ONNXRUNTIME.value,
+            device=self._device.value,
+            input_names=tuple(i.name for i in inputs),
+            input_shapes=tuple(
+                tuple(d if isinstance(d, int) else 0 for d in (i.shape or ())) for i in inputs
+            ),
+            output_names=tuple(o.name for o in outputs),
+            output_shapes=tuple(
+                tuple(d if isinstance(d, int) else 0 for d in (o.shape or ())) for o in outputs
+            ),
+        )
+
+    @property
+    def metadata(self) -> ModelMetadata:
+        return self._metadata
+
+    @property
+    def backend_type(self) -> InferenceBackendType:
+        return InferenceBackendType.ONNXRUNTIME
+
+    @property
+    def device(self) -> InferenceDevice:
+        return self._device
+
+    def forward(self, blob: np.ndarray) -> np.ndarray | tuple[np.ndarray, ...]:
+        if not isinstance(blob, np.ndarray):
+            raise InferenceError(f"Input blob must be a numpy ndarray, got {type(blob)}")
+        if blob.ndim != 4:
+            raise InferenceError(
+                f"Input blob must have 4 dimensions (N, C, H, W), got shape {blob.shape}"
+            )
+        if blob.dtype != np.float32:
+            blob = blob.astype(np.float32, copy=False)
+        if not blob.flags["C_CONTIGUOUS"]:
+            blob = np.ascontiguousarray(blob)
+
+        try:
+            results = self._session.run(list(self._output_names), {self._input_name: blob})
+        except Exception as exc:
+            raise InferenceError(f"onnxruntime forward inference failed: {exc}") from exc
+        arrays = tuple(np.asarray(r, dtype=np.float32) for r in results)
+        if len(arrays) == 1:
+            return arrays[0]
+        return arrays
+
+    def warmup(self, iterations: int = 3, sample_shape: tuple[int, ...] = (1, 3, 64, 64)) -> None:
+        if iterations <= 0:
+            return
+        dummy = np.zeros(sample_shape, dtype=np.float32)
+        for _ in range(iterations):
+            self.forward(dummy)
+
+
 def create_backend(
     model_or_config: InferenceConfig | Path,
     model_path: Path | None = None,
@@ -203,8 +316,7 @@ def create_backend(
     if b_type == InferenceBackendType.OPENCV.value:
         return OpenCVDNNBackend(target_model, device=dev, precision=prec)
     if b_type == InferenceBackendType.ONNXRUNTIME.value:
-        logger.warning("onnxruntime requested but not installed. Falling back to OpenCV DNN.")
-        return OpenCVDNNBackend(target_model, device=dev, precision=prec)
+        return OnnxRuntimeBackend(target_model, device=dev, precision=prec)
     msg = f"Unsupported inference backend: {b_type}"
     raise InferenceError(msg)
 
@@ -212,6 +324,7 @@ def create_backend(
 __all__ = [
     "InferenceBackend",
     "InferenceError",
+    "OnnxRuntimeBackend",
     "OpenCVDNNBackend",
     "create_backend",
 ]

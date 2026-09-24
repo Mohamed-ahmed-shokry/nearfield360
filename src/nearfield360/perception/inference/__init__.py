@@ -5,6 +5,7 @@ from __future__ import annotations
 from nearfield360.perception.inference.backend import (
     InferenceBackend,
     InferenceError,
+    OnnxRuntimeBackend,
     OpenCVDNNBackend,
     create_backend,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "InferenceResult",
     "ModelMetadata",
     "ObjectDetectionEngine",
+    "OnnxRuntimeBackend",
     "OpenCVDNNBackend",
     "ParityComparison",
     "PreprocessTransform",
