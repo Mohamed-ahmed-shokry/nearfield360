@@ -7,7 +7,10 @@ import pytest
 from typer.testing import CliRunner
 
 from nearfield360.cli import app
-from nearfield360.perception.inference.test_utils import create_dummy_segmentation_onnx
+from nearfield360.perception.inference.test_utils import (
+    create_dummy_detection_onnx,
+    create_dummy_segmentation_onnx,
+)
 from nearfield360.utils.artifacts import read_json
 
 runner = CliRunner()
@@ -17,6 +20,13 @@ runner = CliRunner()
 def dummy_seg_model(tmp_path: Path) -> Path:
     model_path = tmp_path / "models" / "seg.onnx"
     create_dummy_segmentation_onnx(model_path, num_classes=10, height=32, width=32)
+    return model_path
+
+
+@pytest.fixture
+def dummy_det_model(tmp_path: Path) -> Path:
+    model_path = tmp_path / "models" / "det.onnx"
+    create_dummy_detection_onnx(model_path, num_classes=5, num_boxes=3, height=32, width=32)
     return model_path
 
 
@@ -470,3 +480,198 @@ def test_eval_segmentation_model_missing_onnxruntime(tmp_path: Path, dummy_seg_m
 
     assert result.exit_code == 1
     assert "onnxruntime is not installed" in result.stderr
+
+
+def test_eval_detection_model_scores_annotations(tmp_path: Path, dummy_det_model: Path) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_detection(tmp_path, "00001_FV.txt")
+    output = tmp_path / "model_report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_det_model),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Evaluated 1/1 samples" in result.stdout
+    payload = read_json(output)
+    assert payload["samples"] == {"expected": 1, "evaluated": 1, "missing_predictions": []}
+    assert payload["model"] == {
+        "path": str(dummy_det_model),
+        "backend": "opencv",
+        "device": "cpu",
+        "confidence_threshold": 0.5,
+        "nms_threshold": 0.4,
+    }
+    assert 0.0 <= payload["metrics"]["mean_average_precision"] <= 1.0
+    assert json.dumps(payload)  # fully JSON-serializable
+
+
+def test_eval_detection_model_iou_threshold_matches_centered_box(
+    tmp_path: Path, dummy_det_model: Path
+) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_detection(tmp_path, "00001_FV.txt")
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_det_model),
+            "--output",
+            str(tmp_path / "report.json"),
+            "--iou-threshold",
+            "0.01",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(tmp_path / "report.json")
+    assert payload["metrics"]["mean_average_precision"] == 1.0
+
+
+def test_eval_detection_model_threshold_overrides(tmp_path: Path, dummy_det_model: Path) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_detection(tmp_path, "00001_FV.txt")
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_det_model),
+            "--output",
+            str(tmp_path / "report.json"),
+            "--confidence-threshold",
+            "0.3",
+            "--nms-threshold",
+            "0.6",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(tmp_path / "report.json")
+    assert payload["model"]["confidence_threshold"] == 0.3
+    assert payload["model"]["nms_threshold"] == 0.6
+
+
+def test_eval_detection_model_limit_bounds_samples(tmp_path: Path, dummy_det_model: Path) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_detection(tmp_path, "00001_FV.txt")
+    _write_rgb(tmp_path, "00002_FV.png")
+    _write_detection(tmp_path, "00002_FV.txt")
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_det_model),
+            "--output",
+            str(tmp_path / "limited.json"),
+            "--limit",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(tmp_path / "limited.json")
+    assert payload["samples"] == {"expected": 1, "evaluated": 1, "missing_predictions": []}
+
+
+def test_eval_detection_rejects_predictions_with_model(
+    tmp_path: Path, dummy_det_model: Path
+) -> None:
+    _write_rgb(tmp_path)
+    _write_detection(tmp_path)
+    predictions = tmp_path / "predictions"
+    predictions.mkdir()
+    output = tmp_path / "report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--model",
+            str(dummy_det_model),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "exactly one of --predictions or --model" in result.stderr
+    assert not output.exists()
+
+
+def test_eval_detection_requires_predictions_or_model(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_detection(tmp_path)
+    output = tmp_path / "report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "exactly one of --predictions or --model" in result.stderr
+    assert not output.exists()
+
+
+def test_eval_detection_empty_prediction_file_scores_zero(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_detection(tmp_path)
+    predictions = tmp_path / "predictions"
+    predictions.mkdir()
+    (predictions / "00001_FV.txt").write_text("", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "report.json"),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(tmp_path / "report.json")
+    assert payload["metrics"]["mean_average_precision"] == 0.0
+    assert payload["samples"] == {"expected": 1, "evaluated": 1, "missing_predictions": []}

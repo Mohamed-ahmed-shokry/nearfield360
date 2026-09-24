@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any, Never
 
@@ -18,7 +19,9 @@ from nearfield360.cli.inference_common import (
 )
 from nearfield360.cli.state import get_state
 from nearfield360.data.detection import (
+    WOODSCAPE_DETECTION_CLASSES,
     DetectionAnnotationError,
+    DetectionPrediction,
     load_detection_annotations,
     load_detection_predictions,
 )
@@ -35,6 +38,7 @@ from nearfield360.perception.evaluation import (
     evaluate_semantic,
 )
 from nearfield360.perception.inference.backend import InferenceError
+from nearfield360.perception.inference.detection import ObjectDetectionEngine
 from nearfield360.perception.inference.models import InferenceBackendType, InferenceDevice
 from nearfield360.perception.inference.preprocessor import PreprocessorError
 from nearfield360.perception.inference.semantic import SemanticSegmentationEngine
@@ -44,19 +48,6 @@ eval_app = typer.Typer(
     help="Reproducible perception evaluation against labelled WoodScape data.",
     no_args_is_help=True,
 )
-
-PredictionsOption = Annotated[
-    Path,
-    typer.Option(
-        "--predictions",
-        exists=True,
-        file_okay=False,
-        dir_okay=True,
-        readable=True,
-        resolve_path=True,
-        help="Directory of per-sample prediction files.",
-    ),
-]
 
 PredictionsDirOption = Annotated[
     Path | None,
@@ -100,6 +91,26 @@ LimitOption = Annotated[
         "--limit",
         min=0,
         help="Maximum annotated samples to evaluate (0 evaluates all).",
+    ),
+]
+
+ConfidenceOption = Annotated[
+    float | None,
+    typer.Option(
+        "--confidence-threshold",
+        min=0.0,
+        max=1.0,
+        help="Minimum detection confidence (defaults to config.inference.confidence_threshold).",
+    ),
+]
+
+NmsOption = Annotated[
+    float | None,
+    typer.Option(
+        "--nms-threshold",
+        min=0.0,
+        max=1.0,
+        help="Detection NMS IoU threshold (defaults to config.inference.nms_threshold).",
     ),
 ]
 
@@ -204,6 +215,72 @@ def _segmentation_model_pairs(
     return pairs, expected
 
 
+def _prediction_arrays(
+    predictions: Sequence[DetectionPrediction],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Convert parsed predictions to aligned arrays; empty files keep (N, 4) shape."""
+    if not predictions:
+        return (
+            np.empty((0, 4), dtype=np.float64),
+            np.empty((0,), dtype=np.float64),
+            np.empty((0,), dtype=np.int64),
+        )
+    boxes = np.asarray([item.xyxy for item in predictions], dtype=np.float64)
+    scores = np.asarray([item.score for item in predictions], dtype=np.float64)
+    classes = np.asarray([item.class_id for item in predictions], dtype=np.int64)
+    return boxes, scores, classes
+
+
+def _build_detection_engine(
+    context: typer.Context,
+    model: Path,
+    *,
+    backend: InferenceBackendType | None,
+    device: InferenceDevice | None,
+    confidence_threshold: float | None,
+    nms_threshold: float | None,
+) -> ObjectDetectionEngine:
+    inference = get_state(context).config.inference
+    loaded = load_backend(context, model, backend=backend, device=device)
+    return ObjectDetectionEngine(
+        backend=loaded,
+        confidence_threshold=(
+            inference.confidence_threshold if confidence_threshold is None else confidence_threshold
+        ),
+        nms_threshold=inference.nms_threshold if nms_threshold is None else nms_threshold,
+        num_classes=len(WOODSCAPE_DETECTION_CLASSES),
+    )
+
+
+def _detection_model_batches(
+    engine: ObjectDetectionEngine,
+    dataset: WoodScapeDataset,
+    limit: int,
+) -> tuple[list[tuple[np.ndarray, np.ndarray, np.ndarray]], list[list[Any]], int]:
+    prediction_batches: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
+    target_batches: list[list[Any]] = []
+    expected = 0
+    for sample in dataset:
+        if sample.detection_path is None:
+            continue
+        if limit > 0 and expected >= limit:
+            break
+        expected += 1
+        try:
+            image = load_rgb_image(sample.image_path)
+            image_size = (int(image.shape[0]), int(image.shape[1]))
+            targets = load_detection_annotations(sample.detection_path, image_size=image_size)
+            raw_predictions = engine.predict(image)
+        except (ImageReadError, DetectionAnnotationError, InferenceError, PreprocessorError) as exc:
+            typer.secho(
+                f"Detection error for {sample.key.stem}: {exc}", fg=typer.colors.RED, err=True
+            )
+            raise typer.Exit(code=1) from None
+        prediction_batches.append(_prediction_arrays(raw_predictions))
+        target_batches.append(list(targets))
+    return prediction_batches, target_batches, expected
+
+
 def _mask_error(stem: str, exc: Exception) -> None:
     typer.secho(f"Mask error for {stem}: {exc}", fg=typer.colors.RED, err=True)
     raise typer.Exit(code=1) from None
@@ -295,7 +372,6 @@ def evaluate_segmentation(
 @eval_app.command("detection")
 def evaluate_detection_command(
     context: typer.Context,
-    predictions: PredictionsOption,
     output: Annotated[
         Path,
         typer.Option(
@@ -304,44 +380,79 @@ def evaluate_detection_command(
             help="JSON report artifact (created atomically; refuses to overwrite).",
         ),
     ],
+    predictions: PredictionsDirOption = None,
+    model: ModelOption = None,
     overwrite: Annotated[
         bool, typer.Option("--overwrite", help="Replace an existing report artifact.")
     ] = False,
     iou_threshold: ThresholdOption = 0.5,
     root: DatasetRootOption = None,
     limit: LimitOption = 0,
+    backend: BackendOption = None,
+    device: DeviceOption = None,
+    confidence_threshold: ConfidenceOption = None,
+    nms_threshold: NmsOption = None,
 ) -> None:
     """Score detected boxes (``*.txt``) against WoodScape detection annotations."""
-    dataset = discover_dataset(context, root)
     prediction_batches: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
     target_batches: list[list[Any]] = []
     missing: list[str] = []
     expected = 0
-    for sample in dataset:
-        if sample.detection_path is None:
-            continue
-        if limit > 0 and expected >= limit:
-            break
-        expected += 1
-        prediction_file = _find_prediction_file(predictions, sample.key.stem, frozenset({".txt"}))
-        if prediction_file is None:
-            missing.append(sample.key.stem)
-            continue
-        try:
-            image = load_rgb_image(sample.image_path)
-            image_size = (int(image.shape[0]), int(image.shape[1]))
-            targets = load_detection_annotations(sample.detection_path, image_size=image_size)
-            predictions_list = load_detection_predictions(prediction_file, image_size=image_size)
-        except (ImageReadError, DetectionAnnotationError) as exc:
-            typer.secho(
-                f"Detection error for {sample.key.stem}: {exc}", fg=typer.colors.RED, err=True
+    model_info: dict[str, Any] | None = None
+    if model is not None:
+        if predictions is not None:
+            _reject_source()
+        dataset = discover_dataset(context, root)
+        engine = _build_detection_engine(
+            context,
+            model,
+            backend=backend,
+            device=device,
+            confidence_threshold=confidence_threshold,
+            nms_threshold=nms_threshold,
+        )
+        prediction_batches, target_batches, expected = _detection_model_batches(
+            engine, dataset, limit
+        )
+        model_info = {
+            "path": str(model),
+            "backend": resolve_backend_type(context, backend).value,
+            "device": resolve_device(context, device).value,
+            "confidence_threshold": engine.confidence_threshold,
+            "nms_threshold": engine.nms_threshold,
+        }
+    else:
+        if predictions is None:
+            _reject_source()
+        dataset = discover_dataset(context, root)
+        for sample in dataset:
+            if sample.detection_path is None:
+                continue
+            if limit > 0 and expected >= limit:
+                break
+            expected += 1
+            prediction_file = _find_prediction_file(
+                predictions, sample.key.stem, frozenset({".txt"})
             )
-            raise typer.Exit(code=1) from None
-        boxes = np.asarray([item.xyxy for item in predictions_list], dtype=np.float64)
-        scores = np.asarray([item.score for item in predictions_list], dtype=np.float64)
-        classes = np.asarray([item.class_id for item in predictions_list], dtype=np.int64)
-        prediction_batches.append((boxes, scores, classes))
-        target_batches.append(list(targets))
+            if prediction_file is None:
+                missing.append(sample.key.stem)
+                continue
+            try:
+                image = load_rgb_image(sample.image_path)
+                image_size = (int(image.shape[0]), int(image.shape[1]))
+                targets = load_detection_annotations(sample.detection_path, image_size=image_size)
+                predictions_list = load_detection_predictions(
+                    prediction_file, image_size=image_size
+                )
+            except (ImageReadError, DetectionAnnotationError) as exc:
+                typer.secho(
+                    f"Detection error for {sample.key.stem}: {exc}",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+                raise typer.Exit(code=1) from None
+            prediction_batches.append(_prediction_arrays(predictions_list))
+            target_batches.append(list(targets))
 
     _reject_incomplete(missing)
     if expected == 0:
@@ -365,6 +476,7 @@ def evaluate_detection_command(
         evaluated=len(prediction_batches),
         missing=missing,
         metrics=evaluation.as_dict(),
+        model=model_info,
     )
     _writing_output(output, overwrite, payload)
     typer.echo(
