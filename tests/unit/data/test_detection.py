@@ -14,6 +14,7 @@ from nearfield360.data.detection import (
     detection_class,
     load_detection_annotations,
     load_detection_predictions,
+    write_detection_predictions,
 )
 
 
@@ -274,3 +275,64 @@ def test_prediction_parser_checks_image_bounds_and_limits(tmp_path: Path) -> Non
     path.write_text("\nvehicles,0,0,0,1,2,0.5\n\nperson,1,0,0,2,3,0.4", encoding="utf-8")
     with pytest.raises(DetectionAnnotationError, match="line 4: exceeds the 1-object"):
         load_detection_predictions(path, limits=DetectionLimits(max_objects=1))
+
+
+def test_prediction_writer_round_trips_scored_rows(tmp_path: Path) -> None:
+    predictions = (
+        DetectionPrediction(
+            class_id=0,
+            class_name="vehicles",
+            x_min=0.0,
+            y_min=1.5,
+            x_max=4.25,
+            y_max=3.0,
+            score=0.95,
+        ),
+        DetectionPrediction(
+            class_id=1,
+            class_name="person",
+            x_min=10.0,
+            y_min=20.0,
+            x_max=30.0,
+            y_max=50.0,
+            score=0.123456789,
+        ),
+    )
+    path = tmp_path / "nested" / "preds.txt"
+
+    written = write_detection_predictions(path, predictions)
+
+    assert written == 2
+    loaded = load_detection_predictions(path)
+    assert len(loaded) == 2
+    for original, round_tripped in zip(predictions, loaded, strict=True):
+        assert round_tripped.class_id == original.class_id
+        assert round_tripped.class_name == original.class_name
+        assert round_tripped.xyxy == original.xyxy
+        assert round_tripped.score == original.score
+
+
+def test_prediction_writer_writes_empty_file_for_no_predictions(tmp_path: Path) -> None:
+    path = tmp_path / "empty.txt"
+
+    assert write_detection_predictions(path, ()) == 0
+    assert load_detection_predictions(path) == ()
+
+
+def test_prediction_writer_rejects_excessive_object_count(tmp_path: Path) -> None:
+    prediction = DetectionPrediction(
+        class_id=0,
+        class_name="vehicles",
+        x_min=0.0,
+        y_min=0.0,
+        x_max=2.0,
+        y_max=3.0,
+        score=0.5,
+    )
+
+    with pytest.raises(DetectionAnnotationError, match="safety limit"):
+        write_detection_predictions(
+            tmp_path / "too_many.txt",
+            [prediction, prediction],
+            limits=DetectionLimits(max_objects=1),
+        )

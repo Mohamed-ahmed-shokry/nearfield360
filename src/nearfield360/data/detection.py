@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 import math
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
@@ -350,6 +351,51 @@ def load_detection_predictions(
     return tuple(predictions)
 
 
+def _format_number(value: float) -> str:
+    """Render a float with its shortest round-trip representation."""
+    return repr(float(value))
+
+
+def write_detection_predictions(
+    path: Path,
+    predictions: Iterable[DetectionPrediction],
+    *,
+    limits: DetectionLimits = DEFAULT_DETECTION_LIMITS,
+) -> int:
+    """Write scored rows in the ``load_detection_predictions`` CSV format.
+
+    Parent directories are created as needed, and the row count is bounded by
+    ``limits.max_objects``. Returns the number of rows written.
+    """
+    rows = tuple(predictions)
+    if len(rows) > limits.max_objects:
+        raise DetectionAnnotationError(
+            f"Refusing to write {len(rows)} predictions, exceeds the "
+            f"{limits.max_objects}-object safety limit: {path}"
+        )
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.writer(stream, lineterminator="\n")
+            for prediction in rows:
+                writer.writerow(
+                    [
+                        prediction.class_name,
+                        prediction.class_id,
+                        _format_number(prediction.x_min),
+                        _format_number(prediction.y_min),
+                        _format_number(prediction.x_max),
+                        _format_number(prediction.y_max),
+                        _format_number(prediction.score),
+                    ]
+                )
+    except OSError as exc:
+        raise DetectionAnnotationError(
+            f"Unable to write detection predictions {path}: {exc}"
+        ) from exc
+    return len(rows)
+
+
 __all__ = [
     "DEFAULT_DETECTION_LIMITS",
     "WOODSCAPE_DETECTION_CLASSES",
@@ -361,4 +407,5 @@ __all__ = [
     "detection_class",
     "load_detection_annotations",
     "load_detection_predictions",
+    "write_detection_predictions",
 ]
