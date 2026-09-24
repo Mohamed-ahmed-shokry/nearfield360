@@ -510,3 +510,75 @@ roadmap item 7 residual).
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 11: Configuration-Driven Inference Backends and Optional ONNX Runtime Support
+
+**Status:** Completed
+**Repository Branch:** `main`
+**Test Suite:** 746 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (71 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 92.34% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 11 closes README roadmap item 10 and fixes the silent-fallback gap in the
+inference backend factory:
+
+1. **Real `OnnxRuntimeBackend`:**
+   - Lazy `onnxruntime` import with clear `InferenceError` install-hint when missing.
+   - Optional `nearfield360[onnxruntime]` packaging extra (not a hard dependency).
+   - Session creation with graph optimization and provider selection (CUDA → CPU fallback
+     with a logged warning when CUDAExecutionProvider is unavailable).
+   - Input validation (4-D float32 C-contiguous tensors) and multi-output support.
+2. **No silent OpenCV fallback:**
+   - `create_backend` raises `InferenceError` when `onnxruntime` is requested but not
+     installed (previously logged a warning and returned `OpenCVDNNBackend`).
+   - Unsupported backend strings still raise `InferenceError`.
+3. **CLI `--backend` selection:**
+   - Shared `BackendOption` / `load_backend` / `resolve_backend_type` helpers in
+     `cli/inference_common.py`.
+   - `--backend {opencv,onnxruntime}` on `infer semantic|detection|benchmark|parity|inspect`,
+     `occupancy layer`, `track run`, and `pipeline run`.
+   - When omitted, backend/device resolve from `config.inference.backend` /
+     `config.inference.device`.
+4. **Config-driven detection thresholds:**
+   - `infer detection` `--confidence-threshold` / `--nms-threshold` default to
+     `config.inference.confidence_threshold` / `config.inference.nms_threshold`
+     when not passed on the command line.
+   - `track run` and `pipeline run` pass those config thresholds into
+     `ObjectDetectionEngine`.
+
+**Explicit exclusions:** TensorRT execution provider, C++ runtime wrapper, forcing
+onnxruntime as a hard install dependency (remain under roadmap item 7 residual or are
+deliberately optional).
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| `OnnxRuntimeBackend` + strict factory | `src/nearfield360/perception/inference/backend.py` |
+| Optional extra | `pyproject.toml` (`[project.optional-dependencies] onnxruntime`) |
+| Shared CLI backend helpers | `src/nearfield360/cli/inference_common.py` |
+| `infer` `--backend` + config thresholds | `src/nearfield360/cli/infer.py` |
+| `occupancy layer` / `track run` / `pipeline run` `--backend` | `cli/occupancy.py`, `cli/tracking.py`, `cli/pipeline.py` |
+| Backend factory + CLI tests | `tests/unit/perception/inference/test_backend.py`, `tests/unit/test_*_cli.py` |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 746 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 92.34% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 71 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
