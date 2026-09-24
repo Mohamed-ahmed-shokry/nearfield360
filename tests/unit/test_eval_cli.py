@@ -13,19 +13,19 @@ runner = CliRunner()
 
 def _write_rgb(root: Path, name: str = "00001_FV.png") -> None:
     image_dir = root / "rgb_images"
-    image_dir.mkdir(parents=True)
+    image_dir.mkdir(parents=True, exist_ok=True)
     assert cv2.imwrite(str(image_dir / name), np.zeros((3, 4, 3), dtype=np.uint8))
 
 
 def _write_mask(root: Path, name: str = "00001_FV.png") -> None:
     mask_dir = root / "semantic_annotations/gtLabels"
-    mask_dir.mkdir(parents=True)
+    mask_dir.mkdir(parents=True, exist_ok=True)
     assert cv2.imwrite(str(mask_dir / name), np.ones((3, 4), dtype=np.uint8))
 
 
 def _write_detection(root: Path, name: str = "00001_FV.txt") -> None:
     detection_dir = root / "detection_annotations"
-    detection_dir.mkdir(parents=True)
+    detection_dir.mkdir(parents=True, exist_ok=True)
     (detection_dir / name).write_text("vehicles,0,0,0,4,3\n", encoding="utf-8")
 
 
@@ -218,8 +218,7 @@ def test_eval_segmentation_limit_bounds_annotated_samples(tmp_path: Path) -> Non
     _write_rgb(tmp_path, "00002_FV.png")
     _write_mask(tmp_path, "00002_FV.png")
     predictions = tmp_path / "predictions"
-    _write_prediction_mask(predictions)
-    (predictions / "00002_FV.png").unlink()  # second sample intentionally missing
+    _write_prediction_mask(predictions)  # only 00001_FV present; 00002_FV missing
 
     result = runner.invoke(
         app,
@@ -248,8 +247,7 @@ def test_eval_detection_limit_bounds_annotated_samples(tmp_path: Path) -> None:
     _write_rgb(tmp_path, "00002_FV.png")
     _write_detection(tmp_path, "00002_FV.txt")
     predictions = tmp_path / "predictions"
-    _write_prediction_detection(predictions)
-    (predictions / "00002_FV.txt").unlink()
+    _write_prediction_detection(predictions)  # only 00001_FV present; 00002_FV missing
 
     result = runner.invoke(
         app,
@@ -278,8 +276,7 @@ def test_eval_segmentation_limit_zero_evaluates_all(tmp_path: Path) -> None:
     _write_rgb(tmp_path, "00002_FV.png")
     _write_mask(tmp_path, "00002_FV.png")
     predictions = tmp_path / "predictions"
-    _write_prediction_mask(predictions)
-    (predictions / "00002_FV.png").unlink()
+    _write_prediction_mask(predictions)  # only 00001_FV present; 00002_FV missing
 
     result = runner.invoke(
         app,
