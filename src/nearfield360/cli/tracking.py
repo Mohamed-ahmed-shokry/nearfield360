@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from nearfield360.cli.data_common import DatasetRootOption, discover_dataset
+from nearfield360.cli.inference_common import BackendOption, load_backend
 from nearfield360.cli.state import get_state
 from nearfield360.data.calibration import load_calibration
 from nearfield360.data.detection import load_detection_annotations
@@ -17,12 +18,7 @@ from nearfield360.geometry.bev import BevGrid
 from nearfield360.geometry.camera import CalibratedCamera
 from nearfield360.occupancy.risk import surround_parking_zones
 from nearfield360.perception.evaluation import environment_metadata
-from nearfield360.perception.inference import (
-    InferenceBackendType,
-    InferenceDevice,
-    ObjectDetectionEngine,
-    create_backend,
-)
+from nearfield360.perception.inference import ObjectDetectionEngine
 from nearfield360.tracking.models import GroundFootprint, TrackedObstacle, TrackState
 from nearfield360.tracking.projection import project_detections
 from nearfield360.tracking.risk import forecast_all_trajectories
@@ -94,6 +90,7 @@ def run_tracking_command(
             help="Path to object detection ONNX model for live perception.",
         ),
     ] = None,
+    backend: BackendOption = None,
 ) -> None:
     """Track dynamic obstacles across temporal frames and forecast safety zone ingress."""
     state = get_state(context)
@@ -102,20 +99,12 @@ def run_tracking_command(
 
     det_engine: ObjectDetectionEngine | None = None
     if model is not None:
-        try:
-            backend = create_backend(
-                model,
-                backend_type=InferenceBackendType.OPENCV,
-                device=InferenceDevice.CPU,
-            )
-            det_engine = ObjectDetectionEngine(backend=backend)
-        except Exception as exc:
-            typer.secho(
-                f"Failed to load detection model {model}: {exc}",
-                fg=typer.colors.RED,
-                err=True,
-            )
-            raise typer.Exit(code=1) from None
+        loaded = load_backend(context, model, backend=backend)
+        det_engine = ObjectDetectionEngine(
+            backend=loaded,
+            confidence_threshold=config.inference.confidence_threshold,
+            nms_threshold=config.inference.nms_threshold,
+        )
 
     bev_cfg = config.bev
     grid = BevGrid(

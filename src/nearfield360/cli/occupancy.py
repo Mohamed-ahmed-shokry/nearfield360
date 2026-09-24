@@ -13,6 +13,7 @@ import typer
 from numpy.typing import NDArray
 
 from nearfield360.cli.data_common import DatasetRootOption, discover_dataset
+from nearfield360.cli.inference_common import BackendOption, load_backend
 from nearfield360.cli.state import get_state
 from nearfield360.data.calibration import CalibrationError, load_calibration
 from nearfield360.data.images import ImageReadError, load_rgb_image
@@ -38,12 +39,7 @@ from nearfield360.occupancy import (
     surround_parking_zones,
 )
 from nearfield360.perception.evaluation import environment_metadata
-from nearfield360.perception.inference import (
-    InferenceBackendType,
-    InferenceDevice,
-    SemanticSegmentationEngine,
-    create_backend,
-)
+from nearfield360.perception.inference import SemanticSegmentationEngine
 from nearfield360.utils.artifacts import ArtifactError, write_json
 
 occupancy_app = typer.Typer(
@@ -480,6 +476,7 @@ def occupancy_layer(
     theta_max: ThetaMaxOption = None,
     health_aware: HealthAwareOption = False,
     model: ModelOption = None,
+    backend: BackendOption = None,
 ) -> None:
     """Fuse semantic-grounded evidence into one occupancy layer."""
     grid = _configured_grid(context)
@@ -487,20 +484,8 @@ def occupancy_layer(
 
     model_engine: SemanticSegmentationEngine | None = None
     if model is not None:
-        try:
-            backend = create_backend(
-                model,
-                backend_type=InferenceBackendType.OPENCV,
-                device=InferenceDevice.CPU,
-            )
-            model_engine = SemanticSegmentationEngine(backend=backend)
-        except Exception as exc:
-            typer.secho(
-                f"Failed to load segmentation model {model}: {exc}",
-                fg=typer.colors.RED,
-                err=True,
-            )
-            raise typer.Exit(code=1) from None
+        loaded = load_backend(context, model, backend=backend)
+        model_engine = SemanticSegmentationEngine(backend=loaded)
 
     health_reports: list[CameraHealthReport] = []
     if all_cameras:

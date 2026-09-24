@@ -11,6 +11,7 @@ import numpy as np
 import typer
 
 from nearfield360.cli.data_common import DatasetRootOption, discover_dataset
+from nearfield360.cli.inference_common import BackendOption, load_backend
 from nearfield360.cli.occupancy import (
     _configured_grid,
     _configured_policy,
@@ -30,10 +31,8 @@ from nearfield360.occupancy import OccupancyEvidence, OccupancyPolicy, RiskZone,
 from nearfield360.perception.evaluation import environment_metadata
 from nearfield360.perception.inference import (
     InferenceBackendType,
-    InferenceDevice,
     ObjectDetectionEngine,
     SemanticSegmentationEngine,
-    create_backend,
 )
 from nearfield360.tracking.models import (
     GroundFootprint,
@@ -110,38 +109,27 @@ DetModelOption = Annotated[
 ]
 
 
-def _load_segmentation_engine(model: Path) -> SemanticSegmentationEngine:
-    try:
-        backend = create_backend(
-            model,
-            backend_type=InferenceBackendType.OPENCV,
-            device=InferenceDevice.CPU,
-        )
-        return SemanticSegmentationEngine(backend=backend)
-    except Exception as exc:
-        typer.secho(
-            f"Failed to load segmentation model {model}: {exc}",
-            fg=typer.colors.RED,
-            err=True,
-        )
-        raise typer.Exit(code=1) from None
+def _load_segmentation_engine(
+    context: typer.Context,
+    model: Path,
+    backend: InferenceBackendType | None = None,
+) -> SemanticSegmentationEngine:
+    loaded = load_backend(context, model, backend=backend)
+    return SemanticSegmentationEngine(backend=loaded)
 
 
-def _load_detection_engine(model: Path) -> ObjectDetectionEngine:
-    try:
-        backend = create_backend(
-            model,
-            backend_type=InferenceBackendType.OPENCV,
-            device=InferenceDevice.CPU,
-        )
-        return ObjectDetectionEngine(backend=backend)
-    except Exception as exc:
-        typer.secho(
-            f"Failed to load detection model {model}: {exc}",
-            fg=typer.colors.RED,
-            err=True,
-        )
-        raise typer.Exit(code=1) from None
+def _load_detection_engine(
+    context: typer.Context,
+    model: Path,
+    backend: InferenceBackendType | None = None,
+) -> ObjectDetectionEngine:
+    config = get_state(context).config
+    loaded = load_backend(context, model, backend=backend)
+    return ObjectDetectionEngine(
+        backend=loaded,
+        confidence_threshold=config.inference.confidence_threshold,
+        nms_threshold=config.inference.nms_threshold,
+    )
 
 
 def _latency_stats(samples_ms: list[float]) -> dict[str, Any]:
@@ -337,6 +325,7 @@ def run_pipeline(
     health_aware: HealthAwareOption = False,
     seg_model: SegModelOption = None,
     det_model: DetModelOption = None,
+    backend: BackendOption = None,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -344,9 +333,9 @@ def run_pipeline(
     model_engine: SemanticSegmentationEngine | None = None
     det_engine: ObjectDetectionEngine | None = None
     if seg_model is not None:
-        model_engine = _load_segmentation_engine(seg_model)
+        model_engine = _load_segmentation_engine(context, seg_model, backend)
     if det_model is not None:
-        det_engine = _load_detection_engine(det_model)
+        det_engine = _load_detection_engine(context, det_model, backend)
 
     timings: dict[str, float] = {}
     frame_latencies_ms: list[float] = []
