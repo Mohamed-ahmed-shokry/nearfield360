@@ -675,3 +675,117 @@ def test_eval_detection_empty_prediction_file_scores_zero(tmp_path: Path) -> Non
     payload = read_json(tmp_path / "report.json")
     assert payload["metrics"]["mean_average_precision"] == 0.0
     assert payload["samples"] == {"expected": 1, "evaluated": 1, "missing_predictions": []}
+
+
+def test_eval_segmentation_model_save_predictions_round_trip(
+    tmp_path: Path, dummy_seg_model: Path
+) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_mask(tmp_path, "00001_FV.png")
+    saved = tmp_path / "saved_predictions"
+
+    model_run = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(tmp_path / "model.json"),
+            "--save-predictions",
+            str(saved),
+        ],
+    )
+    assert model_run.exit_code == 0, model_run.output
+    assert (saved / "00001_FV.png").is_file()
+
+    file_run = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(saved),
+            "--output",
+            str(tmp_path / "file.json"),
+        ],
+    )
+    assert file_run.exit_code == 0, file_run.output
+    model_payload = read_json(tmp_path / "model.json")
+    file_payload = read_json(tmp_path / "file.json")
+    assert model_payload["metrics"] == file_payload["metrics"]
+
+
+def test_eval_detection_model_save_predictions_round_trip(
+    tmp_path: Path, dummy_det_model: Path
+) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_detection(tmp_path, "00001_FV.txt")
+    saved = tmp_path / "saved_predictions"
+
+    model_run = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_det_model),
+            "--output",
+            str(tmp_path / "model.json"),
+            "--save-predictions",
+            str(saved),
+        ],
+    )
+    assert model_run.exit_code == 0, model_run.output
+    assert (saved / "00001_FV.txt").is_file()
+
+    file_run = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(saved),
+            "--output",
+            str(tmp_path / "file.json"),
+        ],
+    )
+    assert file_run.exit_code == 0, file_run.output
+    model_payload = read_json(tmp_path / "model.json")
+    file_payload = read_json(tmp_path / "file.json")
+    assert model_payload["metrics"] == file_payload["metrics"]
+
+
+def test_eval_save_predictions_requires_model(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_mask(tmp_path)
+    predictions = tmp_path / "predictions"
+    predictions.mkdir()
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "report.json"),
+            "--save-predictions",
+            str(tmp_path / "saved"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "--save-predictions requires --model" in result.stderr

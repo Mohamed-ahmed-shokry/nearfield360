@@ -24,12 +24,14 @@ from nearfield360.data.detection import (
     DetectionPrediction,
     load_detection_annotations,
     load_detection_predictions,
+    write_detection_predictions,
 )
 from nearfield360.data.images import ImageReadError, load_rgb_image
 from nearfield360.data.semantic import (
     WOODSCAPE_SEMANTIC_CLASSES,
     SemanticMaskError,
     load_semantic_mask,
+    save_semantic_mask,
 )
 from nearfield360.data.woodscape import IMAGE_SUFFIXES, WoodScapeDataset
 from nearfield360.perception.evaluation import (
@@ -114,6 +116,17 @@ NmsOption = Annotated[
     ),
 ]
 
+SavePredictionsOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--save-predictions",
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+        help="Write per-sample predictions (PNG masks / TXT rows) for reuse with --predictions.",
+    ),
+]
+
 
 def _find_prediction_file(directory: Path, stem: str, suffixes: frozenset[str]) -> Path | None:
     for suffix in suffixes:
@@ -178,6 +191,17 @@ def _reject_source() -> Never:
     raise typer.Exit(code=1) from None
 
 
+def _reject_save_without_model(save_predictions: Path | None) -> None:
+    if save_predictions is None:
+        return
+    typer.secho(
+        "--save-predictions requires --model.",
+        fg=typer.colors.RED,
+        err=True,
+    )
+    raise typer.Exit(code=1) from None
+
+
 def _build_segmentation_engine(
     context: typer.Context,
     model: Path,
@@ -196,6 +220,7 @@ def _segmentation_model_pairs(
     engine: SemanticSegmentationEngine,
     dataset: WoodScapeDataset,
     limit: int,
+    save_predictions: Path | None,
 ) -> tuple[list[tuple[np.ndarray, np.ndarray]], int]:
     pairs: list[tuple[np.ndarray, np.ndarray]] = []
     expected = 0
@@ -209,6 +234,8 @@ def _segmentation_model_pairs(
             target = load_semantic_mask(sample.semantic_mask_path)
             image = load_rgb_image(sample.image_path)
             predicted, _confidence = engine.predict(image)
+            if save_predictions is not None:
+                save_semantic_mask(save_predictions / f"{sample.key.stem}.png", predicted)
         except (ImageReadError, SemanticMaskError, InferenceError, PreprocessorError) as exc:
             _mask_error(sample.key.stem, exc)
         pairs.append((predicted, target))
@@ -256,6 +283,7 @@ def _detection_model_batches(
     engine: ObjectDetectionEngine,
     dataset: WoodScapeDataset,
     limit: int,
+    save_predictions: Path | None,
 ) -> tuple[list[tuple[np.ndarray, np.ndarray, np.ndarray]], list[list[Any]], int]:
     prediction_batches: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
     target_batches: list[list[Any]] = []
@@ -271,6 +299,10 @@ def _detection_model_batches(
             image_size = (int(image.shape[0]), int(image.shape[1]))
             targets = load_detection_annotations(sample.detection_path, image_size=image_size)
             raw_predictions = engine.predict(image)
+            if save_predictions is not None:
+                write_detection_predictions(
+                    save_predictions / f"{sample.key.stem}.txt", raw_predictions
+                )
         except (ImageReadError, DetectionAnnotationError, InferenceError, PreprocessorError) as exc:
             typer.secho(
                 f"Detection error for {sample.key.stem}: {exc}", fg=typer.colors.RED, err=True
@@ -306,6 +338,7 @@ def evaluate_segmentation(
     limit: LimitOption = 0,
     backend: BackendOption = None,
     device: DeviceOption = None,
+    save_predictions: SavePredictionsOption = None,
 ) -> None:
     """Score predicted masks against WoodScape semantic ground truth."""
     pairs: list[tuple[np.ndarray, np.ndarray]] = []
@@ -317,7 +350,7 @@ def evaluate_segmentation(
             _reject_source()
         dataset = discover_dataset(context, root)
         engine = _build_segmentation_engine(context, model, backend=backend, device=device)
-        pairs, expected = _segmentation_model_pairs(engine, dataset, limit)
+        pairs, expected = _segmentation_model_pairs(engine, dataset, limit, save_predictions)
         model_info = {
             "path": str(model),
             "backend": resolve_backend_type(context, backend).value,
@@ -326,6 +359,7 @@ def evaluate_segmentation(
     else:
         if predictions is None:
             _reject_source()
+        _reject_save_without_model(save_predictions)
         dataset = discover_dataset(context, root)
         for sample in dataset:
             if sample.semantic_mask_path is None:
@@ -392,6 +426,7 @@ def evaluate_detection_command(
     device: DeviceOption = None,
     confidence_threshold: ConfidenceOption = None,
     nms_threshold: NmsOption = None,
+    save_predictions: SavePredictionsOption = None,
 ) -> None:
     """Score detected boxes (``*.txt``) against WoodScape detection annotations."""
     prediction_batches: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
@@ -412,7 +447,7 @@ def evaluate_detection_command(
             nms_threshold=nms_threshold,
         )
         prediction_batches, target_batches, expected = _detection_model_batches(
-            engine, dataset, limit
+            engine, dataset, limit, save_predictions
         )
         model_info = {
             "path": str(model),
@@ -424,6 +459,7 @@ def evaluate_detection_command(
     else:
         if predictions is None:
             _reject_source()
+        _reject_save_without_model(save_predictions)
         dataset = discover_dataset(context, root)
         for sample in dataset:
             if sample.detection_path is None:
