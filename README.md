@@ -348,7 +348,7 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
    per-frame latency samples with p50/p95/p99 percentiles in the performance report, and
    end-to-end integration coverage with synthetic ONNX models. Excludes TensorRT/C++
    acceleration (remains under roadmap item 7 residual work).
-10. Configuration-driven inference backends and optional ONNX Runtime support:
+10. ~~Configuration-driven inference backends and optional ONNX Runtime support.~~ Done:
     real `OnnxRuntimeBackend` behind an installable extra, no silent OpenCV fallback when
     ONNX Runtime is requested, `--backend` selection on live perception CLIs defaulting from
     `config.inference.backend`, and detection confidence/NMS thresholds wired from config
@@ -380,11 +380,33 @@ For live neural perception without precomputed annotations, pass ONNX models:
 ```powershell
 # Annotation-free live pipeline: RGB + calibration only, models supply masks and boxes
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/segmentation.onnx --det-model models/detection.onnx --output outputs/pipeline/live.json
+
+# Select the inference backend (defaults to config.inference.backend; opencv | onnxruntime)
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/segmentation.onnx --det-model models/detection.onnx --backend opencv --output outputs/pipeline/live.json
 ```
 
 `--seg-model` replaces semantic masks for occupancy evidence; `--det-model` replaces
 detection files for ground-footprint projection. Model paths are recorded under
 `samples.seg_model` / `samples.det_model` in the report.
+
+### Inference backends
+
+Live perception commands (`infer`, `occupancy layer`, `track run`, `pipeline run`) accept
+`--backend {opencv,onnxruntime}`. When omitted, the backend and device come from
+`config.inference.backend` / `config.inference.device`. Detection confidence and NMS
+thresholds default from `config.inference.confidence_threshold` and
+`config.inference.nms_threshold` (overridable per command with
+`--confidence-threshold` / `--nms-threshold`).
+
+ONNX Runtime is an optional extra — install with:
+
+```powershell
+uv sync --extra onnxruntime
+# or: pip install "nearfield360[onnxruntime]"
+```
+
+If `onnxruntime` is not installed and `--backend onnxruntime` is requested, the CLI exits
+with a clear install hint rather than silently falling back to OpenCV.
 
 Verify release readiness (packaging metadata, Apache-2.0 license, version consistency,
 default config, and CLI subcommand surface):
