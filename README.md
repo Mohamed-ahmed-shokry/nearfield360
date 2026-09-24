@@ -343,11 +343,16 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
    tracking, and risk evaluation over complete four-camera frames with per-stage timing and
    FPS metrics in a JSON report; `nearfield360 release audit` verifies packaging metadata,
    license, default config, and CLI surface consistency for release readiness.
-9. Live ONNX perception in the integrated pipeline and latency distribution statistics:
+9. ~~Live ONNX perception in the integrated pipeline and latency distribution statistics.~~ Done:
    `--seg-model`/`--det-model` on `pipeline run` for annotation-free live inference,
    per-frame latency samples with p50/p95/p99 percentiles in the performance report, and
    end-to-end integration coverage with synthetic ONNX models. Excludes TensorRT/C++
    acceleration (remains under roadmap item 7 residual work).
+10. Configuration-driven inference backends and optional ONNX Runtime support:
+    real `OnnxRuntimeBackend` behind an installable extra, no silent OpenCV fallback when
+    ONNX Runtime is requested, `--backend` selection on live perception CLIs defaulting from
+    `config.inference.backend`, and detection confidence/NMS thresholds wired from config
+    into tracking and pipeline engines. Excludes TensorRT/C++ (roadmap item 7 residual).
 
 ## Usage: integrated four-camera pipeline and release audit
 
