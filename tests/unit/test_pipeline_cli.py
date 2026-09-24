@@ -93,6 +93,7 @@ def test_pipeline_run_help() -> None:
     assert "--output" in result.stdout
     assert "--health-aware" in result.stdout
     assert "--samples" in result.stdout
+    assert "--backend" in result.stdout
 
 
 def test_pipeline_run_writes_timed_report(tmp_path: Path) -> None:
@@ -354,6 +355,8 @@ def test_pipeline_run_with_live_seg_and_det_models(tmp_path: Path) -> None:
             str(seg_path),
             "--det-model",
             str(det_path),
+            "--backend",
+            "opencv",
         ],
     )
 

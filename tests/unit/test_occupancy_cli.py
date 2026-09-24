@@ -357,6 +357,8 @@ def test_occupancy_layer_with_live_model(tmp_path: Path) -> None:
             str(out_file),
             "--model",
             str(model_path),
+            "--backend",
+            "opencv",
         ],
     )
     assert result.exit_code == 0

@@ -278,3 +278,84 @@ def test_infer_parity_in_help() -> None:
     result = runner.invoke(app, ["infer", "--help"])
     assert result.exit_code == 0
     assert "parity" in result.stdout
+
+
+def test_infer_semantic_accepts_backend_flag(dummy_seg_model: Path, sample_image: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "semantic",
+            "--model",
+            str(dummy_seg_model),
+            "--image",
+            str(sample_image),
+            "--backend",
+            "opencv",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Segmentation complete" in result.stdout
+
+
+def test_infer_detection_accepts_backend_flag(dummy_det_model: Path, sample_image: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "detection",
+            "--model",
+            str(dummy_det_model),
+            "--image",
+            str(sample_image),
+            "--backend",
+            "opencv",
+            "--confidence-threshold",
+            "0.1",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Detection complete" in result.stdout
+
+
+def test_infer_semantic_onnxruntime_backend_fails_cleanly(
+    dummy_seg_model: Path, sample_image: Path
+) -> None:
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        result = runner.invoke(
+            app,
+            [
+                "infer",
+                "semantic",
+                "--model",
+                str(dummy_seg_model),
+                "--image",
+                str(sample_image),
+                "--backend",
+                "onnxruntime",
+            ],
+        )
+        assert result.exit_code == 1
+        output = result.stdout + result.stderr
+        assert "onnxruntime is not installed" in output
+    else:
+        pytest.skip("onnxruntime installed; missing-package path not testable")
+
+
+def test_infer_inspect_accepts_backend_flag(dummy_seg_model: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "inspect",
+            "--model",
+            str(dummy_seg_model),
+            "--backend",
+            "opencv",
+        ],
+    )
+    assert result.exit_code == 0
+    data = json.loads(result.stdout)
+    assert data["backend"] == "opencv"

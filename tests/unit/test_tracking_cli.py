@@ -76,6 +76,7 @@ def test_track_run_help() -> None:
     assert "--output" in result.stdout
     assert "--all-cameras" in result.stdout
     assert "--png" in result.stdout
+    assert "--backend" in result.stdout
 
 
 def test_track_run_single_camera(tmp_path: Path) -> None:
@@ -235,6 +236,8 @@ def test_track_run_with_live_detection_model(tmp_path: Path) -> None:
             str(output),
             "--model",
             str(model_path),
+            "--backend",
+            "opencv",
         ],
     )
     assert result.exit_code == 0

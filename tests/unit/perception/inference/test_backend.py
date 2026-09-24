@@ -9,10 +9,11 @@ from nearfield360.config import InferenceConfig
 from nearfield360.perception.inference.backend import (
     InferenceBackend,
     InferenceError,
+    OnnxRuntimeBackend,
     OpenCVDNNBackend,
     create_backend,
 )
-from nearfield360.perception.inference.models import InferenceDevice
+from nearfield360.perception.inference.models import InferenceBackendType, InferenceDevice
 from nearfield360.perception.inference.test_utils import (
     create_dummy_detection_onnx,
     create_dummy_segmentation_onnx,
@@ -84,6 +85,68 @@ def test_create_backend_factory(tmp_path: Path) -> None:
     config = InferenceConfig(backend="opencv", device="cpu")
     backend = create_backend(config, model_path)
     assert isinstance(backend, OpenCVDNNBackend)
+
+
+def test_create_backend_opencv_by_explicit_type(tmp_path: Path) -> None:
+    model_path = tmp_path / "dummy_seg.onnx"
+    create_dummy_segmentation_onnx(model_path, num_classes=10, height=32, width=32)
+
+    backend = create_backend(
+        model_path,
+        backend_type=InferenceBackendType.OPENCV,
+        device=InferenceDevice.CPU,
+    )
+    assert isinstance(backend, OpenCVDNNBackend)
+
+
+def test_create_backend_unsupported_type_raises(tmp_path: Path) -> None:
+    model_path = tmp_path / "dummy_seg.onnx"
+    create_dummy_segmentation_onnx(model_path, num_classes=10, height=32, width=32)
+
+    with pytest.raises(InferenceError, match="Unsupported inference backend"):
+        create_backend(model_path, backend_type="tensorrt", device="cpu")
+
+
+def test_create_backend_onnxruntime_raises_when_missing(tmp_path: Path) -> None:
+    """When onnxruntime is not installed, requesting it must raise a clear error."""
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        model_path = tmp_path / "dummy_seg.onnx"
+        create_dummy_segmentation_onnx(model_path, num_classes=10, height=32, width=32)
+        with pytest.raises(InferenceError, match="onnxruntime is not installed"):
+            create_backend(
+                model_path,
+                backend_type=InferenceBackendType.ONNXRUNTIME,
+                device=InferenceDevice.CPU,
+            )
+    else:
+        pytest.skip("onnxruntime is installed; missing-package path not testable")
+
+
+def test_onnxruntime_backend_missing_model_raises(tmp_path: Path) -> None:
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        missing = tmp_path / "non_existent.onnx"
+        with pytest.raises(InferenceError, match="Model file not found"):
+            OnnxRuntimeBackend(missing)
+    else:
+        pytest.skip("onnxruntime is installed; missing-package path not testable")
+
+
+def test_create_backend_factory_with_config_onnxruntime(tmp_path: Path) -> None:
+    """Config with backend=onnxruntime must route to OnnxRuntimeBackend when available."""
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        model_path = tmp_path / "dummy_seg.onnx"
+        create_dummy_segmentation_onnx(model_path, num_classes=10, height=32, width=32)
+        config = InferenceConfig(backend="onnxruntime", device="cpu")
+        with pytest.raises(InferenceError, match="onnxruntime is not installed"):
+            create_backend(config, model_path)
+    else:
+        pytest.skip("onnxruntime is installed; missing-package path not testable")
 
 
 def test_backend_cuda_fallback_graceful(tmp_path: Path) -> None:
