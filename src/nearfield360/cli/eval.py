@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Never
 
 import numpy as np
 import typer
 
 from nearfield360.cli.data_common import DatasetRootOption, discover_dataset
+from nearfield360.cli.inference_common import (
+    BackendOption,
+    DeviceOption,
+    load_backend,
+    resolve_backend_type,
+    resolve_device,
+)
 from nearfield360.cli.state import get_state
 from nearfield360.data.detection import (
     DetectionAnnotationError,
@@ -16,13 +23,21 @@ from nearfield360.data.detection import (
     load_detection_predictions,
 )
 from nearfield360.data.images import ImageReadError, load_rgb_image
-from nearfield360.data.semantic import SemanticMaskError, load_semantic_mask
-from nearfield360.data.woodscape import IMAGE_SUFFIXES
+from nearfield360.data.semantic import (
+    WOODSCAPE_SEMANTIC_CLASSES,
+    SemanticMaskError,
+    load_semantic_mask,
+)
+from nearfield360.data.woodscape import IMAGE_SUFFIXES, WoodScapeDataset
 from nearfield360.perception.evaluation import (
     environment_metadata,
     evaluate_detection,
     evaluate_semantic,
 )
+from nearfield360.perception.inference.backend import InferenceError
+from nearfield360.perception.inference.models import InferenceBackendType, InferenceDevice
+from nearfield360.perception.inference.preprocessor import PreprocessorError
+from nearfield360.perception.inference.semantic import SemanticSegmentationEngine
 from nearfield360.utils.artifacts import ArtifactError, write_json
 
 eval_app = typer.Typer(
@@ -40,6 +55,32 @@ PredictionsOption = Annotated[
         readable=True,
         resolve_path=True,
         help="Directory of per-sample prediction files.",
+    ),
+]
+
+PredictionsDirOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--predictions",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
+        help="Directory of per-sample prediction files (exclusive with --model).",
+    ),
+]
+
+ModelOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--model",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="ONNX model to score live against dataset annotations (exclusive with --predictions).",
     ),
 ]
 
@@ -87,12 +128,14 @@ def _report_payload(
     evaluated: int,
     missing: list[str],
     metrics: dict[str, Any],
+    model: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     state = get_state(context)
     return {
         "environment": environment_metadata(),
         "config": state.config.model_dump(mode="json"),
         "seed": state.config.runtime.seed,
+        "model": model,
         "samples": {
             "expected": expected,
             "evaluated": evaluated,
@@ -115,6 +158,52 @@ def _reject_incomplete(missing: list[str]) -> None:
     raise typer.Exit(code=1) from None
 
 
+def _reject_source() -> Never:
+    typer.secho(
+        "Provide exactly one of --predictions or --model.",
+        fg=typer.colors.RED,
+        err=True,
+    )
+    raise typer.Exit(code=1) from None
+
+
+def _build_segmentation_engine(
+    context: typer.Context,
+    model: Path,
+    *,
+    backend: InferenceBackendType | None,
+    device: InferenceDevice | None,
+) -> SemanticSegmentationEngine:
+    loaded = load_backend(context, model, backend=backend, device=device)
+    return SemanticSegmentationEngine(
+        backend=loaded,
+        num_classes=len(WOODSCAPE_SEMANTIC_CLASSES),
+    )
+
+
+def _segmentation_model_pairs(
+    engine: SemanticSegmentationEngine,
+    dataset: WoodScapeDataset,
+    limit: int,
+) -> tuple[list[tuple[np.ndarray, np.ndarray]], int]:
+    pairs: list[tuple[np.ndarray, np.ndarray]] = []
+    expected = 0
+    for sample in dataset:
+        if sample.semantic_mask_path is None:
+            continue
+        if limit > 0 and expected >= limit:
+            break
+        expected += 1
+        try:
+            target = load_semantic_mask(sample.semantic_mask_path)
+            image = load_rgb_image(sample.image_path)
+            predicted, _confidence = engine.predict(image)
+        except (ImageReadError, SemanticMaskError, InferenceError, PreprocessorError) as exc:
+            _mask_error(sample.key.stem, exc)
+        pairs.append((predicted, target))
+    return pairs, expected
+
+
 def _mask_error(stem: str, exc: Exception) -> None:
     typer.secho(f"Mask error for {stem}: {exc}", fg=typer.colors.RED, err=True)
     raise typer.Exit(code=1) from None
@@ -123,7 +212,6 @@ def _mask_error(stem: str, exc: Exception) -> None:
 @eval_app.command("segmentation")
 def evaluate_segmentation(
     context: typer.Context,
-    predictions: PredictionsOption,
     output: Annotated[
         Path,
         typer.Option(
@@ -132,33 +220,52 @@ def evaluate_segmentation(
             help="JSON report artifact (created atomically; refuses to overwrite).",
         ),
     ],
+    predictions: PredictionsDirOption = None,
+    model: ModelOption = None,
     overwrite: Annotated[
         bool, typer.Option("--overwrite", help="Replace an existing report artifact.")
     ] = False,
     root: DatasetRootOption = None,
     limit: LimitOption = 0,
+    backend: BackendOption = None,
+    device: DeviceOption = None,
 ) -> None:
     """Score predicted masks against WoodScape semantic ground truth."""
-    dataset = discover_dataset(context, root)
     pairs: list[tuple[np.ndarray, np.ndarray]] = []
     missing: list[str] = []
     expected = 0
-    for sample in dataset:
-        if sample.semantic_mask_path is None:
-            continue
-        if limit > 0 and expected >= limit:
-            break
-        expected += 1
-        prediction_file = _find_prediction_file(predictions, sample.key.stem, IMAGE_SUFFIXES)
-        if prediction_file is None:
-            missing.append(sample.key.stem)
-            continue
-        try:
-            target = load_semantic_mask(sample.semantic_mask_path)
-            predicted = load_semantic_mask(prediction_file)
-        except (ImageReadError, SemanticMaskError) as exc:
-            _mask_error(sample.key.stem, exc)
-        pairs.append((predicted, target))
+    model_info: dict[str, Any] | None = None
+    if model is not None:
+        if predictions is not None:
+            _reject_source()
+        dataset = discover_dataset(context, root)
+        engine = _build_segmentation_engine(context, model, backend=backend, device=device)
+        pairs, expected = _segmentation_model_pairs(engine, dataset, limit)
+        model_info = {
+            "path": str(model),
+            "backend": resolve_backend_type(context, backend).value,
+            "device": resolve_device(context, device).value,
+        }
+    else:
+        if predictions is None:
+            _reject_source()
+        dataset = discover_dataset(context, root)
+        for sample in dataset:
+            if sample.semantic_mask_path is None:
+                continue
+            if limit > 0 and expected >= limit:
+                break
+            expected += 1
+            prediction_file = _find_prediction_file(predictions, sample.key.stem, IMAGE_SUFFIXES)
+            if prediction_file is None:
+                missing.append(sample.key.stem)
+                continue
+            try:
+                target = load_semantic_mask(sample.semantic_mask_path)
+                predicted = load_semantic_mask(prediction_file)
+            except (ImageReadError, SemanticMaskError) as exc:
+                _mask_error(sample.key.stem, exc)
+            pairs.append((predicted, target))
 
     _reject_incomplete(missing)
     if expected == 0:
@@ -179,6 +286,7 @@ def evaluate_segmentation(
         evaluated=len(pairs),
         missing=missing,
         metrics=evaluation.as_dict(),
+        model=model_info,
     )
     _writing_output(output, overwrite, payload)
     typer.echo(f"Evaluated {len(pairs)}/{expected} samples; mIoU={evaluation.mean_iou:.3f}")

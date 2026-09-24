@@ -3,12 +3,21 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import pytest
 from typer.testing import CliRunner
 
 from nearfield360.cli import app
+from nearfield360.perception.inference.test_utils import create_dummy_segmentation_onnx
 from nearfield360.utils.artifacts import read_json
 
 runner = CliRunner()
+
+
+@pytest.fixture
+def dummy_seg_model(tmp_path: Path) -> Path:
+    model_path = tmp_path / "models" / "seg.onnx"
+    create_dummy_segmentation_onnx(model_path, num_classes=10, height=32, width=32)
+    return model_path
 
 
 def _write_rgb(root: Path, name: str = "00001_FV.png") -> None:
@@ -296,3 +305,168 @@ def test_eval_segmentation_limit_zero_evaluates_all(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "Missing predictions for 1 sample(s): 00002_FV" in result.stderr
+
+
+def test_eval_segmentation_model_scores_annotations(tmp_path: Path, dummy_seg_model: Path) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_mask(tmp_path, "00001_FV.png")
+    output = tmp_path / "model_report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Evaluated 1/1 samples" in result.stdout
+    payload = read_json(output)
+    assert payload["samples"] == {"expected": 1, "evaluated": 1, "missing_predictions": []}
+    assert payload["model"] == {
+        "path": str(dummy_seg_model),
+        "backend": "opencv",
+        "device": "cpu",
+    }
+    assert 0.0 <= payload["metrics"]["mean_iou"] <= 1.0
+    assert json.dumps(payload)  # fully JSON-serializable
+
+
+def test_eval_segmentation_model_limit_bounds_samples(
+    tmp_path: Path, dummy_seg_model: Path
+) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_mask(tmp_path, "00001_FV.png")
+    _write_rgb(tmp_path, "00002_FV.png")
+    _write_mask(tmp_path, "00002_FV.png")
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(tmp_path / "limited.json"),
+            "--limit",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(tmp_path / "limited.json")
+    assert payload["samples"] == {"expected": 1, "evaluated": 1, "missing_predictions": []}
+
+
+def test_eval_segmentation_rejects_predictions_with_model(
+    tmp_path: Path, dummy_seg_model: Path
+) -> None:
+    _write_rgb(tmp_path)
+    _write_mask(tmp_path)
+    predictions = tmp_path / "predictions"
+    predictions.mkdir()
+    output = tmp_path / "report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "exactly one of --predictions or --model" in result.stderr
+    assert not output.exists()
+
+
+def test_eval_segmentation_requires_predictions_or_model(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_mask(tmp_path)
+    output = tmp_path / "report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "exactly one of --predictions or --model" in result.stderr
+    assert not output.exists()
+
+
+def test_eval_segmentation_model_file_must_exist(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_mask(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(tmp_path / "missing.onnx"),
+            "--output",
+            str(tmp_path / "report.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+
+
+def test_eval_segmentation_model_missing_onnxruntime(tmp_path: Path, dummy_seg_model: Path) -> None:
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        pass
+    else:
+        pytest.skip("onnxruntime is installed; missing-package path not testable")
+
+    _write_rgb(tmp_path)
+    _write_mask(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(tmp_path / "report.json"),
+            "--backend",
+            "onnxruntime",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "onnxruntime is not installed" in result.stderr
