@@ -43,6 +43,9 @@ dependencies = [
 [project.scripts]
 nearfield360 = "nearfield360.cli:app"
 
+[project.optional-dependencies]
+onnxruntime = ["onnxruntime>=1.17,<2"]
+
 [dependency-groups]
 dev = [
   "build>=1.2.2,<2",
