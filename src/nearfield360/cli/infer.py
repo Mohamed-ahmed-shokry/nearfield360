@@ -11,6 +11,8 @@ import cv2
 import numpy as np
 import typer
 
+from nearfield360.cli.inference_common import BackendOption, resolve_backend_type
+from nearfield360.cli.state import get_state
 from nearfield360.data.detection import DetectionPrediction
 from nearfield360.data.images import ImageReadError, load_rgb_image
 from nearfield360.data.semantic import WOODSCAPE_SEMANTIC_CLASSES
@@ -24,7 +26,6 @@ from nearfield360.perception.inference.benchmark import (
 )
 from nearfield360.perception.inference.detection import ObjectDetectionEngine
 from nearfield360.perception.inference.models import (
-    InferenceBackendType,
     InferenceDevice,
 )
 from nearfield360.perception.inference.preprocessor import (
@@ -42,6 +43,7 @@ infer_app = typer.Typer(
 
 @infer_app.command("semantic")
 def infer_semantic(
+    context: typer.Context,
     model: Annotated[
         Path,
         typer.Option(
@@ -85,6 +87,7 @@ def infer_semantic(
             help="Execution device target (cpu, cuda, directml).",
         ),
     ] = "cpu",
+    backend: BackendOption = None,
     palette: Annotated[
         bool,
         typer.Option(
@@ -126,9 +129,10 @@ def infer_semantic(
         raise typer.Exit(code=1) from None
 
     try:
-        backend = create_backend(
+        b_type = resolve_backend_type(context, backend)
+        backend_obj = create_backend(
             model,
-            backend_type=InferenceBackendType.OPENCV,
+            backend_type=b_type,
             device=dev_enum,
         )
         preprocessor = FisheyeImagePreprocessor(
@@ -136,7 +140,7 @@ def infer_semantic(
             preserve_aspect_ratio=preserve_aspect_ratio,
         )
         engine = SemanticSegmentationEngine(
-            backend=backend,
+            backend=backend_obj,
             preprocessor=preprocessor,
             num_classes=len(WOODSCAPE_SEMANTIC_CLASSES),
         )
@@ -171,7 +175,7 @@ def infer_semantic(
     summary: dict[str, Any] = {
         "model": str(model),
         "image": str(image),
-        "device": backend.device.value,
+        "device": backend_obj.device.value,
         "input_shape": list(rgb_img.shape),
         "mask_shape": list(mask.shape),
         "latency_ms": round(latency_ms, 2),
@@ -202,7 +206,7 @@ def infer_semantic(
         typer.echo(json.dumps(summary, indent=2))
     else:
         typer.secho(
-            f"Segmentation complete in {latency_ms:.2f} ms ({backend.device.value.upper()})",
+            f"Segmentation complete in {latency_ms:.2f} ms ({backend_obj.device.value.upper()})",
             fg=typer.colors.GREEN,
         )
         typer.echo(f"Mask shape: {mask.shape} | Mean confidence: {np.mean(conf):.3f}")
@@ -213,6 +217,7 @@ def infer_semantic(
 
 @infer_app.command("detection")
 def infer_detection(
+    context: typer.Context,
     model: Annotated[
         Path,
         typer.Option(
@@ -257,24 +262,25 @@ def infer_detection(
         ),
     ] = "cpu",
     confidence_threshold: Annotated[
-        float,
+        float | None,
         typer.Option(
             "--confidence-threshold",
             "-c",
             min=0.0,
             max=1.0,
-            help="Minimum confidence threshold.",
+            help="Minimum confidence threshold (defaults to config value).",
         ),
-    ] = 0.25,
+    ] = None,
     nms_threshold: Annotated[
-        float,
+        float | None,
         typer.Option(
             "--nms-threshold",
             min=0.0,
             max=1.0,
-            help="Non-maximum suppression IoU threshold.",
+            help="NMS IoU threshold (defaults to config value).",
         ),
-    ] = 0.45,
+    ] = None,
+    backend: BackendOption = None,
     json_output: Annotated[
         bool,
         typer.Option(
@@ -309,9 +315,20 @@ def infer_detection(
         raise typer.Exit(code=1) from None
 
     try:
-        backend = create_backend(
+        b_type = resolve_backend_type(context, backend)
+        conf_thr = (
+            confidence_threshold
+            if confidence_threshold is not None
+            else get_state(context).config.inference.confidence_threshold
+        )
+        nms_thr = (
+            nms_threshold
+            if nms_threshold is not None
+            else get_state(context).config.inference.nms_threshold
+        )
+        backend_obj = create_backend(
             model,
-            backend_type=InferenceBackendType.OPENCV,
+            backend_type=b_type,
             device=dev_enum,
         )
         preprocessor = FisheyeImagePreprocessor(
@@ -319,10 +336,10 @@ def infer_detection(
             preserve_aspect_ratio=preserve_aspect_ratio,
         )
         engine = ObjectDetectionEngine(
-            backend=backend,
+            backend=backend_obj,
             preprocessor=preprocessor,
-            confidence_threshold=confidence_threshold,
-            nms_threshold=nms_threshold,
+            confidence_threshold=conf_thr,
+            nms_threshold=nms_thr,
             num_classes=5,
         )
     except (InferenceError, PreprocessorError, ValueError) as exc:
@@ -355,7 +372,7 @@ def infer_detection(
     summary: dict[str, Any] = {
         "model": str(model),
         "image": str(image),
-        "device": backend.device.value,
+        "device": backend_obj.device.value,
         "input_shape": list(rgb_img.shape),
         "latency_ms": round(latency_ms, 2),
         "num_detections": len(predictions),
@@ -394,7 +411,7 @@ def infer_detection(
         typer.echo(json.dumps(summary, indent=2))
     else:
         typer.secho(
-            f"Detection complete in {latency_ms:.2f} ms ({backend.device.value.upper()})",
+            f"Detection complete in {latency_ms:.2f} ms ({backend_obj.device.value.upper()})",
             fg=typer.colors.GREEN,
         )
         typer.echo(f"Found {len(predictions)} objects:")
@@ -404,6 +421,7 @@ def infer_detection(
 
 @infer_app.command("benchmark")
 def infer_benchmark(
+    context: typer.Context,
     model: Annotated[
         Path,
         typer.Option(
@@ -425,6 +443,7 @@ def infer_benchmark(
             help="Execution device target (cpu, cuda, directml).",
         ),
     ] = "cpu",
+    backend: BackendOption = None,
     iterations: Annotated[
         int,
         typer.Option("--iterations", "-n", min=1, help="Number of timed iterations."),
@@ -459,13 +478,14 @@ def infer_benchmark(
         raise typer.Exit(code=1) from None
 
     try:
-        backend = create_backend(
+        b_type = resolve_backend_type(context, backend)
+        backend_obj = create_backend(
             model,
-            backend_type=InferenceBackendType.OPENCV,
+            backend_type=b_type,
             device=dev_enum,
         )
         summary = benchmark_inference(
-            backend,
+            backend_obj,
             input_shape=(1, 3, height, width),
             iterations=iterations,
             warmup=warmup,
@@ -481,7 +501,7 @@ def infer_benchmark(
         write_json(output, summary_dict, overwrite=True)
         typer.echo(f"Wrote benchmark report to {output}")
 
-    target_info = f"{backend.backend_type.value.upper()} on {backend.device.value.upper()}"
+    target_info = f"{backend_obj.backend_type.value.upper()} on {backend_obj.device.value.upper()}"
     typer.secho(
         f"Benchmark Complete ({target_info})",
         fg=typer.colors.GREEN,
@@ -499,6 +519,7 @@ def infer_benchmark(
 
 @infer_app.command("parity")
 def infer_parity(
+    context: typer.Context,
     model_a: Annotated[
         Path,
         typer.Option(
@@ -549,6 +570,7 @@ def infer_parity(
         float,
         typer.Option("--rtol", help="Relative tolerance for parity check."),
     ] = 1e-4,
+    backend: BackendOption = None,
 ) -> None:
     """Verify numerical parity between two ONNX models on the same input."""
     try:
@@ -563,12 +585,9 @@ def infer_parity(
         raise typer.Exit(code=1) from None
 
     try:
-        backend_a = create_backend(
-            model_a, backend_type=InferenceBackendType.OPENCV, device=dev_enum
-        )
-        backend_b = create_backend(
-            model_b, backend_type=InferenceBackendType.OPENCV, device=dev_enum
-        )
+        b_type = resolve_backend_type(context, backend)
+        backend_a = create_backend(model_a, backend_type=b_type, device=dev_enum)
+        backend_b = create_backend(model_b, backend_type=b_type, device=dev_enum)
     except InferenceError as exc:
         typer.secho(f"Failed to load model: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from None
@@ -611,6 +630,7 @@ def infer_parity(
 
 @infer_app.command("inspect")
 def infer_inspect(
+    context: typer.Context,
     model: Annotated[
         Path,
         typer.Option(
@@ -632,6 +652,7 @@ def infer_inspect(
             help="Execution device target (cpu, cuda, directml).",
         ),
     ] = "cpu",
+    backend: BackendOption = None,
     output: Annotated[
         Path | None,
         typer.Option("--output", "-o", resolve_path=True, help="Save metadata JSON to file."),
@@ -640,16 +661,17 @@ def infer_inspect(
     """Inspect input/output tensor shapes and structural metadata of an ONNX model."""
     try:
         dev_enum = InferenceDevice(device.lower())
-        backend = create_backend(
+        b_type = resolve_backend_type(context, backend)
+        backend_obj = create_backend(
             model,
-            backend_type=InferenceBackendType.OPENCV,
+            backend_type=b_type,
             device=dev_enum,
         )
     except Exception as exc:
         typer.secho(f"Failed to inspect model: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from None
 
-    meta = backend.metadata.model_dump()
+    meta = backend_obj.metadata.model_dump()
     if output is not None:
         output.parent.mkdir(parents=True, exist_ok=True)
         write_json(output, meta, overwrite=True)
