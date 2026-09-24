@@ -582,3 +582,76 @@ deliberately optional).
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 12: Model-Driven Evaluation Against Dataset Annotations
+
+**Status:** Completed
+**Repository Branch:** `main`
+**Test Suite:** 773 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (71 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 92.39% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 12 closes README roadmap item 11 by joining the live inference engines
+(roadmap items 7/10) with the evaluation metrics (roadmap item 3) in one command:
+
+1. **Live model scoring:** `eval segmentation --model` / `eval detection --model` run
+   an ONNX model over annotated samples and score in memory. `--model` and
+   `--predictions` are mutually exclusive (`Provide exactly one of --predictions or
+   --model.`), and `--predictions` is now optional on both commands.
+2. **Backend selection:** `--backend` / `--device` reuse the shared
+   `cli/inference_common.py` helpers and default from `config.inference`.
+3. **Config-driven detection thresholds:** `--confidence-threshold` /
+   `--nms-threshold` fall back to `config.inference.confidence_threshold` /
+   `config.inference.nms_threshold`; the effective values are recorded in the report.
+4. **Sample bound:** `--limit N` (0 = all) caps annotated samples evaluated on both
+   sources and both commands.
+5. **Prediction export:** `--save-predictions DIR` writes model output as PNG class-ID
+   masks / scored TXT rows consumable by `--predictions` (round-trip tests assert
+   byte-identical metrics between model and file runs); rejected without `--model`.
+6. **Report enrichment:** new top-level `"model"` key (path, backend, device, effective
+   thresholds) and `"timing"` key (samples, total/mean/min/max ms, p50/p95/p99
+   percentiles, samples/s) for model runs; both `null` for file-based runs.
+   Per-sample latency is measured around `engine.predict` only.
+7. **Data writers:** `write_detection_predictions` (7-field CSV with `repr(float)`
+   round-trip fidelity and parent-directory creation) and `save_semantic_mask`
+   (validated class-ID PNG), both exported from `nearfield360.data`.
+8. **Empty-prediction robustness:** `_prediction_arrays` preserves the `(N, 4)` box
+   shape for empty prediction batches in file and model paths (previously
+   `np.asarray([])` produced shape `(0,)` and failed `evaluate_detection`'s shape
+   check — latent bug fixed with a regression test).
+
+**Explicit exclusions:** confidence-threshold sweeps/PR curves, split-manifest
+filtering, batched inference, and TensorRT/C++ acceleration (remain under roadmap
+item 7 residual).
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Source selection, engine builders, collectors, timing stats | `src/nearfield360/cli/eval.py` |
+| `write_detection_predictions` + `_format_number` | `src/nearfield360/data/detection.py` |
+| `save_semantic_mask` | `src/nearfield360/data/semantic.py` |
+| Writer round-trip tests | `tests/unit/data/test_detection.py`, `tests/unit/data/test_semantic.py` |
+| Eval CLI tests (file, model, limit, exclusions, round-trip, timing) | `tests/unit/test_eval_cli.py` |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 773 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 92.39% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 71 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |

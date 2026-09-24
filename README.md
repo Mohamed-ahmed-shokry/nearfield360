@@ -28,7 +28,7 @@ the corresponding experiments have run.
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
 | WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration/detection contracts, integrity, statistics, explicit-group splits, semantic overlays; synthetic tests |
 | Fisheye calibration and geometry | Implemented core | Fourth-order radial projection/inverse, rigid transforms, vehicle cameras, surround rig, ground intersection, BEV grid; synthetic tests |
-| Segmentation and detection metrics | Implemented foundation | Numpy-only confusion/IoU and XYXY box IoU without models or accelerators |
+| Segmentation and detection metrics | Implemented | Numpy-only confusion/IoU and XYXY box IoU, file-based and live model-driven evaluation (`eval segmentation|detection --model`), prediction export, sample limits, and latency statistics |
 | BEV occupancy and risk | Implemented | Multi-camera surround fusion (`--all-cameras`), Bayesian uncertainty propagation, 360-degree parking zones (corridors/clearance/circles), occupancy & uncertainty rendering |
 | Controlled robustness evaluation | Implemented | Synthetic sensor corruptions (soiling, fog, noise, rain), extrinsic calibration perturbation engine, quantitative metrics (occupancy MAE, IoU, risk error), SVG/PNG charts, interactive HTML report dashboard |
 | Dynamic obstacle tracking and forecasting | Implemented core | 2D-to-3D ground footprint projection, 2D metric Kalman filter, state lifecycle, forward trajectory forecasting, collision TTC ingress, and BEV visual overlays |
@@ -247,6 +247,27 @@ uv run nearfield360 occupancy layer --root D:\datasets\woodscape --model models/
 uv run nearfield360 track run --root D:\datasets\woodscape --model models/detection.onnx --output outputs/tracking.json
 ```
 
+### Reproducible evaluation against dataset annotations
+
+Score semantic masks or detected boxes against annotated WoodScape samples. Source selection is
+mutually exclusive: use `--predictions` for exported per-sample files (PNG class-ID masks /
+scored TXT rows) or `--model` for a live ONNX run in the same command. Reports are reproducible
+JSON artifacts with environment/config metadata, sample accounting, metrics, and — for model
+runs — engine identity, effective detection thresholds, and latency statistics:
+
+```powershell
+# 1. Score exported prediction files against ground-truth annotations:
+uv run nearfield360 eval segmentation --root D:\datasets\woodscape --predictions outputs/predictions --output outputs/segmentation_report.json
+uv run nearfield360 eval detection --root D:\datasets\woodscape --predictions outputs/predictions --output outputs/detection_report.json
+
+# 2. Run a live ONNX model over the annotated dataset (exclusive with --predictions):
+uv run nearfield360 eval segmentation --root D:\datasets\woodscape --model models/segmentation.onnx --output outputs/segmentation_report.json
+uv run nearfield360 eval detection --root D:\datasets\woodscape --model models/detection.onnx --iou-threshold 0.5 --output outputs/detection_report.json
+
+# 3. Bound the run, override config-driven thresholds, and export model predictions for reuse:
+uv run nearfield360 eval detection --root D:\datasets\woodscape --model models/detection.onnx --limit 50 --confidence-threshold 0.4 --nms-threshold 0.5 --save-predictions outputs/predictions --output outputs/detection_subset.json
+```
+
 ## Dataset policy
 
 [WoodScape](https://github.com/valeoai/WoodScape) is the primary target dataset because it
@@ -353,7 +374,7 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     ONNX Runtime is requested, `--backend` selection on live perception CLIs defaulting from
     `config.inference.backend`, and detection confidence/NMS thresholds wired from config
     into tracking and pipeline engines. Excludes TensorRT/C++ (roadmap item 7 residual).
-11. Model-driven evaluation against dataset annotations:
+11. ~~Model-driven evaluation against dataset annotations.~~ Done:
     `eval segmentation --model` / `eval detection --model` run a live ONNX model over
     annotated WoodScape samples and score predictions in the same command (joining the
     inference engines from roadmap items 7/10 with the metrics from item 3), with
