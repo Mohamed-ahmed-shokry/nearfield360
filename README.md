@@ -353,6 +353,14 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     ONNX Runtime is requested, `--backend` selection on live perception CLIs defaulting from
     `config.inference.backend`, and detection confidence/NMS thresholds wired from config
     into tracking and pipeline engines. Excludes TensorRT/C++ (roadmap item 7 residual).
+11. Model-driven evaluation against dataset annotations:
+    `eval segmentation --model` / `eval detection --model` run a live ONNX model over
+    annotated WoodScape samples and score predictions in the same command (joining the
+    inference engines from roadmap items 7/10 with the metrics from item 3), with
+    `--backend`/`--device` selection, config-driven detection thresholds, `--limit`,
+    `--save-predictions` export for the file-based workflow, and per-sample latency
+    statistics in the report. Excludes confidence-threshold sweeps/PR curves, split-manifest
+    filtering, batched inference, and TensorRT/C++ (roadmap item 7 residual).
 
 ## Usage: integrated four-camera pipeline and release audit
 
