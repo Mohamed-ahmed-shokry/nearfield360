@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any, Never
@@ -153,6 +154,7 @@ def _report_payload(
     missing: list[str],
     metrics: dict[str, Any],
     model: dict[str, Any] | None = None,
+    timing: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     state = get_state(context)
     return {
@@ -160,6 +162,7 @@ def _report_payload(
         "config": state.config.model_dump(mode="json"),
         "seed": state.config.runtime.seed,
         "model": model,
+        "timing": timing,
         "samples": {
             "expected": expected,
             "evaluated": evaluated,
@@ -202,6 +205,43 @@ def _reject_save_without_model(save_predictions: Path | None) -> None:
     raise typer.Exit(code=1) from None
 
 
+def _timing_stats(samples_ms: Sequence[float]) -> dict[str, Any]:
+    """Summarize per-sample engine latency samples in milliseconds."""
+    if not samples_ms:
+        return {
+            "samples": 0,
+            "total_ms": 0.0,
+            "mean_ms": 0.0,
+            "p50_ms": 0.0,
+            "p95_ms": 0.0,
+            "p99_ms": 0.0,
+            "min_ms": 0.0,
+            "max_ms": 0.0,
+            "samples_per_second": 0.0,
+        }
+    arr = np.asarray(samples_ms, dtype=np.float64)
+    total = float(np.sum(arr))
+    mean = total / len(samples_ms)
+    return {
+        "samples": len(samples_ms),
+        "total_ms": round(total, 3),
+        "mean_ms": round(mean, 3),
+        "p50_ms": round(float(np.percentile(arr, 50)), 3),
+        "p95_ms": round(float(np.percentile(arr, 95)), 3),
+        "p99_ms": round(float(np.percentile(arr, 99)), 3),
+        "min_ms": round(float(np.min(arr)), 3),
+        "max_ms": round(float(np.max(arr)), 3),
+        "samples_per_second": round(1000.0 / mean, 3) if mean > 0.0 else 0.0,
+    }
+
+
+def _echo_timing(timing: dict[str, Any]) -> None:
+    typer.echo(
+        f"Timing: {timing['samples']} samples, mean={timing['mean_ms']:.3f} ms, "
+        f"p95={timing['p95_ms']:.3f} ms, {timing['samples_per_second']:.1f} samples/s"
+    )
+
+
 def _build_segmentation_engine(
     context: typer.Context,
     model: Path,
@@ -221,8 +261,9 @@ def _segmentation_model_pairs(
     dataset: WoodScapeDataset,
     limit: int,
     save_predictions: Path | None,
-) -> tuple[list[tuple[np.ndarray, np.ndarray]], int]:
+) -> tuple[list[tuple[np.ndarray, np.ndarray]], int, list[float]]:
     pairs: list[tuple[np.ndarray, np.ndarray]] = []
+    latencies_ms: list[float] = []
     expected = 0
     for sample in dataset:
         if sample.semantic_mask_path is None:
@@ -233,13 +274,15 @@ def _segmentation_model_pairs(
         try:
             target = load_semantic_mask(sample.semantic_mask_path)
             image = load_rgb_image(sample.image_path)
+            start = time.perf_counter()
             predicted, _confidence = engine.predict(image)
+            latencies_ms.append((time.perf_counter() - start) * 1000.0)
             if save_predictions is not None:
                 save_semantic_mask(save_predictions / f"{sample.key.stem}.png", predicted)
         except (ImageReadError, SemanticMaskError, InferenceError, PreprocessorError) as exc:
             _mask_error(sample.key.stem, exc)
         pairs.append((predicted, target))
-    return pairs, expected
+    return pairs, expected, latencies_ms
 
 
 def _prediction_arrays(
@@ -284,9 +327,10 @@ def _detection_model_batches(
     dataset: WoodScapeDataset,
     limit: int,
     save_predictions: Path | None,
-) -> tuple[list[tuple[np.ndarray, np.ndarray, np.ndarray]], list[list[Any]], int]:
+) -> tuple[list[tuple[np.ndarray, np.ndarray, np.ndarray]], list[list[Any]], int, list[float]]:
     prediction_batches: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
     target_batches: list[list[Any]] = []
+    latencies_ms: list[float] = []
     expected = 0
     for sample in dataset:
         if sample.detection_path is None:
@@ -298,7 +342,9 @@ def _detection_model_batches(
             image = load_rgb_image(sample.image_path)
             image_size = (int(image.shape[0]), int(image.shape[1]))
             targets = load_detection_annotations(sample.detection_path, image_size=image_size)
+            start = time.perf_counter()
             raw_predictions = engine.predict(image)
+            latencies_ms.append((time.perf_counter() - start) * 1000.0)
             if save_predictions is not None:
                 write_detection_predictions(
                     save_predictions / f"{sample.key.stem}.txt", raw_predictions
@@ -310,7 +356,7 @@ def _detection_model_batches(
             raise typer.Exit(code=1) from None
         prediction_batches.append(_prediction_arrays(raw_predictions))
         target_batches.append(list(targets))
-    return prediction_batches, target_batches, expected
+    return prediction_batches, target_batches, expected, latencies_ms
 
 
 def _mask_error(stem: str, exc: Exception) -> None:
@@ -345,12 +391,16 @@ def evaluate_segmentation(
     missing: list[str] = []
     expected = 0
     model_info: dict[str, Any] | None = None
+    timing: dict[str, Any] | None = None
     if model is not None:
         if predictions is not None:
             _reject_source()
         dataset = discover_dataset(context, root)
         engine = _build_segmentation_engine(context, model, backend=backend, device=device)
-        pairs, expected = _segmentation_model_pairs(engine, dataset, limit, save_predictions)
+        pairs, expected, latencies_ms = _segmentation_model_pairs(
+            engine, dataset, limit, save_predictions
+        )
+        timing = _timing_stats(latencies_ms)
         model_info = {
             "path": str(model),
             "backend": resolve_backend_type(context, backend).value,
@@ -398,9 +448,12 @@ def evaluate_segmentation(
         missing=missing,
         metrics=evaluation.as_dict(),
         model=model_info,
+        timing=timing,
     )
     _writing_output(output, overwrite, payload)
     typer.echo(f"Evaluated {len(pairs)}/{expected} samples; mIoU={evaluation.mean_iou:.3f}")
+    if timing is not None:
+        _echo_timing(timing)
 
 
 @eval_app.command("detection")
@@ -434,6 +487,7 @@ def evaluate_detection_command(
     missing: list[str] = []
     expected = 0
     model_info: dict[str, Any] | None = None
+    timing: dict[str, Any] | None = None
     if model is not None:
         if predictions is not None:
             _reject_source()
@@ -446,9 +500,10 @@ def evaluate_detection_command(
             confidence_threshold=confidence_threshold,
             nms_threshold=nms_threshold,
         )
-        prediction_batches, target_batches, expected = _detection_model_batches(
+        prediction_batches, target_batches, expected, latencies_ms = _detection_model_batches(
             engine, dataset, limit, save_predictions
         )
+        timing = _timing_stats(latencies_ms)
         model_info = {
             "path": str(model),
             "backend": resolve_backend_type(context, backend).value,
@@ -513,12 +568,15 @@ def evaluate_detection_command(
         missing=missing,
         metrics=evaluation.as_dict(),
         model=model_info,
+        timing=timing,
     )
     _writing_output(output, overwrite, payload)
     typer.echo(
         f"Evaluated {len(prediction_batches)}/{expected} samples; "
         f"mAP={evaluation.mean_average_precision:.3f}"
     )
+    if timing is not None:
+        _echo_timing(timing)
 
 
 __all__ = ["eval_app"]

@@ -503,6 +503,7 @@ def test_eval_detection_model_scores_annotations(tmp_path: Path, dummy_det_model
 
     assert result.exit_code == 0, result.output
     assert "Evaluated 1/1 samples" in result.stdout
+    assert "Timing: 1 samples" in result.stdout
     payload = read_json(output)
     assert payload["samples"] == {"expected": 1, "evaluated": 1, "missing_predictions": []}
     assert payload["model"] == {
@@ -512,6 +513,9 @@ def test_eval_detection_model_scores_annotations(tmp_path: Path, dummy_det_model
         "confidence_threshold": 0.5,
         "nms_threshold": 0.4,
     }
+    assert payload["timing"]["samples"] == 1
+    assert payload["timing"]["min_ms"] <= payload["timing"]["p95_ms"]
+    assert payload["timing"]["p99_ms"] <= payload["timing"]["max_ms"]
     assert 0.0 <= payload["metrics"]["mean_average_precision"] <= 1.0
     assert json.dumps(payload)  # fully JSON-serializable
 
@@ -789,3 +793,68 @@ def test_eval_save_predictions_requires_model(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "--save-predictions requires --model" in result.stderr
+
+
+def test_eval_segmentation_model_report_includes_timing(
+    tmp_path: Path, dummy_seg_model: Path
+) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_mask(tmp_path, "00001_FV.png")
+    output = tmp_path / "model_report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Timing: 1 samples" in result.stdout
+    payload = read_json(output)
+    timing = payload["timing"]
+    assert timing["samples"] == 1
+    assert timing["total_ms"] >= 0.0
+    assert timing["mean_ms"] >= 0.0
+    assert (
+        timing["min_ms"]
+        <= timing["p50_ms"]
+        <= timing["p95_ms"]
+        <= timing["p99_ms"]
+        <= timing["max_ms"]
+    )
+    assert timing["samples_per_second"] >= 0.0
+
+
+def test_eval_file_mode_report_has_null_model_and_timing(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_mask(tmp_path)
+    predictions = tmp_path / "predictions"
+    _write_prediction_mask(predictions)
+    output = tmp_path / "report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(output)
+    assert payload["model"] is None
+    assert payload["timing"] is None
