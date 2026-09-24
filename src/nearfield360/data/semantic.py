@@ -7,6 +7,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Literal
 
+import cv2
 import numpy as np
 import numpy.typing as npt
 
@@ -87,6 +88,23 @@ def load_semantic_mask(
     return validate_semantic_mask(load_label_image(path, limits=limits))
 
 
+def save_semantic_mask(path: Path, mask: npt.NDArray[np.generic]) -> None:
+    """Write a validated single-channel class-ID mask as a PNG image.
+
+    Parent directories are created as needed, and the mask must pass
+    :func:`validate_semantic_mask`, so unknown labels are rejected before writing.
+    """
+    labels = validate_semantic_mask(mask)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise SemanticMaskError(
+            f"Unable to create directory for semantic mask {path}: {exc}"
+        ) from exc
+    if not cv2.imwrite(str(path), labels):
+        raise SemanticMaskError(f"Failed to write semantic mask: {path}")
+
+
 def colorize_semantic_mask(
     mask: npt.NDArray[np.generic],
     color_order: Literal["rgb", "bgr"] = "rgb",
@@ -117,6 +135,7 @@ __all__ = [
     "SemanticMaskError",
     "colorize_semantic_mask",
     "load_semantic_mask",
+    "save_semantic_mask",
     "semantic_class",
     "semantic_histogram",
     "validate_semantic_mask",

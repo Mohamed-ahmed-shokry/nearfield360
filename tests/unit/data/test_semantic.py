@@ -11,6 +11,7 @@ from nearfield360.data import (
     SemanticMaskError,
     colorize_semantic_mask,
     load_semantic_mask,
+    save_semantic_mask,
     semantic_class,
     semantic_histogram,
     validate_semantic_mask,
@@ -113,3 +114,28 @@ def test_load_semantic_mask_decodes_and_validates(tmp_path: Path) -> None:
     assert cv2.imwrite(str(path), expected)
 
     np.testing.assert_array_equal(load_semantic_mask(path), expected)
+
+
+def test_save_semantic_mask_round_trips_class_ids(tmp_path: Path) -> None:
+    mask = np.array([[0, 1], [6, 9]], dtype=np.uint8)
+    path = tmp_path / "nested" / "mask.png"
+
+    save_semantic_mask(path, mask)
+
+    np.testing.assert_array_equal(load_semantic_mask(path), mask)
+
+
+def test_save_semantic_mask_normalizes_integer_dtype(tmp_path: Path) -> None:
+    mask = np.array([[0, 4], [6, 9]], dtype=np.uint16)
+    path = tmp_path / "mask.png"
+
+    save_semantic_mask(path, mask)
+
+    loaded = load_semantic_mask(path)
+    assert loaded.dtype == np.uint8
+    np.testing.assert_array_equal(loaded, mask.astype(np.uint8))
+
+
+def test_save_semantic_mask_rejects_unknown_labels(tmp_path: Path) -> None:
+    with pytest.raises(SemanticMaskError, match="unknown labels"):
+        save_semantic_mask(tmp_path / "bad.png", np.array([[42]], dtype=np.uint8))

@@ -19,6 +19,7 @@ from nearfield360.data.detection import (
     detection_class,
     load_detection_annotations,
     load_detection_predictions,
+    write_detection_predictions,
 )
 from nearfield360.data.images import (
     DEFAULT_IMAGE_LIMITS,
@@ -45,6 +46,7 @@ from nearfield360.data.semantic import (
     SemanticMaskError,
     colorize_semantic_mask,
     load_semantic_mask,
+    save_semantic_mask,
     semantic_class,
     semantic_histogram,
     validate_semantic_mask,
@@ -121,9 +123,11 @@ __all__ = [
     "locate_dataset_root",
     "parse_sample_key",
     "sample_identity_digest",
+    "save_semantic_mask",
     "semantic_class",
     "semantic_histogram",
     "validate_dataset",
     "validate_semantic_mask",
+    "write_detection_predictions",
     "write_split_manifest",
 ]
