@@ -210,3 +210,92 @@ def test_eval_detection_rejects_incomplete_predictions(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "Missing predictions" in result.stderr
+
+
+def test_eval_segmentation_limit_bounds_annotated_samples(tmp_path: Path) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_mask(tmp_path, "00001_FV.png")
+    _write_rgb(tmp_path, "00002_FV.png")
+    _write_mask(tmp_path, "00002_FV.png")
+    predictions = tmp_path / "predictions"
+    _write_prediction_mask(predictions)
+    (predictions / "00002_FV.png").unlink()  # second sample intentionally missing
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "limited.json"),
+            "--limit",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = read_json(tmp_path / "limited.json")
+    assert payload["samples"] == {"expected": 1, "evaluated": 1, "missing_predictions": []}
+
+
+def test_eval_detection_limit_bounds_annotated_samples(tmp_path: Path) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_detection(tmp_path, "00001_FV.txt")
+    _write_rgb(tmp_path, "00002_FV.png")
+    _write_detection(tmp_path, "00002_FV.txt")
+    predictions = tmp_path / "predictions"
+    _write_prediction_detection(predictions)
+    (predictions / "00002_FV.txt").unlink()
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "limited.json"),
+            "--limit",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = read_json(tmp_path / "limited.json")
+    assert payload["samples"] == {"expected": 1, "evaluated": 1, "missing_predictions": []}
+
+
+def test_eval_segmentation_limit_zero_evaluates_all(tmp_path: Path) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_mask(tmp_path, "00001_FV.png")
+    _write_rgb(tmp_path, "00002_FV.png")
+    _write_mask(tmp_path, "00002_FV.png")
+    predictions = tmp_path / "predictions"
+    _write_prediction_mask(predictions)
+    (predictions / "00002_FV.png").unlink()
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "all.json"),
+            "--limit",
+            "0",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Missing predictions for 1 sample(s): 00002_FV" in result.stderr

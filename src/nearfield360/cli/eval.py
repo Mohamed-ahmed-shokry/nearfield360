@@ -53,6 +53,15 @@ ThresholdOption = Annotated[
     ),
 ]
 
+LimitOption = Annotated[
+    int,
+    typer.Option(
+        "--limit",
+        min=0,
+        help="Maximum annotated samples to evaluate (0 evaluates all).",
+    ),
+]
+
 
 def _find_prediction_file(directory: Path, stem: str, suffixes: frozenset[str]) -> Path | None:
     for suffix in suffixes:
@@ -127,6 +136,7 @@ def evaluate_segmentation(
         bool, typer.Option("--overwrite", help="Replace an existing report artifact.")
     ] = False,
     root: DatasetRootOption = None,
+    limit: LimitOption = 0,
 ) -> None:
     """Score predicted masks against WoodScape semantic ground truth."""
     dataset = discover_dataset(context, root)
@@ -136,6 +146,8 @@ def evaluate_segmentation(
     for sample in dataset:
         if sample.semantic_mask_path is None:
             continue
+        if limit > 0 and expected >= limit:
+            break
         expected += 1
         prediction_file = _find_prediction_file(predictions, sample.key.stem, IMAGE_SUFFIXES)
         if prediction_file is None:
@@ -189,6 +201,7 @@ def evaluate_detection_command(
     ] = False,
     iou_threshold: ThresholdOption = 0.5,
     root: DatasetRootOption = None,
+    limit: LimitOption = 0,
 ) -> None:
     """Score detected boxes (``*.txt``) against WoodScape detection annotations."""
     dataset = discover_dataset(context, root)
@@ -199,6 +212,8 @@ def evaluate_detection_command(
     for sample in dataset:
         if sample.detection_path is None:
             continue
+        if limit > 0 and expected >= limit:
+            break
         expected += 1
         prediction_file = _find_prediction_file(predictions, sample.key.stem, frozenset({".txt"}))
         if prediction_file is None:
