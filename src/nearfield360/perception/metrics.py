@@ -132,6 +132,98 @@ def woodscape_semantic_scores(prediction: ArrayLike, target: ArrayLike) -> dict[
     return result
 
 
+def _flat_label_array(values: ArrayLike, name: str, size: int) -> NDArray[np.int64]:
+    try:
+        array = np.asarray(values)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"{name} must be an integer label array") from exc
+    if array.dtype.kind not in "iu":
+        raise ValueError(f"{name} must contain integer labels")
+    with np.errstate(over="ignore", invalid="ignore"):
+        result = np.asarray(array, dtype=np.int64).ravel()
+    if result.size != size:
+        raise ValueError(f"{name} must align with confidences ({size} values), got {result.size}")
+    return result
+
+
+def semantic_confidence_metrics(
+    confidences: ArrayLike,
+    predictions: ArrayLike,
+    targets: ArrayLike,
+    *,
+    num_bins: int = 10,
+) -> dict[str, Any]:
+    """Aggregate per-pixel softmax confidence into a reliability table with ECE.
+
+    ``confidences`` are the predicted-class softmax probabilities; ``predictions``
+    and ``targets`` are aligned integer labels. Inputs are raveled internally, so
+    pooled 1D arrays and individual ``(H, W)`` masks both work as long as the
+    element counts match. Bins are equal-width over ``[0, 1]``; empty bins report
+    ``None`` accuracy and mean confidence, and the expected calibration error
+    weights each bin's ``|mean confidence - accuracy|`` by its pixel share.
+    """
+    if isinstance(num_bins, bool) or not isinstance(num_bins, int):
+        raise ValueError("num_bins must be an integer in the range 1..1000")
+    if num_bins < 1 or num_bins > 1000:
+        raise ValueError("num_bins must be an integer in the range 1..1000")
+    try:
+        confidence = np.asarray(confidences, dtype=np.float64).ravel()
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("confidences must be a real numeric array") from exc
+    if confidence.size == 0:
+        raise ValueError("confidences must not be empty")
+    if np.any(~np.isfinite(confidence)) or np.any((confidence < 0.0) | (confidence > 1.0)):
+        raise ValueError("confidences must be finite values in [0, 1]")
+    pred = _flat_label_array(predictions, "predictions", confidence.size)
+    truth = _flat_label_array(targets, "targets", confidence.size)
+    classes = len(WOODSCAPE_SEMANTIC_CLASSES)
+    if pred.min() < 0 or pred.max() >= classes or truth.min() < 0 or truth.max() >= classes:
+        raise ValueError(f"labels must lie in [0, {classes})")
+
+    correct = (pred == truth).astype(np.float64)
+    bin_index = np.minimum((confidence * num_bins).astype(np.int64), num_bins - 1)
+    counts = np.bincount(bin_index, minlength=num_bins)
+    confidence_sums = np.bincount(bin_index, weights=confidence, minlength=num_bins)
+    correct_sums = np.bincount(bin_index, weights=correct, minlength=num_bins)
+    total = int(confidence.size)
+    bins: list[dict[str, Any]] = []
+    ece = 0.0
+    for index in range(num_bins):
+        count = int(counts[index])
+        lower = round(index / num_bins, 6)
+        upper = round((index + 1) / num_bins, 6)
+        if count == 0:
+            bins.append(
+                {
+                    "lower": lower,
+                    "upper": upper,
+                    "pixels": 0,
+                    "mean_confidence": None,
+                    "accuracy": None,
+                }
+            )
+            continue
+        mean_confidence = float(confidence_sums[index]) / count
+        accuracy = float(correct_sums[index]) / count
+        ece += (count / total) * abs(mean_confidence - accuracy)
+        bins.append(
+            {
+                "lower": lower,
+                "upper": upper,
+                "pixels": count,
+                "mean_confidence": round(mean_confidence, 6),
+                "accuracy": round(accuracy, 6),
+            }
+        )
+    return {
+        "num_bins": num_bins,
+        "pixel_count": total,
+        "mean_confidence": round(float(np.mean(confidence)), 6),
+        "ece": round(ece, 6),
+        "bins": bins,
+    }
+
+
 def _box_array(values: ArrayLike, name: str, *, batched: bool) -> NDArray[np.float64]:
     try:
         array = np.asarray(values, dtype=np.float64)
@@ -600,6 +692,7 @@ __all__ = [
     "detection_confidence_metrics",
     "detection_iou_matrix",
     "mean_iou",
+    "semantic_confidence_metrics",
     "semantic_confusion_matrix",
     "semantic_iou",
     "woodscape_detection_scores",

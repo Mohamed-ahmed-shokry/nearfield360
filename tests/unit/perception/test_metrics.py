@@ -9,6 +9,7 @@ from nearfield360.perception.metrics import (
     detection_confidence_metrics,
     detection_iou_matrix,
     mean_iou,
+    semantic_confidence_metrics,
     semantic_confusion_matrix,
     semantic_iou,
     woodscape_detection_scores,
@@ -379,3 +380,86 @@ def test_confidence_metrics_rejects_invalid_thresholds() -> None:
         )
     with pytest.raises(ValueError, match=r"\[0, 1\]"):
         detection_confidence_metrics(boxes, score, classes, boxes, classes, thresholds=["0.5"])
+
+
+def test_semantic_confidence_metrics_bins_and_ece() -> None:
+    confidences = np.array([0.9, 0.6, 0.4, 0.1])
+    predictions = np.zeros(4, dtype=np.uint8)
+    targets = np.array([0, 0, 1, 1], dtype=np.uint8)
+
+    result = semantic_confidence_metrics(confidences, predictions, targets, num_bins=10)
+
+    assert result["num_bins"] == 10
+    assert result["pixel_count"] == 4
+    assert result["mean_confidence"] == 0.5
+    # 0.25 * (|0.9-1| + |0.6-1| + |0.4-0| + |0.1-0|)
+    assert result["ece"] == 0.25
+    assert len(result["bins"]) == 10
+    high = result["bins"][9]
+    assert (high["lower"], high["upper"], high["pixels"]) == (0.9, 1.0, 1)
+    assert high["mean_confidence"] == 0.9
+    assert high["accuracy"] == 1.0
+    empty = result["bins"][0]
+    assert empty["pixels"] == 0
+    assert empty["mean_confidence"] is None
+    assert empty["accuracy"] is None
+    first = result["bins"][1]  # confidence 0.1, prediction wrong
+    assert first["pixels"] == 1
+    assert first["accuracy"] == 0.0
+
+
+def test_semantic_confidence_metrics_clips_unit_confidence_into_last_bin() -> None:
+    confidences = np.array([1.0, 1.0])
+
+    result = semantic_confidence_metrics(
+        confidences,
+        np.zeros(2, dtype=np.uint8),
+        np.zeros(2, dtype=np.uint8),
+        num_bins=4,
+    )
+
+    assert result["ece"] == 0.0
+    last = result["bins"][3]
+    assert last["pixels"] == 2
+    assert last["accuracy"] == 1.0
+    assert last["upper"] == 1.0
+
+
+def test_semantic_confidence_metrics_accepts_mask_shaped_inputs() -> None:
+    confidences = np.full((2, 3), 0.75)
+    predictions = np.zeros((2, 3), dtype=np.uint8)
+    targets = np.ones((2, 3), dtype=np.uint8)
+
+    result = semantic_confidence_metrics(confidences, predictions, targets, num_bins=8)
+
+    assert result["pixel_count"] == 6
+    assert result["bins"][6]["pixels"] == 6  # floor(0.75 * 8) = 6
+    assert result["bins"][6]["accuracy"] == 0.0
+    assert result["ece"] == 0.75  # every pixel overconfident by 0.75
+
+
+def test_semantic_confidence_metrics_rejects_invalid_inputs() -> None:
+    conf = np.array([0.5])
+    pred = np.array([0], dtype=np.uint8)
+    with pytest.raises(ValueError, match="num_bins"):
+        semantic_confidence_metrics(conf, pred, pred, num_bins=0)
+    with pytest.raises(ValueError, match="num_bins"):
+        semantic_confidence_metrics(conf, pred, pred, num_bins=True)
+    with pytest.raises(ValueError, match="num_bins"):
+        semantic_confidence_metrics(conf, pred, pred, num_bins=1001)
+    with pytest.raises(ValueError, match="must not be empty"):
+        semantic_confidence_metrics(
+            np.empty(0), np.empty(0, dtype=np.uint8), np.empty(0, dtype=np.uint8)
+        )
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        semantic_confidence_metrics(np.array([1.5]), pred, pred)
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        semantic_confidence_metrics(np.array([float("nan")]), pred, pred)
+    with pytest.raises(ValueError, match="align"):
+        semantic_confidence_metrics(conf, np.zeros(2, dtype=np.uint8), pred)
+    with pytest.raises(ValueError, match="integer labels"):
+        semantic_confidence_metrics(conf, np.array([0.0]), pred)
+    with pytest.raises(ValueError, match=r"labels must lie in \[0, 10\)"):
+        semantic_confidence_metrics(conf, np.array([99], dtype=np.uint8), pred)
+    with pytest.raises(ValueError, match="real numeric array"):
+        semantic_confidence_metrics(np.array(["abc"]), pred, pred)
