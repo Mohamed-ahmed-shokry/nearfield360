@@ -382,6 +382,14 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     `--save-predictions` export for the file-based workflow, and per-sample latency
     statistics in the report. Excludes confidence-threshold sweeps/PR curves, split-manifest
     filtering, batched inference, and TensorRT/C++ (roadmap item 7 residual).
+12. Split-aware evaluation and detection confidence analysis:
+    `--split-manifest`/`--split` on both `eval` commands restrict scoring to a held-out
+    split created by `nearfield360 data split` (manifest digest-validated against the
+    dataset and recorded in the report), and `eval detection --confidence-thresholds`
+    adds pooled operating points (precision/recall/F1 per score threshold) plus per-class
+    101-point interpolated precision-recall curves to the metrics report. Excludes
+    model-side re-inference sweeps, calibration metrics (ECE), batched inference, and
+    TensorRT/C++ (roadmap item 7 residual).
 
 ## Usage: integrated four-camera pipeline and release audit
 
