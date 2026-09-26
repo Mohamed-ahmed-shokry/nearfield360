@@ -1183,3 +1183,119 @@ def test_eval_split_manifest_rejects_mismatched_dataset(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "Split error" in result.stderr
     assert "sample identity digest" in result.stderr
+
+
+def test_eval_segmentation_confidence_bins_add_analysis(
+    tmp_path: Path, dummy_seg_model: Path
+) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_mask(tmp_path, "00001_FV.png")
+    output = tmp_path / "calibration.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(output),
+            "--confidence-bins",
+            "5",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(output)
+    analysis = payload["metrics"]["confidence_analysis"]
+    assert analysis["num_bins"] == 5
+    assert analysis["pixel_count"] == 12  # 3x4 fixture image
+    assert len(analysis["bins"]) == 5
+    # The dummy model emits uniform logits, so every pixel sits in bin [0, 0.2)
+    # at confidence 0.1 while the fixture mask labels all pixels as class 1.
+    assert analysis["bins"][0]["pixels"] == 12
+    assert analysis["bins"][0]["accuracy"] == 0.0
+    assert analysis["mean_confidence"] == pytest.approx(0.1, abs=1e-6)
+    assert analysis["ece"] == pytest.approx(0.1, abs=1e-6)
+    assert json.dumps(payload)  # fully JSON-serializable
+
+
+def test_eval_segmentation_report_omits_confidence_analysis_by_default(
+    tmp_path: Path, dummy_seg_model: Path
+) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_mask(tmp_path, "00001_FV.png")
+    output = tmp_path / "plain.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(output)
+    assert "confidence_analysis" not in payload["metrics"]
+
+
+def test_eval_segmentation_confidence_bins_requires_model(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_mask(tmp_path)
+    predictions = tmp_path / "predictions"
+    _write_prediction_mask(predictions)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "file.json"),
+            "--confidence-bins",
+            "5",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "--confidence-bins requires --model" in result.stderr
+
+
+@pytest.mark.parametrize("bins", ["0", "1001", "abc"])
+def test_eval_segmentation_rejects_invalid_confidence_bins(tmp_path: Path, bins: str) -> None:
+    _write_rgb(tmp_path)
+    _write_mask(tmp_path)
+    predictions = tmp_path / "predictions"
+    _write_prediction_mask(predictions)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "invalid.json"),
+            "--confidence-bins",
+            bins,
+        ],
+    )
+
+    assert result.exit_code == 2

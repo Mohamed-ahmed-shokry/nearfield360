@@ -43,6 +43,7 @@ from nearfield360.perception.evaluation import (
     environment_metadata,
     evaluate_detection,
     evaluate_semantic,
+    semantic_confidence_analysis,
 )
 from nearfield360.perception.inference.backend import InferenceError
 from nearfield360.perception.inference.detection import ObjectDetectionEngine
@@ -129,6 +130,19 @@ SavePredictionsOption = Annotated[
         dir_okay=True,
         resolve_path=True,
         help="Write per-sample predictions (PNG masks / TXT rows) for reuse with --predictions.",
+    ),
+]
+
+ConfidenceBinsOption = Annotated[
+    int | None,
+    typer.Option(
+        "--confidence-bins",
+        min=1,
+        max=1000,
+        help=(
+            "Equal-width reliability bins for per-pixel confidence analysis "
+            "(adds metrics.confidence_analysis; requires --model)."
+        ),
     ),
 ]
 
@@ -237,6 +251,17 @@ def _reject_save_without_model(save_predictions: Path | None) -> None:
         return
     typer.secho(
         "--save-predictions requires --model.",
+        fg=typer.colors.RED,
+        err=True,
+    )
+    raise typer.Exit(code=1) from None
+
+
+def _reject_confidence_bins_without_model(confidence_bins: int | None) -> None:
+    if confidence_bins is None:
+        return
+    typer.secho(
+        "--confidence-bins requires --model.",
         fg=typer.colors.RED,
         err=True,
     )
@@ -365,8 +390,11 @@ def _segmentation_model_pairs(
     dataset: WoodScapeDataset,
     limit: int,
     save_predictions: Path | None,
-) -> tuple[list[tuple[np.ndarray, np.ndarray]], int, list[float]]:
+    *,
+    collect_confidence: bool,
+) -> tuple[list[tuple[np.ndarray, np.ndarray]], list[np.ndarray], int, list[float]]:
     pairs: list[tuple[np.ndarray, np.ndarray]] = []
+    confidences: list[np.ndarray] = []
     latencies_ms: list[float] = []
     expected = 0
     for sample in dataset:
@@ -379,14 +407,16 @@ def _segmentation_model_pairs(
             target = load_semantic_mask(sample.semantic_mask_path)
             image = load_rgb_image(sample.image_path)
             start = time.perf_counter()
-            predicted, _confidence = engine.predict(image)
+            predicted, confidence = engine.predict(image)
             latencies_ms.append((time.perf_counter() - start) * 1000.0)
             if save_predictions is not None:
                 save_semantic_mask(save_predictions / f"{sample.key.stem}.png", predicted)
         except (ImageReadError, SemanticMaskError, InferenceError, PreprocessorError) as exc:
             _mask_error(sample.key.stem, exc)
         pairs.append((predicted, target))
-    return pairs, expected, latencies_ms
+        if collect_confidence:
+            confidences.append(confidence)
+    return pairs, confidences, expected, latencies_ms
 
 
 def _prediction_arrays(
@@ -491,22 +521,29 @@ def evaluate_segmentation(
     backend: BackendOption = None,
     device: DeviceOption = None,
     save_predictions: SavePredictionsOption = None,
+    confidence_bins: ConfidenceBinsOption = None,
 ) -> None:
     """Score predicted masks against WoodScape semantic ground truth."""
     pairs: list[tuple[np.ndarray, np.ndarray]] = []
+    confidences: list[np.ndarray] = []
     missing: list[str] = []
     expected = 0
     model_info: dict[str, Any] | None = None
     timing: dict[str, Any] | None = None
     split_info: dict[str, Any] | None = None
+    confidence_analysis: dict[str, Any] | None = None
     if model is not None:
         if predictions is not None:
             _reject_source()
         dataset = discover_dataset(context, root)
         dataset, split_info = _apply_split_selection(dataset, split_manifest, split)
         engine = _build_segmentation_engine(context, model, backend=backend, device=device)
-        pairs, expected, latencies_ms = _segmentation_model_pairs(
-            engine, dataset, limit, save_predictions
+        pairs, confidences, expected, latencies_ms = _segmentation_model_pairs(
+            engine,
+            dataset,
+            limit,
+            save_predictions,
+            collect_confidence=confidence_bins is not None,
         )
         timing = _timing_stats(latencies_ms)
         model_info = {
@@ -518,6 +555,7 @@ def evaluate_segmentation(
         if predictions is None:
             _reject_source()
         _reject_save_without_model(save_predictions)
+        _reject_confidence_bins_without_model(confidence_bins)
         dataset = discover_dataset(context, root)
         dataset, split_info = _apply_split_selection(dataset, split_manifest, split)
         for sample in dataset:
@@ -550,12 +588,25 @@ def evaluate_segmentation(
         evaluation = evaluate_semantic(pairs)
     except ValueError as exc:
         _mask_error("segmentation", exc)
+    if confidence_bins is not None:
+        samples = [
+            (confidence, predicted, target)
+            for confidence, (predicted, target) in zip(confidences, pairs, strict=True)
+        ]
+        try:
+            confidence_analysis = semantic_confidence_analysis(samples, num_bins=confidence_bins)
+        except ValueError as exc:
+            typer.secho(f"Evaluation error: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
+    metrics = evaluation.as_dict()
+    if confidence_analysis is not None:
+        metrics["confidence_analysis"] = confidence_analysis
     payload = _report_payload(
         context,
         expected=expected,
         evaluated=len(pairs),
         missing=missing,
-        metrics=evaluation.as_dict(),
+        metrics=metrics,
         model=model_info,
         timing=timing,
         split=split_info,
