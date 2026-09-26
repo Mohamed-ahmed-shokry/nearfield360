@@ -10,6 +10,7 @@ from nearfield360.perception import (
     environment_metadata,
     evaluate_detection,
     evaluate_semantic,
+    semantic_confidence_analysis,
 )
 
 
@@ -166,3 +167,30 @@ def test_environment_metadata_contains_version_keys() -> None:
         "platform",
     }
     assert metadata["nearfield360_version"]
+
+
+def test_semantic_confidence_analysis_pools_samples() -> None:
+    samples = [
+        (np.array([0.9, 0.2]), np.array([0, 1]), np.array([0, 1])),
+        (np.array([0.6]), np.array([1]), np.array([0])),
+    ]
+
+    analysis = semantic_confidence_analysis(samples, num_bins=10)
+
+    assert analysis["num_bins"] == 10
+    assert analysis["pixel_count"] == 3
+    # (|0.9-1| + |0.2-1| + |0.6-0|) / 3
+    assert analysis["ece"] == 0.5
+    assert analysis["mean_confidence"] == 0.566667
+    occupied = [bin_item for bin_item in analysis["bins"] if bin_item["pixels"]]
+    assert [bin_item["pixels"] for bin_item in occupied] == [1, 1, 1]
+    assert [bin_item["accuracy"] for bin_item in occupied] == [1.0, 0.0, 1.0]
+
+
+def test_semantic_confidence_analysis_rejects_invalid_samples() -> None:
+    with pytest.raises(EvaluationError, match="at least one"):
+        semantic_confidence_analysis([])
+    with pytest.raises(EvaluationError, match="shapes must match"):
+        semantic_confidence_analysis(
+            [(np.zeros((2, 2)), np.zeros(4, dtype=np.uint8), np.zeros(4, dtype=np.uint8))]
+        )

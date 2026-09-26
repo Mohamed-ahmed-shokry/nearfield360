@@ -29,6 +29,7 @@ from nearfield360.data.semantic import (
 from nearfield360.perception.metrics import (
     detection_average_precision,
     detection_confidence_metrics,
+    semantic_confidence_metrics,
     semantic_confusion_matrix,
     semantic_iou,
     woodscape_detection_scores,
@@ -311,6 +312,42 @@ def evaluate_detection(
     )
 
 
+def semantic_confidence_analysis(
+    samples: Sequence[tuple[Any, Any, Any]],
+    *,
+    num_bins: int = 10,
+) -> dict[str, Any]:
+    """Reliability analysis over pooled ``(confidence, prediction, target)`` samples.
+
+    Each sample's three arrays must share one shape; every pixel is pooled
+    across samples before one reliability table and ECE are computed. See
+    :func:`semantic_confidence_metrics` for the output schema.
+    """
+    if len(samples) == 0:
+        raise EvaluationError("Confidence analysis requires at least one sample")
+    confidences: list[npt.NDArray[Any]] = []
+    predictions: list[npt.NDArray[Any]] = []
+    targets: list[npt.NDArray[Any]] = []
+    for index, (confidence, prediction, target) in enumerate(samples, start=1):
+        conf_array = np.asarray(confidence)
+        pred_array = np.asarray(prediction)
+        target_array = np.asarray(target)
+        if not (conf_array.shape == pred_array.shape == target_array.shape):
+            raise EvaluationError(
+                f"Sample {index} confidence, prediction, and target shapes must match, got "
+                f"{conf_array.shape}, {pred_array.shape}, {target_array.shape}"
+            )
+        confidences.append(conf_array.ravel())
+        predictions.append(pred_array.ravel())
+        targets.append(target_array.ravel())
+    return semantic_confidence_metrics(
+        np.concatenate(confidences),
+        np.concatenate(predictions),
+        np.concatenate(targets),
+        num_bins=num_bins,
+    )
+
+
 def detection_confidence_analysis(
     predictions: Sequence[DetectionBatch],
     targets: Sequence[Sequence[DetectionAnnotation]],
@@ -351,4 +388,5 @@ __all__ = [
     "environment_metadata",
     "evaluate_detection",
     "evaluate_semantic",
+    "semantic_confidence_analysis",
 ]

@@ -8,6 +8,7 @@ from nearfield360.perception.evaluation import (
     environment_metadata,
     evaluate_detection,
     evaluate_semantic,
+    semantic_confidence_analysis,
 )
 from nearfield360.perception.metrics import (
     detection_average_precision,
@@ -15,6 +16,7 @@ from nearfield360.perception.metrics import (
     detection_confidence_metrics,
     detection_iou_matrix,
     mean_iou,
+    semantic_confidence_metrics,
     semantic_confusion_matrix,
     semantic_iou,
     woodscape_detection_scores,
@@ -34,6 +36,8 @@ __all__ = [
     "evaluate_detection",
     "evaluate_semantic",
     "mean_iou",
+    "semantic_confidence_analysis",
+    "semantic_confidence_metrics",
     "semantic_confusion_matrix",
     "semantic_iou",
     "woodscape_detection_scores",
