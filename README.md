@@ -28,7 +28,7 @@ the corresponding experiments have run.
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
 | WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration/detection contracts, integrity, statistics, explicit-group splits, semantic overlays; synthetic tests |
 | Fisheye calibration and geometry | Implemented core | Fourth-order radial projection/inverse, rigid transforms, vehicle cameras, surround rig, ground intersection, BEV grid; synthetic tests |
-| Segmentation and detection metrics | Implemented | Numpy-only confusion/IoU and XYXY box IoU, file-based and live model-driven evaluation (`eval segmentation|detection --model`), prediction export, sample limits, and latency statistics |
+| Segmentation and detection metrics | Implemented | Numpy-only confusion/IoU and XYXY box IoU, file-based and live model-driven evaluation (`eval segmentation|detection --model`), split-aware scoring (`--split-manifest`/`--split`), confidence operating points and PR curves (`--confidence-thresholds`), prediction export, sample limits, and latency statistics |
 | BEV occupancy and risk | Implemented | Multi-camera surround fusion (`--all-cameras`), Bayesian uncertainty propagation, 360-degree parking zones (corridors/clearance/circles), occupancy & uncertainty rendering |
 | Controlled robustness evaluation | Implemented | Synthetic sensor corruptions (soiling, fog, noise, rain), extrinsic calibration perturbation engine, quantitative metrics (occupancy MAE, IoU, risk error), SVG/PNG charts, interactive HTML report dashboard |
 | Dynamic obstacle tracking and forecasting | Implemented core | 2D-to-3D ground footprint projection, 2D metric Kalman filter, state lifecycle, forward trajectory forecasting, collision TTC ingress, and BEV visual overlays |
@@ -266,7 +266,20 @@ uv run nearfield360 eval detection --root D:\datasets\woodscape --model models/d
 
 # 3. Bound the run, override config-driven thresholds, and export model predictions for reuse:
 uv run nearfield360 eval detection --root D:\datasets\woodscape --model models/detection.onnx --limit 50 --confidence-threshold 0.4 --nms-threshold 0.5 --save-predictions outputs/predictions --output outputs/detection_subset.json
+
+# 4. Score only one split from `nearfield360 data split` (--split defaults to test):
+uv run nearfield360 eval segmentation --root D:\datasets\woodscape --predictions outputs/predictions --split-manifest outputs/splits.json --split test --output outputs/segmentation_test.json
+
+# 5. Add pooled confidence operating points and per-class PR grids to a detection report:
+uv run nearfield360 eval detection --root D:\datasets\woodscape --predictions outputs/predictions --confidence-thresholds 0.3,0.5,0.7 --output outputs/detection_confidence.json
 ```
+
+With `--split-manifest`, the manifest's sample-identity digest is validated against the
+discovered dataset before scoring, and the report gains a top-level `"split"` key (manifest
+path, split name, grouping provenance, seed, and dataset/selected sample counts). With
+`--confidence-thresholds`, `metrics.confidence_analysis` records pooled operating points
+(predictions, true positives, precision, recall, F1 per cutoff) and VOC-style 101-point
+interpolated precision-recall curves per class.
 
 ## Dataset policy
 
@@ -382,7 +395,7 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     `--save-predictions` export for the file-based workflow, and per-sample latency
     statistics in the report. Excludes confidence-threshold sweeps/PR curves, split-manifest
     filtering, batched inference, and TensorRT/C++ (roadmap item 7 residual).
-12. Split-aware evaluation and detection confidence analysis:
+12. ~~Split-aware evaluation and detection confidence analysis.~~ Done:
     `--split-manifest`/`--split` on both `eval` commands restrict scoring to a held-out
     split created by `nearfield360 data split` (manifest digest-validated against the
     dataset and recorded in the report), and `eval detection --confidence-thresholds`

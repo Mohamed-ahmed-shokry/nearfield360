@@ -655,3 +655,79 @@ item 7 residual).
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 13: Split-Aware Evaluation and Detection Confidence Analysis
+
+**Status:** Completed
+**Repository Branch:** `main`
+**Test Suite:** 794 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (71 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 92.58% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 13 closes README roadmap item 12 by resolving both exclusions Phase 12
+explicitly left open — split-manifest filtering and confidence sweeps/PR curves:
+
+1. **Split-restricted evaluation:** `--split-manifest PATH` on both `eval
+   segmentation` and `eval detection` validates the manifest's sample-identity
+   digest against the discovered dataset, then scores only one split's samples;
+   `--split train|validation|test` selects the split (default: `test`).
+   `--split` without a manifest is rejected (`--split requires
+   --split-manifest.`), and an invalid manifest fails with a `Split error:`
+   message before any scoring.
+2. **Split provenance in reports:** a top-level `"split"` key records manifest
+   path, split name, grouping policy/source, seed, and dataset/selected sample
+   counts (`null` when no manifest is used); the selection line is echoed to
+   stdout, and the empty-split error names the split.
+3. **Confidence analysis:** `eval detection --confidence-thresholds
+   0.3,0.5,0.7` adds `metrics.confidence_analysis` with pooled operating points
+   per cutoff (predictions, true positives, precision, recall, F1 after
+   per-class greedy matching at `--iou-threshold`) plus VOC-style 101-point
+   interpolated precision-recall grids per class (`null` for classes without
+   ground-truth targets). Values are parsed strictly (finite, in [0, 1],
+   deduplicated, sorted ascending; malformed input is a usage error).
+4. **Metrics API:** `detection_confidence_metrics` (numpy-only) and
+   `detection_confidence_analysis` (batch pooling wrapper) are exported from
+   `nearfield360.perception`; both reuse the per-class PR-step machinery
+   extracted from `woodscape_detection_scores` so operating points and AP share
+   one matching implementation.
+5. **Reporting only when requested:** `--confidence-thresholds` is optional and
+   default reports keep their previous structure; without a manifest the
+   dataset is scored in full with `"split": null`.
+
+**Explicit exclusions:** model-side re-inference sweeps, calibration metrics
+(ECE), batched inference, segmentation confidence analysis, SVG plotting of
+curves (JSON only), and TensorRT/C++ acceleration (remain under roadmap item 7
+residual).
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| `_per_class_pr_steps`, `_interpolated_pr_grid`, `detection_confidence_metrics` | `src/nearfield360/perception/metrics.py` |
+| `_pool_detection_batches`, `detection_confidence_analysis` | `src/nearfield360/perception/evaluation.py` |
+| `--split-manifest`/`--split`/`--confidence-thresholds`, `_apply_split_selection`, `_parse_confidence_thresholds` | `src/nearfield360/cli/eval.py` |
+| Metrics unit tests (operating points, PR grids, validation) | `tests/unit/perception/test_metrics.py` |
+| Batch-analysis unit tests | `tests/unit/perception/test_evaluation.py` |
+| Eval CLI tests (confidence flags, split filtering, oracle match, digest mismatch) | `tests/unit/test_eval_cli.py` |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 794 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 92.58% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 71 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
