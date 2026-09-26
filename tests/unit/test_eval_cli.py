@@ -7,6 +7,9 @@ import pytest
 from typer.testing import CliRunner
 
 from nearfield360.cli import app
+from nearfield360.data.manifests import write_split_manifest
+from nearfield360.data.splits import SplitRatios, create_splits
+from nearfield360.data.woodscape import WoodScapeDataset
 from nearfield360.perception.inference.test_utils import (
     create_dummy_detection_onnx,
     create_dummy_segmentation_onnx,
@@ -56,6 +59,14 @@ def _write_prediction_mask(predictions: Path) -> None:
 def _write_prediction_detection(predictions: Path) -> None:
     predictions.mkdir(parents=True)
     (predictions / "00001_FV.txt").write_text("vehicles,0,0,0,4,3,0.95\n", encoding="utf-8")
+
+
+def _write_split_manifest(root: Path, ratios: SplitRatios, seed: int = 42) -> Path:
+    dataset = WoodScapeDataset.discover(root)
+    splits = create_splits(dataset, ratios=ratios, seed=seed)
+    path = root / "split_manifest.json"
+    write_split_manifest(path, dataset, splits)
+    return path
 
 
 def test_eval_segmentation_writes_reproducible_report(tmp_path: Path) -> None:
@@ -980,3 +991,195 @@ def test_eval_detection_rejects_invalid_confidence_thresholds(tmp_path: Path, ra
 
     assert result.exit_code == 2
     assert not output.exists()
+
+
+def _write_segmentation_fixture(root: Path, stems: list[str]) -> Path:
+    for stem in stems:
+        _write_rgb(root, f"{stem}.png")
+        _write_mask(root, f"{stem}.png")
+    predictions = root / "predictions"
+    predictions.mkdir(parents=True, exist_ok=True)
+    for stem in stems:
+        assert cv2.imwrite(str(predictions / f"{stem}.png"), np.ones((3, 4), dtype=np.uint8))
+    return predictions
+
+
+def test_eval_segmentation_split_manifest_filters_selected_split(tmp_path: Path) -> None:
+    predictions = _write_segmentation_fixture(tmp_path, ["00001_FV", "00002_FV"])
+    manifest = _write_split_manifest(tmp_path, SplitRatios(1.0, 0.0, 0.0))
+    output = tmp_path / "split_report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(output),
+            "--split-manifest",
+            str(manifest),
+            "--split",
+            "train",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Split train: selected 2/2 samples." in result.stdout
+    payload = read_json(output)
+    assert Path(payload["split"]["manifest"]) == manifest
+    assert payload["split"]["split"] == "train"
+    assert payload["split"]["grouping"] == "filename_id"
+    assert payload["split"]["group_source"] is None
+    assert payload["split"]["seed"] == 42
+    assert payload["split"]["dataset_samples"] == 2
+    assert payload["split"]["selected_samples"] == 2
+    assert payload["samples"] == {"expected": 2, "evaluated": 2, "missing_predictions": []}
+
+
+def test_eval_segmentation_split_defaults_to_test(tmp_path: Path) -> None:
+    predictions = _write_segmentation_fixture(tmp_path, ["00001_FV"])
+    manifest = _write_split_manifest(tmp_path, SplitRatios(1.0, 0.0, 0.0))  # nothing in test
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "empty.json"),
+            "--split-manifest",
+            str(manifest),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "no semantic masks to evaluate against in split 'test'" in result.stderr
+
+
+def test_eval_detection_split_manifest_filters_selected_split(tmp_path: Path) -> None:
+    stems = ["00001_FV", "00002_FV"]
+    for stem in stems:
+        _write_rgb(tmp_path, f"{stem}.png")
+        _write_detection(tmp_path, f"{stem}.txt")
+    predictions = tmp_path / "predictions"
+    predictions.mkdir(parents=True, exist_ok=True)
+    for stem in stems:
+        (predictions / f"{stem}.txt").write_text("vehicles,0,0,0,4,3,0.95\n", encoding="utf-8")
+    manifest = _write_split_manifest(tmp_path, SplitRatios(0.0, 0.0, 1.0))  # everything in test
+    output = tmp_path / "det_split.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(output),
+            "--split-manifest",
+            str(manifest),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Split test: selected 2/2 samples." in result.stdout
+    payload = read_json(output)
+    assert payload["split"]["split"] == "test"
+    assert payload["split"]["selected_samples"] == 2
+    assert payload["samples"]["expected"] == 2
+
+
+def test_eval_split_without_manifest_is_rejected(tmp_path: Path) -> None:
+    predictions = _write_segmentation_fixture(tmp_path, ["00001_FV"])
+
+    for command in ("segmentation", "detection"):
+        result = runner.invoke(
+            app,
+            [
+                "eval",
+                command,
+                "--root",
+                str(tmp_path),
+                "--predictions",
+                str(predictions),
+                "--output",
+                str(tmp_path / f"{command}.json"),
+                "--split",
+                "train",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "--split requires --split-manifest" in result.stderr
+
+
+def test_eval_split_matches_manifest_oracle(tmp_path: Path) -> None:
+    stems = [f"{index:05d}_FV" for index in range(1, 7)]
+    predictions = _write_segmentation_fixture(tmp_path, stems)
+    manifest = _write_split_manifest(tmp_path, SplitRatios(), seed=7)
+    dataset = WoodScapeDataset.discover(tmp_path)
+    oracle = create_splits(dataset, ratios=SplitRatios(), seed=7)
+    expected = [sample.key for sample in dataset if oracle.split_for(sample.key).value == "test"]
+    assert 0 < len(expected) < 6
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "oracle.json"),
+            "--split-manifest",
+            str(manifest),
+            "--split",
+            "test",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(tmp_path / "oracle.json")
+    assert payload["samples"]["expected"] == len(expected)
+    assert payload["split"]["selected_samples"] == len(expected)
+
+
+def test_eval_split_manifest_rejects_mismatched_dataset(tmp_path: Path) -> None:
+    predictions = _write_segmentation_fixture(tmp_path, ["00001_FV"])
+    manifest = _write_split_manifest(tmp_path, SplitRatios(1.0, 0.0, 0.0))
+    _write_rgb(tmp_path, "00002_FV.png")  # dataset changed after the manifest was written
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(tmp_path / "mismatch.json"),
+            "--split-manifest",
+            str(manifest),
+            "--split",
+            "train",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Split error" in result.stderr
+    assert "sample identity digest" in result.stderr

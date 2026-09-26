@@ -29,12 +29,14 @@ from nearfield360.data.detection import (
     write_detection_predictions,
 )
 from nearfield360.data.images import ImageReadError, load_rgb_image
+from nearfield360.data.manifests import load_split_manifest
 from nearfield360.data.semantic import (
     WOODSCAPE_SEMANTIC_CLASSES,
     SemanticMaskError,
     load_semantic_mask,
     save_semantic_mask,
 )
+from nearfield360.data.splits import DatasetSplit, SplitError
 from nearfield360.data.woodscape import IMAGE_SUFFIXES, WoodScapeDataset
 from nearfield360.perception.evaluation import (
     detection_confidence_analysis,
@@ -141,6 +143,27 @@ ConfidenceThresholdsOption = Annotated[
     ),
 ]
 
+SplitManifestOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--split-manifest",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Restrict evaluation to one split's samples from this manifest.",
+    ),
+]
+
+SplitOption = Annotated[
+    DatasetSplit | None,
+    typer.Option(
+        "--split",
+        help="Split to evaluate (defaults to test when --split-manifest is given).",
+    ),
+]
+
 
 def _find_prediction_file(directory: Path, stem: str, suffixes: frozenset[str]) -> Path | None:
     for suffix in suffixes:
@@ -168,12 +191,14 @@ def _report_payload(
     metrics: dict[str, Any],
     model: dict[str, Any] | None = None,
     timing: dict[str, Any] | None = None,
+    split: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     state = get_state(context)
     return {
         "environment": environment_metadata(),
         "config": state.config.model_dump(mode="json"),
         "seed": state.config.runtime.seed,
+        "split": split,
         "model": model,
         "timing": timing,
         "samples": {
@@ -241,6 +266,47 @@ def _parse_confidence_thresholds(raw: str | None) -> list[float] | None:
             )
         values.add(value)
     return sorted(values)
+
+
+def _apply_split_selection(
+    dataset: WoodScapeDataset,
+    split_manifest: Path | None,
+    split: DatasetSplit | None,
+) -> tuple[WoodScapeDataset, dict[str, Any] | None]:
+    """Restrict a dataset to the manifest's split; an unchanged selection returns None info."""
+    if split_manifest is None:
+        if split is not None:
+            typer.secho(
+                "--split requires --split-manifest.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1) from None
+        return dataset, None
+    effective = DatasetSplit.TEST if split is None else split
+    try:
+        splits = load_split_manifest(split_manifest, dataset)
+        selected = splits.samples(dataset, effective)
+    except SplitError as exc:
+        typer.secho(f"Split error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+    info = {
+        "manifest": str(split_manifest),
+        "split": effective.value,
+        "grouping": splits.grouping,
+        "group_source": splits.group_source,
+        "seed": splits.seed,
+        "dataset_samples": len(dataset),
+        "selected_samples": len(selected),
+    }
+    typer.echo(f"Split {effective.value}: selected {len(selected)}/{len(dataset)} samples.")
+    return WoodScapeDataset(dataset.root, selected), info
+
+
+def _split_label(split_info: dict[str, Any] | None) -> str:
+    if split_info is None:
+        return ""
+    return f" in split '{split_info['split']}'"
 
 
 def _timing_stats(samples_ms: Sequence[float]) -> dict[str, Any]:
@@ -419,6 +485,8 @@ def evaluate_segmentation(
         bool, typer.Option("--overwrite", help="Replace an existing report artifact.")
     ] = False,
     root: DatasetRootOption = None,
+    split_manifest: SplitManifestOption = None,
+    split: SplitOption = None,
     limit: LimitOption = 0,
     backend: BackendOption = None,
     device: DeviceOption = None,
@@ -430,10 +498,12 @@ def evaluate_segmentation(
     expected = 0
     model_info: dict[str, Any] | None = None
     timing: dict[str, Any] | None = None
+    split_info: dict[str, Any] | None = None
     if model is not None:
         if predictions is not None:
             _reject_source()
         dataset = discover_dataset(context, root)
+        dataset, split_info = _apply_split_selection(dataset, split_manifest, split)
         engine = _build_segmentation_engine(context, model, backend=backend, device=device)
         pairs, expected, latencies_ms = _segmentation_model_pairs(
             engine, dataset, limit, save_predictions
@@ -449,6 +519,7 @@ def evaluate_segmentation(
             _reject_source()
         _reject_save_without_model(save_predictions)
         dataset = discover_dataset(context, root)
+        dataset, split_info = _apply_split_selection(dataset, split_manifest, split)
         for sample in dataset:
             if sample.semantic_mask_path is None:
                 continue
@@ -469,7 +540,7 @@ def evaluate_segmentation(
     _reject_incomplete(missing)
     if expected == 0:
         typer.secho(
-            "Dataset contains no semantic masks to evaluate against.",
+            f"Dataset contains no semantic masks to evaluate against{_split_label(split_info)}.",
             fg=typer.colors.RED,
             err=True,
         )
@@ -487,6 +558,7 @@ def evaluate_segmentation(
         metrics=evaluation.as_dict(),
         model=model_info,
         timing=timing,
+        split=split_info,
     )
     _writing_output(output, overwrite, payload)
     typer.echo(f"Evaluated {len(pairs)}/{expected} samples; mIoU={evaluation.mean_iou:.3f}")
@@ -512,6 +584,8 @@ def evaluate_detection_command(
     ] = False,
     iou_threshold: ThresholdOption = 0.5,
     root: DatasetRootOption = None,
+    split_manifest: SplitManifestOption = None,
+    split: SplitOption = None,
     limit: LimitOption = 0,
     backend: BackendOption = None,
     device: DeviceOption = None,
@@ -529,10 +603,12 @@ def evaluate_detection_command(
     model_info: dict[str, Any] | None = None
     timing: dict[str, Any] | None = None
     confidence_analysis: dict[str, Any] | None = None
+    split_info: dict[str, Any] | None = None
     if model is not None:
         if predictions is not None:
             _reject_source()
         dataset = discover_dataset(context, root)
+        dataset, split_info = _apply_split_selection(dataset, split_manifest, split)
         engine = _build_detection_engine(
             context,
             model,
@@ -557,6 +633,7 @@ def evaluate_detection_command(
             _reject_source()
         _reject_save_without_model(save_predictions)
         dataset = discover_dataset(context, root)
+        dataset, split_info = _apply_split_selection(dataset, split_manifest, split)
         for sample in dataset:
             if sample.detection_path is None:
                 continue
@@ -589,7 +666,8 @@ def evaluate_detection_command(
     _reject_incomplete(missing)
     if expected == 0:
         typer.secho(
-            "Dataset contains no detection annotations to evaluate against.",
+            "Dataset contains no detection annotations to evaluate against"
+            f"{_split_label(split_info)}.",
             fg=typer.colors.RED,
             err=True,
         )
@@ -620,6 +698,7 @@ def evaluate_detection_command(
         metrics=metrics,
         model=model_info,
         timing=timing,
+        split=split_info,
     )
     _writing_output(output, overwrite, payload)
     typer.echo(
