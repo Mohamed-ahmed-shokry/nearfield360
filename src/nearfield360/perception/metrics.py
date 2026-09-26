@@ -10,6 +10,7 @@ perfect or zero score.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -335,23 +336,29 @@ def _interpolated_average_precision(
     return float(max(0.0, min(average, 1.0)))
 
 
-def woodscape_detection_scores(
+@dataclass(frozen=True)
+class _ClassPRSteps:
+    """Score-ranked cumulative match steps for one class within a pooled set."""
+
+    scores: NDArray[np.float64]
+    true_positives: NDArray[np.float64]
+    false_positives: NDArray[np.float64]
+    target_count: int
+    prediction_count: int
+
+
+def _detection_pooled_classes(
     pred_boxes: ArrayLike,
     pred_scores: ArrayLike,
     pred_classes: ArrayLike,
     target_boxes: ArrayLike,
     target_classes: ArrayLike,
-    *,
-    iou_threshold: float = 0.5,
-) -> dict[str, float | None]:
-    """Score XYXY detection batches against WoodScape detection annotations.
-
-    ``pred_classes``/``target_classes`` use the official detection-specific
-    five-class IDs, not the semantic-segmentation IDs. Predictions are matched
-    greedily to ground truths per class within a single pooled evaluation set;
-    absent classes map to ``None`` (JSON-safe) instead of NaN. The threshold is
-    an open endpoint: an IoU equal to the threshold counts as a match.
-    """
+    iou_threshold: float,
+) -> tuple[
+    dict[int, list[NDArray[np.float64]]],
+    dict[int, list[tuple[NDArray[np.float64], float]]],
+]:
+    """Validate one evaluation set and pool targets/predictions per WoodScape class."""
     if (
         isinstance(iou_threshold, bool)
         or not isinstance(iou_threshold, (int, float))
@@ -380,29 +387,88 @@ def woodscape_detection_scores(
         pred_boxes_array, pred_scores_array, pred_classes_array, strict=True
     ):
         per_class_predictions[int(class_id)].append((box, float(score)))
+    return class_to_targets, per_class_predictions
 
-    results: dict[str, float | None] = {}
+
+def _per_class_pr_steps(
+    class_to_targets: dict[int, list[NDArray[np.float64]]],
+    per_class_predictions: dict[int, list[tuple[NDArray[np.float64], float]]],
+    iou_threshold: float,
+) -> dict[int, _ClassPRSteps]:
+    """Match score-sorted predictions to ground truths per class (greedy, pooled)."""
+    steps: dict[int, _ClassPRSteps] = {}
     for detection in WOODSCAPE_DETECTION_CLASSES:
         class_id = detection.class_id
-        targets = np.asarray(class_to_targets[class_id], dtype=np.float64)
-        predictions = per_class_predictions[class_id]
-        if targets.size == 0:
-            results[detection.name] = None if not predictions else 0.0
+        target_list = class_to_targets[class_id]
+        prediction_list = per_class_predictions[class_id]
+        target_count = len(target_list)
+        prediction_count = len(prediction_list)
+        if target_count == 0 or prediction_count == 0:
+            steps[class_id] = _ClassPRSteps(
+                scores=np.empty(0, dtype=np.float64),
+                true_positives=np.empty(0, dtype=np.float64),
+                false_positives=np.empty(0, dtype=np.float64),
+                target_count=target_count,
+                prediction_count=prediction_count,
+            )
             continue
-        if not predictions:
-            results[detection.name] = 0.0
-            continue
-        pred = np.asarray([item[0] for item in predictions], dtype=np.float64)
-        pred_scores = np.asarray([item[1] for item in predictions], dtype=np.float64)
-        order = np.argsort(-pred_scores, kind="stable")
+        targets = np.asarray(target_list, dtype=np.float64)
+        pred = np.asarray([item[0] for item in prediction_list], dtype=np.float64)
+        scores = np.asarray([item[1] for item in prediction_list], dtype=np.float64)
+        order = np.argsort(-scores, kind="stable")
         pred = pred[order]
-        pred_scores = pred_scores[order]
+        scores = scores[order]
         iou_matrix = detection_iou_matrix(pred, targets)
         matched = _greedy_matches(iou_matrix, float(iou_threshold))
-        true_positives = np.cumsum(matched).astype(np.float64)
-        false_positives = np.cumsum(~matched).astype(np.float64)
-        recalls = true_positives / float(len(targets))
-        precisions = true_positives / (true_positives + false_positives)
+        steps[class_id] = _ClassPRSteps(
+            scores=scores,
+            true_positives=np.cumsum(matched).astype(np.float64),
+            false_positives=np.cumsum(~matched).astype(np.float64),
+            target_count=target_count,
+            prediction_count=prediction_count,
+        )
+    return steps
+
+
+def woodscape_detection_scores(
+    pred_boxes: ArrayLike,
+    pred_scores: ArrayLike,
+    pred_classes: ArrayLike,
+    target_boxes: ArrayLike,
+    target_classes: ArrayLike,
+    *,
+    iou_threshold: float = 0.5,
+) -> dict[str, float | None]:
+    """Score XYXY detection batches against WoodScape detection annotations.
+
+    ``pred_classes``/``target_classes`` use the official detection-specific
+    five-class IDs, not the semantic-segmentation IDs. Predictions are matched
+    greedily to ground truths per class within a single pooled evaluation set;
+    absent classes map to ``None`` (JSON-safe) instead of NaN. The threshold is
+    an open endpoint: an IoU equal to the threshold counts as a match.
+    """
+    class_to_targets, per_class_predictions = _detection_pooled_classes(
+        pred_boxes,
+        pred_scores,
+        pred_classes,
+        target_boxes,
+        target_classes,
+        iou_threshold,
+    )
+    steps = _per_class_pr_steps(class_to_targets, per_class_predictions, iou_threshold)
+    results: dict[str, float | None] = {}
+    for detection in WOODSCAPE_DETECTION_CLASSES:
+        class_steps = steps[detection.class_id]
+        if class_steps.target_count == 0:
+            results[detection.name] = None if class_steps.prediction_count == 0 else 0.0
+            continue
+        if class_steps.prediction_count == 0:
+            results[detection.name] = 0.0
+            continue
+        recalls = class_steps.true_positives / float(class_steps.target_count)
+        precisions = class_steps.true_positives / (
+            class_steps.true_positives + class_steps.false_positives
+        )
         results[detection.name] = _interpolated_average_precision(recalls, precisions)
     return results
 
