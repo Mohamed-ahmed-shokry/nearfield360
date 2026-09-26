@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -36,6 +37,7 @@ from nearfield360.data.semantic import (
 )
 from nearfield360.data.woodscape import IMAGE_SUFFIXES, WoodScapeDataset
 from nearfield360.perception.evaluation import (
+    detection_confidence_analysis,
     environment_metadata,
     evaluate_detection,
     evaluate_semantic,
@@ -128,6 +130,17 @@ SavePredictionsOption = Annotated[
     ),
 ]
 
+ConfidenceThresholdsOption = Annotated[
+    str | None,
+    typer.Option(
+        "--confidence-thresholds",
+        help=(
+            "Comma-separated confidence cutoffs in [0, 1] (e.g. 0.3,0.5,0.7) that add a "
+            "confidence_analysis section with operating points and PR grids to the report."
+        ),
+    ),
+]
+
 
 def _find_prediction_file(directory: Path, stem: str, suffixes: frozenset[str]) -> Path | None:
     for suffix in suffixes:
@@ -203,6 +216,31 @@ def _reject_save_without_model(save_predictions: Path | None) -> None:
         err=True,
     )
     raise typer.Exit(code=1) from None
+
+
+def _parse_confidence_thresholds(raw: str | None) -> list[float] | None:
+    """Parse ``--confidence-thresholds`` into a deduplicated ascending list."""
+    if raw is None:
+        return None
+    parts = [part.strip() for part in raw.split(",")]
+    if not any(parts):
+        raise typer.BadParameter("Provide a comma-separated list of cutoffs, e.g. '0.3,0.5,0.7'")
+    values: set[float] = set()
+    for part in parts:
+        if not part:
+            raise typer.BadParameter(f"Confidence thresholds must be non-empty values, got {raw!r}")
+        try:
+            value = float(part)
+        except ValueError as exc:
+            raise typer.BadParameter(
+                f"Confidence thresholds must be numbers, got {part!r}"
+            ) from exc
+        if not math.isfinite(value) or not 0.0 <= value <= 1.0:
+            raise typer.BadParameter(
+                f"Confidence thresholds must be finite values in [0, 1], got {part!r}"
+            )
+        values.add(value)
+    return sorted(values)
 
 
 def _timing_stats(samples_ms: Sequence[float]) -> dict[str, Any]:
@@ -480,14 +518,17 @@ def evaluate_detection_command(
     confidence_threshold: ConfidenceOption = None,
     nms_threshold: NmsOption = None,
     save_predictions: SavePredictionsOption = None,
+    confidence_thresholds: ConfidenceThresholdsOption = None,
 ) -> None:
     """Score detected boxes (``*.txt``) against WoodScape detection annotations."""
+    thresholds = _parse_confidence_thresholds(confidence_thresholds)
     prediction_batches: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
     target_batches: list[list[Any]] = []
     missing: list[str] = []
     expected = 0
     model_info: dict[str, Any] | None = None
     timing: dict[str, Any] | None = None
+    confidence_analysis: dict[str, Any] | None = None
     if model is not None:
         if predictions is not None:
             _reject_source()
@@ -558,15 +599,25 @@ def evaluate_detection_command(
         evaluation = evaluate_detection(
             prediction_batches, target_batches, iou_threshold=iou_threshold
         )
+        if thresholds is not None:
+            confidence_analysis = detection_confidence_analysis(
+                prediction_batches,
+                target_batches,
+                iou_threshold=iou_threshold,
+                thresholds=thresholds,
+            )
     except ValueError as exc:
         typer.secho(f"Evaluation error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from None
+    metrics = evaluation.as_dict()
+    if confidence_analysis is not None:
+        metrics["confidence_analysis"] = confidence_analysis
     payload = _report_payload(
         context,
         expected=expected,
         evaluated=len(prediction_batches),
         missing=missing,
-        metrics=evaluation.as_dict(),
+        metrics=metrics,
         model=model_info,
         timing=timing,
     )

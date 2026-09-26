@@ -858,3 +858,125 @@ def test_eval_file_mode_report_has_null_model_and_timing(tmp_path: Path) -> None
     payload = read_json(output)
     assert payload["model"] is None
     assert payload["timing"] is None
+
+
+def test_eval_detection_confidence_thresholds_add_analysis(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_detection(tmp_path)
+    predictions = tmp_path / "predictions"
+    _write_prediction_detection(predictions)
+    output = tmp_path / "confidence.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(output),
+            "--confidence-thresholds",
+            "0.7,0.3",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(output)
+    analysis = payload["metrics"]["confidence_analysis"]
+    assert analysis["iou_threshold"] == 0.5
+    assert analysis["targets"] == 1
+    assert [point["confidence"] for point in analysis["thresholds"]] == [0.3, 0.7]
+    for point in analysis["thresholds"]:
+        assert point["predictions"] == 1
+        assert point["true_positives"] == 1
+        assert point["precision"] == 1.0
+        assert point["recall"] == 1.0
+        assert point["f1"] == 1.0
+    assert len(analysis["pr_curves"]["vehicles"]) == 101
+    assert analysis["pr_curves"]["person"] is None
+    assert json.dumps(payload)  # fully JSON-serializable
+
+
+def test_eval_detection_report_omits_confidence_analysis_by_default(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_detection(tmp_path)
+    predictions = tmp_path / "predictions"
+    _write_prediction_detection(predictions)
+    output = tmp_path / "plain.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = read_json(output)
+    assert "confidence_analysis" not in payload["metrics"]
+
+
+def test_eval_detection_confidence_thresholds_dedupe_and_sort(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_detection(tmp_path)
+    predictions = tmp_path / "predictions"
+    _write_prediction_detection(predictions)
+    output = tmp_path / "dedup.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(output),
+            "--confidence-thresholds",
+            "0.9,0.1,0.9",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    analysis = read_json(output)["metrics"]["confidence_analysis"]
+    assert [point["confidence"] for point in analysis["thresholds"]] == [0.1, 0.9]
+
+
+@pytest.mark.parametrize("raw", ["abc", "1.5", "", "0.5,,0.7", "nan"])
+def test_eval_detection_rejects_invalid_confidence_thresholds(tmp_path: Path, raw: str) -> None:
+    _write_rgb(tmp_path)
+    _write_detection(tmp_path)
+    predictions = tmp_path / "predictions"
+    _write_prediction_detection(predictions)
+    output = tmp_path / "invalid.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(output),
+            "--confidence-thresholds",
+            raw,
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert not output.exists()
