@@ -50,7 +50,8 @@ from nearfield360.perception.inference.detection import ObjectDetectionEngine
 from nearfield360.perception.inference.models import InferenceBackendType, InferenceDevice
 from nearfield360.perception.inference.preprocessor import PreprocessorError
 from nearfield360.perception.inference.semantic import SemanticSegmentationEngine
-from nearfield360.utils.artifacts import ArtifactError, write_json
+from nearfield360.robustness.plots import render_svg_line_chart
+from nearfield360.utils.artifacts import ArtifactError, read_json, write_json
 
 eval_app = typer.Typer(
     help="Reproducible perception evaluation against labelled WoodScape data.",
@@ -758,6 +759,147 @@ def evaluate_detection_command(
     )
     if timing is not None:
         _echo_timing(timing)
+
+
+def _detection_charts(analysis: dict[str, Any]) -> list[tuple[str, str]]:
+    """Build PR-curve and operating-point SVG charts from a detection analysis."""
+    charts: list[tuple[str, str]] = []
+    curves = analysis.get("pr_curves")
+    if isinstance(curves, dict):
+        series: dict[str, list[tuple[float, float]]] = {}
+        for name, points in curves.items():
+            if points is None:
+                continue
+            series[str(name)] = [
+                (float(point["recall"]), float(point["precision"])) for point in points
+            ]
+        if series:
+            charts.append(
+                (
+                    "pr_curves.svg",
+                    render_svg_line_chart(
+                        "Detection Precision-Recall Curves",
+                        "Recall",
+                        "Precision",
+                        series,
+                        y_min=0.0,
+                        y_max=1.0,
+                    ),
+                )
+            )
+    thresholds = analysis.get("thresholds")
+    if isinstance(thresholds, list) and thresholds:
+        operating: dict[str, list[tuple[float, float]]] = {
+            "precision": [],
+            "recall": [],
+            "f1": [],
+        }
+        for point in thresholds:
+            confidence = float(point["confidence"])
+            operating["precision"].append((confidence, float(point["precision"])))
+            operating["recall"].append((confidence, float(point["recall"])))
+            operating["f1"].append((confidence, float(point["f1"])))
+        charts.append(
+            (
+                "operating_points.svg",
+                render_svg_line_chart(
+                    "Detection Operating Points",
+                    "Confidence threshold",
+                    "Score",
+                    operating,
+                    y_min=0.0,
+                    y_max=1.0,
+                ),
+            )
+        )
+    return charts
+
+
+def _build_report_charts(report: Any) -> list[tuple[str, str]]:
+    """Return ``(filename, svg)`` charts for an eval report's confidence analysis."""
+    if not isinstance(report, dict) or not isinstance(report.get("metrics"), dict):
+        raise ValueError("Not an eval report: missing 'metrics' section")
+    analysis = report["metrics"].get("confidence_analysis")
+    if not isinstance(analysis, dict):
+        raise ValueError(
+            "Report has no confidence analysis; rerun eval with --confidence-thresholds "
+            "(detection) or --confidence-bins (segmentation)"
+        )
+    try:
+        if "pr_curves" in analysis or "thresholds" in analysis:
+            charts = _detection_charts(analysis)
+        else:
+            charts = []
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"Report confidence analysis is malformed: {exc}") from exc
+    if not charts:
+        raise ValueError("Report confidence analysis contains no plottable data")
+    return charts
+
+
+@eval_app.command("plot")
+def plot_evaluation_report(
+    report: Annotated[
+        Path,
+        typer.Option(
+            "--report",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Eval JSON report whose confidence analysis will be rendered.",
+        ),
+    ],
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            "--output-dir",
+            file_okay=False,
+            resolve_path=True,
+            help="Directory for rendered SVG charts (created if missing).",
+        ),
+    ],
+    overwrite: Annotated[
+        bool, typer.Option("--overwrite", help="Replace existing SVG charts.")
+    ] = False,
+) -> None:
+    """Render an eval report's confidence analysis to vector SVG charts."""
+    try:
+        payload = read_json(report)
+    except ArtifactError as exc:
+        typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+    try:
+        charts = _build_report_charts(payload)
+    except ValueError as exc:
+        typer.secho(f"Plot error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+    if output_dir.exists() and not output_dir.is_dir():
+        typer.secho(
+            f"Plot error: {output_dir} exists and is not a directory",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+    existing = [output_dir / name for name, _ in charts if (output_dir / name).exists()]
+    if existing and not overwrite:
+        rendered = ", ".join(str(path) for path in existing)
+        typer.secho(
+            f"Artifact error: {rendered} already exist; pass --overwrite to replace.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        for name, svg in charts:
+            destination = output_dir / name
+            destination.write_text(f"{svg}\n", encoding="utf-8")
+            typer.echo(f"Wrote {destination}")
+    except OSError as exc:
+        typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
 
 
 __all__ = ["eval_app"]

@@ -1299,3 +1299,183 @@ def test_eval_segmentation_rejects_invalid_confidence_bins(tmp_path: Path, bins:
     )
 
     assert result.exit_code == 2
+
+
+def _write_detection_report(path: Path) -> None:
+    report = {
+        "metrics": {
+            "confidence_analysis": {
+                "iou_threshold": 0.5,
+                "targets": 2,
+                "thresholds": [
+                    {
+                        "confidence": 0.3,
+                        "predictions": 3,
+                        "true_positives": 2,
+                        "precision": 0.666667,
+                        "recall": 1.0,
+                        "f1": 0.8,
+                    },
+                    {
+                        "confidence": 0.7,
+                        "predictions": 2,
+                        "true_positives": 2,
+                        "precision": 1.0,
+                        "recall": 1.0,
+                        "f1": 1.0,
+                    },
+                ],
+                "pr_curves": {
+                    "vehicles": [
+                        {"recall": 0.0, "precision": 1.0},
+                        {"recall": 0.5, "precision": 1.0},
+                        {"recall": 1.0, "precision": 1.0},
+                    ],
+                    "person": None,
+                },
+            }
+        }
+    }
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+
+def test_eval_plot_renders_detection_charts(tmp_path: Path) -> None:
+    report = tmp_path / "detection.json"
+    _write_detection_report(report)
+    output_dir = tmp_path / "charts"
+
+    result = runner.invoke(
+        app,
+        ["eval", "plot", "--report", str(report), "--output-dir", str(output_dir)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "pr_curves.svg" in result.stdout
+    assert "operating_points.svg" in result.stdout
+    curves = (output_dir / "pr_curves.svg").read_text(encoding="utf-8")
+    assert "<svg" in curves
+    assert "Detection Precision-Recall Curves" in curves
+    assert "vehicles" in curves
+    assert "person" not in curves  # null curve skipped
+    points = (output_dir / "operating_points.svg").read_text(encoding="utf-8")
+    assert "Detection Operating Points" in points
+    assert "precision" in points
+
+
+def test_eval_plot_requires_confidence_analysis(tmp_path: Path) -> None:
+    report = tmp_path / "plain.json"
+    report.write_text(json.dumps({"metrics": {"mean_iou": 0.5}}), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "plot",
+            "--report",
+            str(report),
+            "--output-dir",
+            str(tmp_path / "charts"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "no confidence analysis" in result.stderr
+
+
+def test_eval_plot_rejects_non_eval_report(tmp_path: Path) -> None:
+    report = tmp_path / "other.json"
+    report.write_text(json.dumps({"foo": 1}), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "plot",
+            "--report",
+            str(report),
+            "--output-dir",
+            str(tmp_path / "charts"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Not an eval report" in result.stderr
+
+
+def test_eval_plot_refuses_to_overwrite_charts(tmp_path: Path) -> None:
+    report = tmp_path / "detection.json"
+    _write_detection_report(report)
+    output_dir = tmp_path / "charts"
+    arguments = ["eval", "plot", "--report", str(report), "--output-dir", str(output_dir)]
+
+    first = runner.invoke(app, arguments)
+    second = runner.invoke(app, arguments)
+    third = runner.invoke(app, [*arguments, "--overwrite"])
+
+    assert first.exit_code == 0, first.output
+    assert second.exit_code == 1
+    assert "already exist" in second.stderr
+    assert third.exit_code == 0, third.output
+
+
+def test_eval_plot_rejects_malformed_analysis(tmp_path: Path) -> None:
+    report = tmp_path / "broken.json"
+    report.write_text(
+        json.dumps({"metrics": {"confidence_analysis": {"thresholds": [{"confidence": 0.5}]}}}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "plot",
+            "--report",
+            str(report),
+            "--output-dir",
+            str(tmp_path / "charts"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "malformed" in result.stderr
+
+
+def test_eval_detection_confidence_thresholds_render_end_to_end(tmp_path: Path) -> None:
+    _write_rgb(tmp_path)
+    _write_detection(tmp_path)
+    predictions = tmp_path / "predictions"
+    _write_prediction_detection(predictions)
+    report = tmp_path / "detection.json"
+
+    eval_run = runner.invoke(
+        app,
+        [
+            "eval",
+            "detection",
+            "--root",
+            str(tmp_path),
+            "--predictions",
+            str(predictions),
+            "--output",
+            str(report),
+            "--confidence-thresholds",
+            "0.3,0.7",
+        ],
+    )
+    plot_run = runner.invoke(
+        app,
+        [
+            "eval",
+            "plot",
+            "--report",
+            str(report),
+            "--output-dir",
+            str(tmp_path / "charts"),
+        ],
+    )
+
+    assert eval_run.exit_code == 0, eval_run.output
+    assert plot_run.exit_code == 0, plot_run.output
+    assert (tmp_path / "charts" / "pr_curves.svg").is_file()
+    assert (tmp_path / "charts" / "operating_points.svg").is_file()
