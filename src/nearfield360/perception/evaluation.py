@@ -28,6 +28,7 @@ from nearfield360.data.semantic import (
 )
 from nearfield360.perception.metrics import (
     detection_average_precision,
+    detection_confidence_metrics,
     semantic_confusion_matrix,
     semantic_iou,
     woodscape_detection_scores,
@@ -310,6 +311,28 @@ def evaluate_detection(
     )
 
 
+def detection_confidence_analysis(
+    predictions: Sequence[DetectionBatch],
+    targets: Sequence[Sequence[DetectionAnnotation]],
+    *,
+    iou_threshold: float = 0.5,
+    thresholds: Sequence[float],
+) -> dict[str, Any]:
+    """Score-threshold operating points and PR grids over pooled batches.
+
+    Uses the same validation and per-class pooling as
+    :func:`evaluate_detection`, so the analysis covers exactly the batches an
+    evaluation would. See :func:`detection_confidence_metrics` for the output
+    schema.
+    """
+    pooled = _pool_detection_batches(predictions, targets)
+    return detection_confidence_metrics(
+        *pooled,
+        iou_threshold=iou_threshold,
+        thresholds=thresholds,
+    )
+
+
 def detection_class_name(class_id: int) -> str:
     """Return the official class name for a validated detection class ID."""
     try:
@@ -323,6 +346,8 @@ __all__ = [
     "DetectionEvaluation",
     "EvaluationError",
     "SemanticEvaluation",
+    "detection_class_name",
+    "detection_confidence_analysis",
     "environment_metadata",
     "evaluate_detection",
     "evaluate_semantic",

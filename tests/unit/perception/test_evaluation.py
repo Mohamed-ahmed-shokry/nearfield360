@@ -6,6 +6,7 @@ import pytest
 from nearfield360.data.detection import DetectionAnnotation
 from nearfield360.perception import (
     EvaluationError,
+    detection_confidence_analysis,
     environment_metadata,
     evaluate_detection,
     evaluate_semantic,
@@ -114,6 +115,44 @@ def test_detection_evaluation_rejects_misaligned_batches() -> None:
         evaluate_detection(
             [(np.zeros((1, 4)), np.array([2.5]), np.empty((1,), dtype=np.int64))],
             [()],
+        )
+
+
+def test_detection_confidence_analysis_pools_batches() -> None:
+    predictions = [
+        (np.array([[0.0, 0.0, 2.0, 2.0]]), np.array([0.9]), np.array([0])),
+        (
+            np.array([[5.0, 5.0, 7.0, 7.0], [9.0, 9.0, 10.0, 10.0]]),
+            np.array([0.8, 0.2]),
+            np.array([0, 0]),
+        ),
+    ]
+    targets = [
+        (DetectionAnnotation(0, "vehicles", 0.0, 0.0, 2.0, 2.0),),
+        (DetectionAnnotation(0, "vehicles", 5.0, 5.0, 7.0, 7.0),),
+    ]
+
+    analysis = detection_confidence_analysis(predictions, targets, thresholds=[0.5, 0.1])
+
+    assert analysis["iou_threshold"] == 0.5
+    assert analysis["targets"] == 2
+    low, high = analysis["thresholds"]  # ascending confidence order
+    # The 0.5 cut keeps both matching predictions; 0.1 adds the low-score FP.
+    assert (high["predictions"], high["true_positives"], high["f1"]) == (2, 2, 1.0)
+    assert (low["predictions"], low["true_positives"]) == (3, 2)
+    assert low["precision"] == pytest.approx(2.0 / 3.0, abs=1e-6)
+    assert analysis["pr_curves"]["vehicles"] is not None
+    assert analysis["pr_curves"]["person"] is None
+
+
+def test_detection_confidence_analysis_rejects_invalid_input() -> None:
+    with pytest.raises(EvaluationError, match="at least one"):
+        detection_confidence_analysis([], [], thresholds=[0.5])
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        detection_confidence_analysis(
+            [(np.zeros((1, 4)), np.array([0.5]), np.array([0]))],
+            [()],
+            thresholds=[1.2],
         )
 
 
