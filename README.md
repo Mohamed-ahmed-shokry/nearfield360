@@ -403,6 +403,14 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     101-point interpolated precision-recall curves to the metrics report. Excludes
     model-side re-inference sweeps, calibration metrics (ECE), batched inference, and
     TensorRT/C++ (roadmap item 7 residual).
+13. Segmentation confidence calibration and evaluation report rendering:
+    `eval segmentation --confidence-bins` pools per-pixel softmax confidences from
+    `--model` runs into a reliability table with expected calibration error (ECE) under
+    `metrics.confidence_analysis`, and `eval plot` renders prior eval reports to
+    vector SVG charts (detection PR curves and operating points, semantic reliability
+    diagram) through the shared plot engine. Excludes detection-side ECE, raster PNG
+    charts, HTML dashboards, batched inference, and TensorRT/C++ (roadmap item 7
+    residual).
 
 ## Usage: integrated four-camera pipeline and release audit
 
