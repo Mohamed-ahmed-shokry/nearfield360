@@ -10,7 +10,9 @@ perfect or zero score.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -336,6 +338,23 @@ def _interpolated_average_precision(
     return float(max(0.0, min(average, 1.0)))
 
 
+def _interpolated_pr_grid(
+    recalls: NDArray[np.float64], precisions: NDArray[np.float64]
+) -> list[dict[str, float]]:
+    """Return a VOC-style 101-point interpolated precision-recall grid.
+
+    Precision at recall level ``r`` is the maximum precision observed at any
+    recall ``>= r`` (the standard monotone envelope), or ``0.0`` when the level
+    is never reached. Empty inputs yield an all-zero grid.
+    """
+    grid: list[dict[str, float]] = []
+    for level in np.linspace(0.0, 1.0, 101):
+        reached = precisions[recalls >= level]
+        precision = float(np.max(reached)) if reached.size else 0.0
+        grid.append({"recall": round(float(level), 2), "precision": round(precision, 6)})
+    return grid
+
+
 @dataclass(frozen=True)
 class _ClassPRSteps:
     """Score-ranked cumulative match steps for one class within a pooled set."""
@@ -403,7 +422,7 @@ def _per_class_pr_steps(
         prediction_list = per_class_predictions[class_id]
         target_count = len(target_list)
         prediction_count = len(prediction_list)
-        if target_count == 0 or prediction_count == 0:
+        if prediction_count == 0:
             steps[class_id] = _ClassPRSteps(
                 scores=np.empty(0, dtype=np.float64),
                 true_positives=np.empty(0, dtype=np.float64),
@@ -473,9 +492,112 @@ def woodscape_detection_scores(
     return results
 
 
+def detection_confidence_metrics(
+    pred_boxes: ArrayLike,
+    pred_scores: ArrayLike,
+    pred_classes: ArrayLike,
+    target_boxes: ArrayLike,
+    target_classes: ArrayLike,
+    *,
+    iou_threshold: float = 0.5,
+    thresholds: Sequence[float],
+) -> dict[str, Any]:
+    """Pooled operating points and per-class PR grids for one detection set.
+
+    ``thresholds`` are score cutoffs in ``[0, 1]``; duplicates collapse and the
+    operating points are reported in ascending order. Each point pools the
+    official WoodScape classes micro-style (one global precision/recall/F1
+    after per-class greedy matching at ``iou_threshold``); precision is ``0.0``
+    when no prediction passes the cutoff and recall is ``0.0`` when the set has
+    no ground-truth targets. ``pr_curves`` maps each class to a VOC-style
+    101-point interpolated precision-recall grid, or ``None`` when the class
+    has no ground-truth targets in this set.
+    """
+    try:
+        values = list(thresholds)
+    except TypeError as exc:
+        raise ValueError("thresholds must be a sequence of confidence values") from exc
+    if not values:
+        raise ValueError("thresholds must contain at least one confidence value")
+    unique: set[float] = set()
+    for value in values:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or not 0.0 <= float(value) <= 1.0
+        ):
+            raise ValueError(
+                f"confidence thresholds must be finite values in [0, 1], got {value!r}"
+            )
+        unique.add(float(value))
+    ordered = sorted(unique)
+
+    class_to_targets, per_class_predictions = _detection_pooled_classes(
+        pred_boxes,
+        pred_scores,
+        pred_classes,
+        target_boxes,
+        target_classes,
+        iou_threshold,
+    )
+    steps = _per_class_pr_steps(class_to_targets, per_class_predictions, iou_threshold)
+    total_targets = sum(item.target_count for item in steps.values())
+
+    points: list[dict[str, Any]] = []
+    for threshold in ordered:
+        true_positives = 0
+        false_positives = 0
+        for class_steps in steps.values():
+            kept = class_steps.scores >= threshold
+            if not kept.any():
+                continue
+            true_positives += int(class_steps.true_positives[kept][-1])
+            false_positives += int(class_steps.false_positives[kept][-1])
+        predicted = true_positives + false_positives
+        precision = true_positives / predicted if predicted else 0.0
+        recall = true_positives / total_targets if total_targets else 0.0
+        f1 = 2.0 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+        points.append(
+            {
+                "confidence": threshold,
+                "predictions": predicted,
+                "true_positives": true_positives,
+                "precision": round(precision, 6),
+                "recall": round(recall, 6),
+                "f1": round(f1, 6),
+            }
+        )
+
+    pr_curves: dict[str, list[dict[str, float]] | None] = {}
+    for detection in WOODSCAPE_DETECTION_CLASSES:
+        class_steps = steps[detection.class_id]
+        if class_steps.target_count == 0:
+            pr_curves[detection.name] = None
+            continue
+        if class_steps.prediction_count == 0:
+            pr_curves[detection.name] = _interpolated_pr_grid(
+                np.empty(0, dtype=np.float64), np.empty(0, dtype=np.float64)
+            )
+            continue
+        recalls = class_steps.true_positives / float(class_steps.target_count)
+        precisions = class_steps.true_positives / (
+            class_steps.true_positives + class_steps.false_positives
+        )
+        pr_curves[detection.name] = _interpolated_pr_grid(recalls, precisions)
+
+    return {
+        "iou_threshold": float(iou_threshold),
+        "targets": total_targets,
+        "thresholds": points,
+        "pr_curves": pr_curves,
+    }
+
+
 __all__ = [
     "detection_average_precision",
     "detection_box_iou",
+    "detection_confidence_metrics",
     "detection_iou_matrix",
     "mean_iou",
     "semantic_confusion_matrix",

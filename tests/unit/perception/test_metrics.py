@@ -6,6 +6,7 @@ import pytest
 from nearfield360.perception.metrics import (
     detection_average_precision,
     detection_box_iou,
+    detection_confidence_metrics,
     detection_iou_matrix,
     mean_iou,
     semantic_confusion_matrix,
@@ -248,3 +249,133 @@ def test_detection_scores_reject_malformed_inputs() -> None:
         woodscape_detection_scores(boxes, np.array([1.0]), np.array([9]), boxes, np.array([0]))
     with pytest.raises(ValueError, match=r"\[0, 1\]"):
         woodscape_detection_scores(boxes, np.array([2.0]), np.array([0]), boxes, np.array([0]))
+
+
+def _confidence_fixture() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """One matching and one non-matching vehicle prediction plus one person FP."""
+    pred_boxes = np.array(
+        [
+            [0.0, 0.0, 2.0, 2.0],  # matches the vehicle target
+            [10.0, 10.0, 12.0, 12.0],  # vehicle FP
+            [20.0, 20.0, 21.0, 21.0],  # person FP (class has no targets)
+        ]
+    )
+    pred_scores = np.array([0.9, 0.4, 0.3])
+    pred_classes = np.array([0, 0, 1])
+    target_boxes = np.array([[0.0, 0.0, 2.0, 2.0]])
+    target_classes = np.array([0])
+    return pred_boxes, pred_scores, pred_classes, target_boxes, target_classes
+
+
+def test_confidence_metrics_pooled_operating_points() -> None:
+    pred_boxes, pred_scores, pred_classes, target_boxes, target_classes = _confidence_fixture()
+
+    result = detection_confidence_metrics(
+        pred_boxes,
+        pred_scores,
+        pred_classes,
+        target_boxes,
+        target_classes,
+        thresholds=[0.5, 0.3],
+    )
+
+    assert result["iou_threshold"] == 0.5
+    assert result["targets"] == 1
+    points = result["thresholds"]
+    assert [point["confidence"] for point in points] == [0.3, 0.5]
+    high, low = points[1], points[0]
+    # 0.5 keeps only the matching vehicle: perfect precision and recall.
+    assert high["predictions"] == 1
+    assert high["true_positives"] == 1
+    assert high["precision"] == 1.0
+    assert high["recall"] == 1.0
+    assert high["f1"] == 1.0
+    # 0.3 also keeps the vehicle FP and the person FP (no person targets).
+    assert low["predictions"] == 3
+    assert low["true_positives"] == 1
+    assert low["precision"] == pytest.approx(1.0 / 3.0, abs=1e-6)
+    assert low["recall"] == 1.0
+    assert low["f1"] == pytest.approx(0.5, abs=1e-6)
+
+
+def test_confidence_metrics_reports_pr_grids() -> None:
+    pred_boxes, pred_scores, pred_classes, target_boxes, target_classes = _confidence_fixture()
+
+    result = detection_confidence_metrics(
+        pred_boxes,
+        pred_scores,
+        pred_classes,
+        target_boxes,
+        target_classes,
+        thresholds=[0.5],
+    )
+
+    vehicles = result["pr_curves"]["vehicles"]
+    assert vehicles is not None
+    assert len(vehicles) == 101
+    assert [point["recall"] for point in vehicles] == [round(step / 100, 2) for step in range(101)]
+    # The single vehicle target is matched by the top-scored prediction, so the
+    # envelope stays at perfect precision across every reachable recall level.
+    assert all(point["precision"] == 1.0 for point in vehicles)
+    # Classes without ground-truth targets report a null curve.
+    for absent in ("person", "bicycle", "traffic_light", "traffic_sign"):
+        assert result["pr_curves"][absent] is None
+
+
+def test_confidence_metrics_targets_without_predictions_are_zero() -> None:
+    empty_boxes = np.empty((0, 4))
+    empty_scores = np.empty((0,))
+    empty_classes = np.empty((0,), dtype=np.int64)
+    target_boxes = np.array([[0.0, 0.0, 2.0, 2.0]])
+    target_classes = np.array([0])
+
+    result = detection_confidence_metrics(
+        empty_boxes,
+        empty_scores,
+        empty_classes,
+        target_boxes,
+        target_classes,
+        thresholds=[0.0, 0.5],
+    )
+
+    assert result["targets"] == 1
+    for point in result["thresholds"]:
+        assert point["predictions"] == 0
+        assert point["precision"] == 0.0
+        assert point["recall"] == 0.0
+        assert point["f1"] == 0.0
+    vehicles = result["pr_curves"]["vehicles"]
+    assert vehicles is not None
+    assert len(vehicles) == 101
+    assert all(point["precision"] == 0.0 for point in vehicles)
+
+
+def test_confidence_metrics_deduplicates_and_sorts_thresholds() -> None:
+    pred_boxes, pred_scores, pred_classes, target_boxes, target_classes = _confidence_fixture()
+
+    result = detection_confidence_metrics(
+        pred_boxes,
+        pred_scores,
+        pred_classes,
+        target_boxes,
+        target_classes,
+        thresholds=[0.9, 0.1, 0.9, 0],
+    )
+
+    assert [point["confidence"] for point in result["thresholds"]] == [0.0, 0.1, 0.9]
+
+
+def test_confidence_metrics_rejects_invalid_thresholds() -> None:
+    boxes = np.array([[0.0, 0.0, 2.0, 2.0]])
+    score = np.array([0.9])
+    classes = np.array([0])
+    with pytest.raises(ValueError, match="at least one"):
+        detection_confidence_metrics(boxes, score, classes, boxes, classes, thresholds=[])
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        detection_confidence_metrics(boxes, score, classes, boxes, classes, thresholds=[1.5])
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        detection_confidence_metrics(
+            boxes, score, classes, boxes, classes, thresholds=[float("nan")]
+        )
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        detection_confidence_metrics(boxes, score, classes, boxes, classes, thresholds=["0.5"])
