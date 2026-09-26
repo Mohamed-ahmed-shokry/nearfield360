@@ -185,18 +185,20 @@ class DetectionEvaluation:
 DetectionBatch = tuple[Any, Any, Any]
 
 
-def evaluate_detection(
+def _pool_detection_batches(
     predictions: Sequence[DetectionBatch],
     targets: Sequence[Sequence[DetectionAnnotation]],
-    *,
-    iou_threshold: float = 0.5,
-) -> DetectionEvaluation:
-    """Aggregate per-image prediction batches against official annotations.
+) -> tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.int64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.int64],
+]:
+    """Validate per-image batches and pool them into aligned evaluation arrays.
 
-    Every prediction batch is ``(XYXY_boxes, scores, WoodScape detection
-    class_ids)``; every target batch is a tuple of validated annotations.
-    Matches are pooled per class across all images before one precision-recall
-    curve per class is computed.
+    Returns ``(boxes, scores, pred_classes, target_boxes, target_classes)``
+    with empty (0, 4)/(0,) arrays for missing predictions or targets.
     """
     if len(predictions) != len(targets):
         raise EvaluationError(
@@ -252,6 +254,25 @@ def evaluate_detection(
         else np.asarray(pooled_target_boxes, dtype=np.float64).reshape(-1, 4)
     )
     all_target_classes = np.asarray(pooled_target_classes, dtype=np.int64)
+    return all_boxes, all_scores, all_pred_classes, all_target_boxes, all_target_classes
+
+
+def evaluate_detection(
+    predictions: Sequence[DetectionBatch],
+    targets: Sequence[Sequence[DetectionAnnotation]],
+    *,
+    iou_threshold: float = 0.5,
+) -> DetectionEvaluation:
+    """Aggregate per-image prediction batches against official annotations.
+
+    Every prediction batch is ``(XYXY_boxes, scores, WoodScape detection
+    class_ids)``; every target batch is a tuple of validated annotations.
+    Matches are pooled per class across all images before one precision-recall
+    curve per class is computed.
+    """
+    all_boxes, all_scores, all_pred_classes, all_target_boxes, all_target_classes = (
+        _pool_detection_batches(predictions, targets)
+    )
 
     per_class = woodscape_detection_scores(
         all_boxes,
