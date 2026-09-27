@@ -731,3 +731,68 @@ residual).
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 14: Segmentation Confidence Calibration and Evaluation Report Rendering
+
+**Status:** Completed
+**Repository Branch:** `main`
+**Test Suite:** 816 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (71 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 92.55% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 14 closes README roadmap item 13 by delivering confidence calibration quantification for semantic segmentation and vector graphic visualization for perception evaluation reports:
+
+1. **Semantic Confidence Calibration & ECE:**
+   - `eval segmentation --confidence-bins N` pools per-pixel softmax prediction confidences from live ONNX model runs into a structured reliability table.
+   - Calculates Expected Calibration Error (ECE) across non-empty confidence bins:
+     $$\text{ECE} = \sum_{m=1}^{M} \frac{|B_m|}{N} |\text{acc}(B_m) - \text{conf}(B_m)|$$
+   - Reports `metrics.confidence_analysis` with bin counts, pixel counts, per-bin metrics (accuracy, mean confidence, bounds), overall mean confidence, and ECE.
+   - Validates bin count strictly ($N \ge 2$, integer); requires `--model` mode.
+2. **Evaluation Report Plotting (`nearfield360 eval plot`):**
+   - Renders prior eval JSON reports into publication-quality standalone SVG vector charts using the pure-Python plot engine.
+   - **Detection Charts:**
+     - `pr_curves.svg`: Multi-class precision-recall curves from 101-point interpolated grids.
+     - `operating_points.svg`: Precision, recall, and F1 curves across confidence score cutoffs.
+   - **Segmentation Reliability Diagrams:**
+     - `reliability.svg`: Mean confidence vs. empirical accuracy against the diagonal perfect calibration baseline.
+   - Refuses to overwrite existing SVG files unless `--overwrite` is specified.
+   - Gracefully rejects malformed or non-eval reports with descriptive errors.
+3. **End-to-End Pipeline Integration:**
+   - Seamless workflow from evaluation execution (`eval segmentation --confidence-bins` or `eval detection --confidence-thresholds`) directly to SVG visualization (`eval plot`).
+
+**Explicit exclusions:** Detection-side ECE, raster PNG charts, HTML dashboards, batched inference, and TensorRT/C++ acceleration (remain under roadmap item 7 residual or future work).
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| `semantic_confidence_reliability` + ECE | `src/nearfield360/perception/metrics.py` |
+| `semantic_confidence_analysis` pooling wrapper | `src/nearfield360/perception/evaluation.py` |
+| `eval segmentation --confidence-bins` flag | `src/nearfield360/cli/eval.py` |
+| `eval plot` command & `_detection_charts` / `_reliability_charts` | `src/nearfield360/cli/eval.py` |
+| Metrics unit tests (calibration bins, ECE calculation) | `tests/unit/perception/test_metrics.py` |
+| Evaluation pooling unit tests | `tests/unit/perception/test_evaluation.py` |
+| Eval CLI unit & end-to-end tests (bins flag, plot rendering, overwrite protection, malformed data handling) | `tests/unit/test_eval_cli.py` (57 tests) |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 816 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 92.55% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 71 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
+
