@@ -28,7 +28,7 @@ the corresponding experiments have run.
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
 | WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration/detection contracts, integrity, statistics, explicit-group splits, semantic overlays; synthetic tests |
 | Fisheye calibration and geometry | Implemented core | Fourth-order radial projection/inverse, rigid transforms, vehicle cameras, surround rig, ground intersection, BEV grid; synthetic tests |
-| Segmentation and detection metrics | Implemented | Numpy-only confusion/IoU and XYXY box IoU, file-based and live model-driven evaluation (`eval segmentation|detection --model`), split-aware scoring (`--split-manifest`/`--split`), confidence operating points and PR curves (`--confidence-thresholds`), prediction export, sample limits, and latency statistics |
+| Segmentation and detection metrics | Implemented | Numpy-only confusion/IoU and XYXY box IoU, file-based and live model-driven evaluation (`eval segmentation|detection --model`), split-aware scoring (`--split-manifest`/`--split`), detection confidence operating points & PR curves (`--confidence-thresholds`), semantic confidence calibration & ECE (`--confidence-bins`), SVG chart rendering (`eval plot`), prediction export, sample limits, and latency statistics |
 | BEV occupancy and risk | Implemented | Multi-camera surround fusion (`--all-cameras`), Bayesian uncertainty propagation, 360-degree parking zones (corridors/clearance/circles), occupancy & uncertainty rendering |
 | Controlled robustness evaluation | Implemented | Synthetic sensor corruptions (soiling, fog, noise, rain), extrinsic calibration perturbation engine, quantitative metrics (occupancy MAE, IoU, risk error), SVG/PNG charts, interactive HTML report dashboard |
 | Dynamic obstacle tracking and forecasting | Implemented core | 2D-to-3D ground footprint projection, 2D metric Kalman filter, state lifecycle, forward trajectory forecasting, collision TTC ingress, and BEV visual overlays |
@@ -272,6 +272,13 @@ uv run nearfield360 eval segmentation --root D:\datasets\woodscape --predictions
 
 # 5. Add pooled confidence operating points and per-class PR grids to a detection report:
 uv run nearfield360 eval detection --root D:\datasets\woodscape --predictions outputs/predictions --confidence-thresholds 0.3,0.5,0.7 --output outputs/detection_confidence.json
+
+# 6. Pool per-pixel softmax confidence into a calibration reliability table with ECE:
+uv run nearfield360 eval segmentation --root D:\datasets\woodscape --model models/segmentation.onnx --confidence-bins 10 --output outputs/segmentation_calibration.json
+
+# 7. Render eval report confidence analysis to vector SVG charts:
+uv run nearfield360 eval plot --report outputs/detection_confidence.json --output-dir outputs/charts
+uv run nearfield360 eval plot --report outputs/segmentation_calibration.json --output-dir outputs/charts
 ```
 
 With `--split-manifest`, the manifest's sample-identity digest is validated against the
@@ -279,7 +286,10 @@ discovered dataset before scoring, and the report gains a top-level `"split"` ke
 path, split name, grouping provenance, seed, and dataset/selected sample counts). With
 `--confidence-thresholds`, `metrics.confidence_analysis` records pooled operating points
 (predictions, true positives, precision, recall, F1 per cutoff) and VOC-style 101-point
-interpolated precision-recall curves per class.
+interpolated precision-recall curves per class. With `--confidence-bins`, segmentation reports
+record an expected calibration error (ECE) and a confidence reliability table with mean confidence
+and observed accuracy per bin. `nearfield360 eval plot` renders these analyses to standalone SVG
+vector charts (`pr_curves.svg`, `operating_points.svg`, `reliability.svg`).
 
 ## Dataset policy
 
@@ -403,7 +413,7 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     101-point interpolated precision-recall curves to the metrics report. Excludes
     model-side re-inference sweeps, calibration metrics (ECE), batched inference, and
     TensorRT/C++ (roadmap item 7 residual).
-13. Segmentation confidence calibration and evaluation report rendering:
+13. ~~Segmentation confidence calibration and evaluation report rendering.~~ Done:
     `eval segmentation --confidence-bins` pools per-pixel softmax confidences from
     `--model` runs into a reliability table with expected calibration error (ECE) under
     `metrics.confidence_analysis`, and `eval plot` renders prior eval reports to
@@ -411,6 +421,12 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     diagram) through the shared plot engine. Excludes detection-side ECE, raster PNG
     charts, HTML dashboards, batched inference, and TensorRT/C++ (roadmap item 7
     residual).
+14. Comparative evaluation reporting and regression analysis:
+    `eval compare` to contrast two evaluation JSON reports (e.g., baseline vs. model,
+    split-to-split, or backend comparison) with delta metrics (mIoU/AP differences, ECE
+    shifts, latency ratios), comparative tabular output, and machine-readable delta
+    JSON artifacts. Excludes HTML dashboards, batched inference, and TensorRT/C++
+    (roadmap item 7 residual).
 
 ## Usage: integrated four-camera pipeline and release audit
 
