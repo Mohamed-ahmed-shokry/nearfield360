@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -1479,3 +1480,194 @@ def test_eval_detection_confidence_thresholds_render_end_to_end(tmp_path: Path) 
     assert plot_run.exit_code == 0, plot_run.output
     assert (tmp_path / "charts" / "pr_curves.svg").is_file()
     assert (tmp_path / "charts" / "operating_points.svg").is_file()
+
+
+def _write_segmentation_report(
+    path: Path,
+    *,
+    bins: list[dict[str, Any]] | None = None,
+) -> None:
+    if bins is None:
+        bins = [
+            {
+                "bin_index": 0,
+                "bin_lower": 0.0,
+                "bin_upper": 0.2,
+                "pixels": 20,
+                "accuracy": 0.1,
+                "mean_confidence": 0.15,
+            },
+            {
+                "bin_index": 1,
+                "bin_lower": 0.2,
+                "bin_upper": 0.4,
+                "pixels": 0,
+                "accuracy": 0.0,
+                "mean_confidence": 0.0,
+            },
+            {
+                "bin_index": 2,
+                "bin_lower": 0.4,
+                "bin_upper": 0.6,
+                "pixels": 30,
+                "accuracy": 0.5,
+                "mean_confidence": 0.52,
+            },
+            {
+                "bin_index": 3,
+                "bin_lower": 0.6,
+                "bin_upper": 0.8,
+                "pixels": 25,
+                "accuracy": 0.72,
+                "mean_confidence": 0.71,
+            },
+            {
+                "bin_index": 4,
+                "bin_lower": 0.8,
+                "bin_upper": 1.0,
+                "pixels": 25,
+                "accuracy": 0.95,
+                "mean_confidence": 0.92,
+            },
+        ]
+    report = {
+        "metrics": {
+            "confidence_analysis": {
+                "num_bins": len(bins),
+                "pixel_count": sum(int(b.get("pixels", 0)) for b in bins),
+                "bins": bins,
+                "mean_confidence": 0.61,
+                "ece": 0.03,
+            }
+        }
+    }
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+
+def test_eval_plot_renders_segmentation_reliability_charts(tmp_path: Path) -> None:
+    report = tmp_path / "segmentation.json"
+    _write_segmentation_report(report)
+    output_dir = tmp_path / "charts"
+
+    result = runner.invoke(
+        app,
+        ["eval", "plot", "--report", str(report), "--output-dir", str(output_dir)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "reliability.svg" in result.stdout
+    chart = (output_dir / "reliability.svg").read_text(encoding="utf-8")
+    assert "<svg" in chart
+    assert "Segmentation Reliability Diagram" in chart
+    assert "Mean confidence" in chart
+    assert "Accuracy" in chart
+    assert "Model" in chart
+    assert "Perfect calibration" in chart
+
+
+def test_eval_plot_rejects_segmentation_report_without_populated_bins(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "empty_bins.json"
+    _write_segmentation_report(
+        report,
+        bins=[
+            {
+                "bin_index": 0,
+                "bin_lower": 0.0,
+                "bin_upper": 0.5,
+                "pixels": 0,
+                "accuracy": 0.0,
+                "mean_confidence": 0.0,
+            },
+            {
+                "bin_index": 1,
+                "bin_lower": 0.5,
+                "bin_upper": 1.0,
+                "pixels": 0,
+                "accuracy": 0.0,
+                "mean_confidence": 0.0,
+            },
+        ],
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "plot",
+            "--report",
+            str(report),
+            "--output-dir",
+            str(tmp_path / "charts"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "no plottable data" in result.stderr
+
+
+def test_eval_plot_rejects_malformed_segmentation_bins(tmp_path: Path) -> None:
+    report = tmp_path / "malformed_bins.json"
+    report.write_text(
+        json.dumps({"metrics": {"confidence_analysis": {"bins": ["not_a_mapping"]}}}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "plot",
+            "--report",
+            str(report),
+            "--output-dir",
+            str(tmp_path / "charts"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "malformed" in result.stderr
+
+
+def test_eval_segmentation_confidence_bins_renders_end_to_end(
+    tmp_path: Path, dummy_seg_model: Path
+) -> None:
+    _write_rgb(tmp_path, "00001_FV.png")
+    _write_mask(tmp_path, "00001_FV.png")
+    report = tmp_path / "segmentation.json"
+
+    eval_run = runner.invoke(
+        app,
+        [
+            "eval",
+            "segmentation",
+            "--root",
+            str(tmp_path),
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(report),
+            "--confidence-bins",
+            "5",
+        ],
+    )
+    plot_run = runner.invoke(
+        app,
+        [
+            "eval",
+            "plot",
+            "--report",
+            str(report),
+            "--output-dir",
+            str(tmp_path / "charts"),
+        ],
+    )
+
+    assert eval_run.exit_code == 0, eval_run.output
+    assert plot_run.exit_code == 0, plot_run.output
+    reliability_svg = tmp_path / "charts" / "reliability.svg"
+    assert reliability_svg.is_file()
+    content = reliability_svg.read_text(encoding="utf-8")
+    assert "<svg" in content
+    assert "Segmentation Reliability Diagram" in content

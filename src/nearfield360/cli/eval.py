@@ -815,6 +815,37 @@ def _detection_charts(analysis: dict[str, Any]) -> list[tuple[str, str]]:
     return charts
 
 
+def _reliability_charts(analysis: dict[str, Any]) -> list[tuple[str, str]]:
+    """Build a reliability-diagram SVG chart from a semantic confidence analysis."""
+    bins = analysis.get("bins")
+    if not isinstance(bins, list) or not bins:
+        return []
+    model: list[tuple[float, float]] = []
+    for item in bins:
+        if not isinstance(item, dict):
+            raise TypeError(f"Bin entry is not a mapping: {item!r}")
+        if item.get("pixels"):
+            model.append((float(item["mean_confidence"]), float(item["accuracy"])))
+    if not model:
+        return []
+    return [
+        (
+            "reliability.svg",
+            render_svg_line_chart(
+                "Segmentation Reliability Diagram",
+                "Mean confidence",
+                "Accuracy",
+                {
+                    "Model": model,
+                    "Perfect calibration": [(0.0, 0.0), (1.0, 1.0)],
+                },
+                y_min=0.0,
+                y_max=1.0,
+            ),
+        )
+    ]
+
+
 def _build_report_charts(report: Any) -> list[tuple[str, str]]:
     """Return ``(filename, svg)`` charts for an eval report's confidence analysis."""
     if not isinstance(report, dict) or not isinstance(report.get("metrics"), dict):
@@ -826,11 +857,13 @@ def _build_report_charts(report: Any) -> list[tuple[str, str]]:
             "(detection) or --confidence-bins (segmentation)"
         )
     try:
-        if "pr_curves" in analysis or "thresholds" in analysis:
+        if "bins" in analysis:
+            charts = _reliability_charts(analysis)
+        elif "pr_curves" in analysis or "thresholds" in analysis:
             charts = _detection_charts(analysis)
         else:
             charts = []
-    except (KeyError, TypeError, ValueError) as exc:
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Report confidence analysis is malformed: {exc}") from exc
     if not charts:
         raise ValueError("Report confidence analysis contains no plottable data")
