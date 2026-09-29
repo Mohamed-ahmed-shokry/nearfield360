@@ -1,5 +1,12 @@
 """Label-space perception metrics without model or accelerator dependencies."""
 
+from nearfield360.perception.comparison import (
+    ComparisonError,
+    EvaluationComparison,
+    MetricDelta,
+    compare_evaluations,
+    compute_metric_delta,
+)
 from nearfield360.perception.evaluation import (
     DetectionEvaluation,
     EvaluationError,
@@ -24,9 +31,14 @@ from nearfield360.perception.metrics import (
 )
 
 __all__ = [
+    "ComparisonError",
     "DetectionEvaluation",
+    "EvaluationComparison",
     "EvaluationError",
+    "MetricDelta",
     "SemanticEvaluation",
+    "compare_evaluations",
+    "compute_metric_delta",
     "detection_average_precision",
     "detection_box_iou",
     "detection_confidence_analysis",
