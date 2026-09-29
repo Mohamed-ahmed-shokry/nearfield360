@@ -795,3 +795,64 @@ Phase 14 closes README roadmap item 13 by delivering confidence calibration quan
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 15: Comparative Evaluation Reporting and Regression Analysis
+
+**Status:** Completed
+**Repository Branch:** `main`
+**Test Suite:** 836 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (72 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 92.07% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 15 closes README roadmap item 14 by introducing automated comparative evaluation reporting and regression gate checking across segmentation and detection runs:
+
+1. **Evaluation Report Comparison Engine (`src/nearfield360/perception/comparison.py`):**
+   - Runtime-agnostic report diffing comparing scalar summary metrics, class-level performance, calibration ECE, and engine inference latency.
+   - Enforces task identity: verifies that baseline and candidate reports evaluate the same task type (`segmentation` vs `detection`).
+   - Computes absolute deltas ($c - b$), relative percentage changes ($\frac{c - b}{|b|} \times 100\%$), and latency throughput ratios ($\frac{c}{b}$).
+   - Disjoint class handling: gracefully handles models evaluating non-identical class subsets with safe `None` propagation.
+   - `EvaluationComparison` and `MetricDelta` frozen dataclasses with `.as_dict()` for strict JSON serializability.
+2. **CLI Comparison Suite (`nearfield360 eval compare`):**
+   - High-readability formatted ASCII comparison tables for summary metrics, per-class breakdowns, confidence calibration, and latency profiling.
+   - `--json`: Machine-readable comparison payload streaming to stdout.
+   - `--output`: Atomic output file writer for comparison artifacts, with `--overwrite` safety.
+3. **Automated CI/CD Regression Gates:**
+   - `--fail-under-miou-delta`: Exits with code 1 if candidate mIoU improvement falls below threshold.
+   - `--fail-under-map-delta`: Exits with code 1 if candidate mAP improvement falls below threshold.
+   - `--fail-over-ece-delta`: Exits with code 1 if candidate calibration error degradation exceeds threshold.
+   - `--fail-over-latency-ratio`: Exits with code 1 if candidate latency degradation exceeds allowable ratio.
+   - Clear colored `[PASS]` and `[FAIL]` status indicators and structured `gates` payload in report artifacts.
+
+**Explicit exclusions:** Interactive HTML dashboards, batched inference sweeps, and native TensorRT/C++ acceleration (tracked for subsequent milestones).
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Comparison engine & domain models | `src/nearfield360/perception/comparison.py` |
+| Perception package exports | `src/nearfield360/perception/__init__.py` |
+| `nearfield360 eval compare` CLI command | `src/nearfield360/cli/eval.py` |
+| Comparison engine unit tests | `tests/unit/perception/test_comparison.py` (12 tests) |
+| Eval CLI comparison tests | `tests/unit/test_eval_cli.py` (65 tests total, +8 tests) |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 836 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 92.07% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 72 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
