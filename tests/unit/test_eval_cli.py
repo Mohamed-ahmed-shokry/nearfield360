@@ -1302,9 +1302,23 @@ def test_eval_segmentation_rejects_invalid_confidence_bins(tmp_path: Path, bins:
     assert result.exit_code == 2
 
 
-def _write_detection_report(path: Path) -> None:
+def _write_detection_report(
+    path: Path,
+    *,
+    map_score: float = 0.55,
+    classes: dict[str, Any] | None = None,
+) -> None:
+    if classes is None:
+        classes = {
+            "vehicles": {"average_precision": 0.70, "predictions": 15, "targets": 12},
+            "person": {"average_precision": 0.40, "predictions": 8, "targets": 10},
+        }
     report = {
         "metrics": {
+            "mean_average_precision": map_score,
+            "iou_threshold": 0.5,
+            "image_count": 5,
+            "classes": classes,
             "confidence_analysis": {
                 "iou_threshold": 0.5,
                 "targets": 2,
@@ -1334,7 +1348,7 @@ def _write_detection_report(path: Path) -> None:
                     ],
                     "person": None,
                 },
-            }
+            },
         }
     }
     path.write_text(json.dumps(report), encoding="utf-8")
@@ -1485,8 +1499,16 @@ def test_eval_detection_confidence_thresholds_render_end_to_end(tmp_path: Path) 
 def _write_segmentation_report(
     path: Path,
     *,
+    mean_iou: float = 0.65,
+    pixel_acc: float = 0.88,
+    classes: dict[str, Any] | None = None,
     bins: list[dict[str, Any]] | None = None,
 ) -> None:
+    if classes is None:
+        classes = {
+            "road": {"iou": 0.90, "target_pixels": 1000},
+            "lanemarks": {"iou": 0.40, "target_pixels": 200},
+        }
     if bins is None:
         bins = [
             {
@@ -1530,15 +1552,21 @@ def _write_segmentation_report(
                 "mean_confidence": 0.92,
             },
         ]
+    total_pixels = sum(int(b.get("pixels", 0)) for b in bins)
     report = {
         "metrics": {
+            "mean_iou": mean_iou,
+            "pixel_accuracy": pixel_acc,
+            "image_count": 10,
+            "pixel_count": total_pixels if total_pixels > 0 else 50000,
+            "classes": classes,
             "confidence_analysis": {
                 "num_bins": len(bins),
-                "pixel_count": sum(int(b.get("pixels", 0)) for b in bins),
+                "pixel_count": total_pixels,
                 "bins": bins,
                 "mean_confidence": 0.61,
                 "ece": 0.03,
-            }
+            },
         }
     }
     path.write_text(json.dumps(report), encoding="utf-8")
@@ -1671,3 +1699,167 @@ def test_eval_segmentation_confidence_bins_renders_end_to_end(
     content = reliability_svg.read_text(encoding="utf-8")
     assert "<svg" in content
     assert "Segmentation Reliability Diagram" in content
+
+
+def test_eval_compare_segmentation_text(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    _write_segmentation_report(base, mean_iou=0.60, pixel_acc=0.85)
+    _write_segmentation_report(cand, mean_iou=0.65, pixel_acc=0.89)
+
+    result = runner.invoke(
+        app,
+        ["eval", "compare", "--baseline", str(base), "--candidate", str(cand)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Evaluation Comparison (Task: SEGMENTATION)" in result.stdout
+    assert "mean_iou" in result.stdout
+    assert "pixel_accuracy" in result.stdout
+    assert "Class Breakdown (IoU)" in result.stdout
+    assert "road" in result.stdout
+
+
+def test_eval_compare_detection_text(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    _write_detection_report(base, map_score=0.50)
+    _write_detection_report(cand, map_score=0.58)
+
+    result = runner.invoke(
+        app,
+        ["eval", "compare", "-b", str(base), "-c", str(cand)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Evaluation Comparison (Task: DETECTION)" in result.stdout
+    assert "mean_average_precision" in result.stdout
+    assert "Class Breakdown (AP)" in result.stdout
+    assert "vehicles" in result.stdout
+
+
+def test_eval_compare_json_mode(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    _write_segmentation_report(base)
+    _write_segmentation_report(cand)
+
+    result = runner.invoke(
+        app,
+        ["eval", "compare", "-b", str(base), "-c", str(cand), "--json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["task"] == "segmentation"
+    assert "summary_deltas" in payload
+    assert "class_deltas" in payload
+
+
+def test_eval_compare_output_file_and_overwrite(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    out = tmp_path / "comparison.json"
+    _write_segmentation_report(base)
+    _write_segmentation_report(cand)
+
+    cmd = ["eval", "compare", "-b", str(base), "-c", str(cand), "-o", str(out)]
+    first = runner.invoke(app, cmd)
+    assert first.exit_code == 0, first.output
+    assert out.is_file()
+
+    second = runner.invoke(app, cmd)
+    assert second.exit_code == 1
+    assert "already exists" in second.stderr
+
+    third = runner.invoke(app, [*cmd, "--overwrite"])
+    assert third.exit_code == 0, third.output
+
+
+def test_eval_compare_gate_passes(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    _write_segmentation_report(base, mean_iou=0.60)
+    _write_segmentation_report(cand, mean_iou=0.65)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "compare",
+            "-b",
+            str(base),
+            "-c",
+            str(cand),
+            "--fail-under-miou-delta",
+            "0.0",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "[PASS] fail_under_miou_delta" in result.stdout
+    assert "All regression gate checks passed." in result.stdout
+
+
+def test_eval_compare_gate_fails(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    _write_segmentation_report(base, mean_iou=0.60)
+    _write_segmentation_report(cand, mean_iou=0.62)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "compare",
+            "-b",
+            str(base),
+            "-c",
+            str(cand),
+            "--fail-under-miou-delta",
+            "0.05",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "[FAIL] fail_under_miou_delta" in result.stdout
+    assert "One or more regression gate checks failed." in result.stderr
+
+
+def test_eval_compare_gate_type_mismatch_fails(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    _write_segmentation_report(base)
+    _write_segmentation_report(cand)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "compare",
+            "-b",
+            str(base),
+            "-c",
+            str(cand),
+            "--fail-under-map-delta",
+            "0.0",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "only applicable to detection" in result.stderr
+
+
+def test_eval_compare_task_mismatch_fails(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    _write_segmentation_report(base)
+    _write_detection_report(cand)
+
+    result = runner.invoke(
+        app,
+        ["eval", "compare", "-b", str(base), "-c", str(cand)],
+    )
+
+    assert result.exit_code == 1
+    assert "task mismatch" in result.stderr

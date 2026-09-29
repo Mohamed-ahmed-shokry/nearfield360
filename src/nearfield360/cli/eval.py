@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 import time
 from collections.abc import Sequence
@@ -38,6 +39,11 @@ from nearfield360.data.semantic import (
 )
 from nearfield360.data.splits import DatasetSplit, SplitError
 from nearfield360.data.woodscape import IMAGE_SUFFIXES, WoodScapeDataset
+from nearfield360.perception.comparison import (
+    ComparisonError,
+    EvaluationComparison,
+    compare_evaluations,
+)
 from nearfield360.perception.evaluation import (
     detection_confidence_analysis,
     environment_metadata,
@@ -933,6 +939,322 @@ def plot_evaluation_report(
     except OSError as exc:
         typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from None
+
+
+def _format_delta_val(val: float | None, precision: int = 4) -> str:
+    if val is None:
+        return "N/A"
+    return f"{val:.{precision}f}"
+
+
+def _format_signed_delta(delta: float | None, precision: int = 4) -> str:
+    if delta is None:
+        return "N/A"
+    sign = "+" if delta > 0 else ""
+    return f"{sign}{delta:.{precision}f}"
+
+
+def _format_percent(pct: float | None) -> str:
+    if pct is None:
+        return "-"
+    sign = "+" if pct > 0 else ""
+    return f"{sign}{pct:.2f}%"
+
+
+def _format_ratio(ratio: float | None) -> str:
+    if ratio is None:
+        return "-"
+    return f"{ratio:.3f}x"
+
+
+def _print_comparison_summary(
+    cmp: EvaluationComparison, baseline_path: Path, candidate_path: Path
+) -> None:
+    typer.echo(f"Evaluation Comparison (Task: {cmp.task.upper()})")
+    typer.echo(f"  Baseline:  {baseline_path}")
+    typer.echo(f"  Candidate: {candidate_path}")
+    typer.echo("")
+    typer.echo(f"{'Metric':<24} {'Baseline':>12} {'Candidate':>12} {'Delta':>12} {'% Change':>10}")
+    typer.echo("-" * 72)
+    for name, delta in cmp.summary_deltas.items():
+        b_str = _format_delta_val(delta.baseline)
+        c_str = _format_delta_val(delta.candidate)
+        d_str = _format_signed_delta(delta.delta)
+        p_str = _format_percent(delta.percent_change)
+        typer.echo(f"{name:<24} {b_str:>12} {c_str:>12} {d_str:>12} {p_str:>10}")
+
+    if cmp.class_deltas:
+        metric_name = "IoU" if cmp.task == "segmentation" else "AP"
+        typer.echo(f"\nClass Breakdown ({metric_name})")
+        typer.echo("-" * 72)
+        typer.echo(
+            f"{'Class':<24} {'Baseline':>12} {'Candidate':>12} {'Delta':>12} {'% Change':>10}"
+        )
+        typer.echo("-" * 72)
+        for name, delta in cmp.class_deltas.items():
+            b_str = _format_delta_val(delta.baseline)
+            c_str = _format_delta_val(delta.candidate)
+            d_str = _format_signed_delta(delta.delta)
+            p_str = _format_percent(delta.percent_change)
+            typer.echo(f"{name:<24} {b_str:>12} {c_str:>12} {d_str:>12} {p_str:>10}")
+
+    if cmp.calibration_deltas:
+        typer.echo("\nCalibration & Confidence")
+        typer.echo("-" * 72)
+        typer.echo(
+            f"{'Metric':<24} {'Baseline':>12} {'Candidate':>12} {'Delta':>12} {'% Change':>10}"
+        )
+        typer.echo("-" * 72)
+        for name, delta in cmp.calibration_deltas.items():
+            b_str = _format_delta_val(delta.baseline)
+            c_str = _format_delta_val(delta.candidate)
+            d_str = _format_signed_delta(delta.delta)
+            p_str = _format_percent(delta.percent_change)
+            typer.echo(f"{name:<24} {b_str:>12} {c_str:>12} {d_str:>12} {p_str:>10}")
+
+    if cmp.timing_deltas:
+        typer.echo("\nTiming & Latency")
+        typer.echo("-" * 72)
+        typer.echo(f"{'Metric':<24} {'Baseline':>12} {'Candidate':>12} {'Delta':>12} {'Ratio':>10}")
+        typer.echo("-" * 72)
+        for name, delta in cmp.timing_deltas.items():
+            b_str = _format_delta_val(delta.baseline, precision=3)
+            c_str = _format_delta_val(delta.candidate, precision=3)
+            d_str = _format_signed_delta(delta.delta, precision=3)
+            r_str = _format_ratio(delta.ratio)
+            typer.echo(f"{name:<24} {b_str:>12} {c_str:>12} {d_str:>12} {r_str:>10}")
+
+
+def _evaluate_gates(
+    cmp: EvaluationComparison,
+    *,
+    fail_under_miou_delta: float | None,
+    fail_under_map_delta: float | None,
+    fail_over_ece_delta: float | None,
+    fail_over_latency_ratio: float | None,
+) -> tuple[bool, list[dict[str, Any]]]:
+    checks: list[dict[str, Any]] = []
+    overall_ok = True
+
+    if fail_under_miou_delta is not None:
+        if cmp.task != "segmentation":
+            raise ComparisonError(
+                "--fail-under-miou-delta is only applicable to segmentation reports"
+            )
+        delta = cmp.summary_deltas["mean_iou"].delta
+        passed = delta is not None and delta >= fail_under_miou_delta
+        if not passed:
+            overall_ok = False
+        actual_str = f"{delta:+.4f}" if delta is not None else "missing"
+        checks.append(
+            {
+                "gate": "fail_under_miou_delta",
+                "status": "pass" if passed else "fail",
+                "threshold": fail_under_miou_delta,
+                "actual": delta,
+                "detail": f"mIoU delta {actual_str} (min required: {fail_under_miou_delta:+.4f})",
+            }
+        )
+
+    if fail_under_map_delta is not None:
+        if cmp.task != "detection":
+            raise ComparisonError("--fail-under-map-delta is only applicable to detection reports")
+        delta = cmp.summary_deltas["mean_average_precision"].delta
+        passed = delta is not None and delta >= fail_under_map_delta
+        if not passed:
+            overall_ok = False
+        actual_str = f"{delta:+.4f}" if delta is not None else "missing"
+        checks.append(
+            {
+                "gate": "fail_under_map_delta",
+                "status": "pass" if passed else "fail",
+                "threshold": fail_under_map_delta,
+                "actual": delta,
+                "detail": f"mAP delta {actual_str} (min required: {fail_under_map_delta:+.4f})",
+            }
+        )
+
+    if fail_over_ece_delta is not None:
+        if cmp.calibration_deltas is None or cmp.calibration_deltas.get("ece") is None:
+            raise ComparisonError(
+                "--fail-over-ece-delta requires confidence calibration data (ECE) in both reports"
+            )
+        delta = cmp.calibration_deltas["ece"].delta
+        passed = delta is not None and delta <= fail_over_ece_delta
+        if not passed:
+            overall_ok = False
+        actual_str = f"{delta:+.4f}" if delta is not None else "missing"
+        checks.append(
+            {
+                "gate": "fail_over_ece_delta",
+                "status": "pass" if passed else "fail",
+                "threshold": fail_over_ece_delta,
+                "actual": delta,
+                "detail": f"ECE delta {actual_str} (max allowed: {fail_over_ece_delta:+.4f})",
+            }
+        )
+
+    if fail_over_latency_ratio is not None:
+        if cmp.timing_deltas is None or cmp.timing_deltas.get("mean_ms") is None:
+            raise ComparisonError(
+                "--fail-over-latency-ratio requires timing information in both reports"
+            )
+        ratio = cmp.timing_deltas["mean_ms"].ratio
+        passed = ratio is not None and ratio <= fail_over_latency_ratio
+        if not passed:
+            overall_ok = False
+        actual_str = f"{ratio:.3f}x" if ratio is not None else "missing"
+        checks.append(
+            {
+                "gate": "fail_over_latency_ratio",
+                "status": "pass" if passed else "fail",
+                "threshold": fail_over_latency_ratio,
+                "actual": ratio,
+                "detail": f"Latency ratio {actual_str} (max: {fail_over_latency_ratio:.3f}x)",
+            }
+        )
+
+    return overall_ok, checks
+
+
+@eval_app.command("compare")
+def compare_evaluation_reports(
+    baseline: Annotated[
+        Path,
+        typer.Option(
+            "--baseline",
+            "-b",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Baseline evaluation JSON report.",
+        ),
+    ],
+    candidate: Annotated[
+        Path,
+        typer.Option(
+            "--candidate",
+            "-c",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Candidate evaluation JSON report to compare against baseline.",
+        ),
+    ],
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+            help="Optional path to write comparison JSON artifact.",
+        ),
+    ] = None,
+    overwrite: Annotated[
+        bool, typer.Option("--overwrite", help="Overwrite existing output artifact.")
+    ] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Emit machine-readable comparison JSON to stdout.")
+    ] = False,
+    fail_under_miou_delta: Annotated[
+        float | None,
+        typer.Option(
+            "--fail-under-miou-delta",
+            help="Exit 1 if candidate mIoU - baseline mIoU is less than this value.",
+        ),
+    ] = None,
+    fail_under_map_delta: Annotated[
+        float | None,
+        typer.Option(
+            "--fail-under-map-delta",
+            help="Exit 1 if candidate mAP - baseline mAP is less than this value.",
+        ),
+    ] = None,
+    fail_over_ece_delta: Annotated[
+        float | None,
+        typer.Option(
+            "--fail-over-ece-delta",
+            help="Exit 1 if candidate ECE - baseline ECE exceeds this value.",
+        ),
+    ] = None,
+    fail_over_latency_ratio: Annotated[
+        float | None,
+        typer.Option(
+            "--fail-over-latency-ratio",
+            help="Exit 1 if candidate/baseline mean latency ratio exceeds this value.",
+        ),
+    ] = None,
+) -> None:
+    """Compare two evaluation JSON reports and evaluate regression gates."""
+    try:
+        baseline_data = read_json(baseline)
+    except ArtifactError as exc:
+        typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    try:
+        candidate_data = read_json(candidate)
+    except ArtifactError as exc:
+        typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    try:
+        cmp = compare_evaluations(baseline_data, candidate_data)
+        overall_ok, checks = _evaluate_gates(
+            cmp,
+            fail_under_miou_delta=fail_under_miou_delta,
+            fail_under_map_delta=fail_under_map_delta,
+            fail_over_ece_delta=fail_over_ece_delta,
+            fail_over_latency_ratio=fail_over_latency_ratio,
+        )
+    except ComparisonError as exc:
+        typer.secho(f"Compare error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    payload = cmp.as_dict()
+    if checks:
+        payload["gates"] = {
+            "passed": overall_ok,
+            "checks": checks,
+        }
+
+    if as_json:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        _print_comparison_summary(cmp, baseline, candidate)
+        if checks:
+            typer.echo("\nRegression Gate Checks")
+            typer.echo("-" * 76)
+            for c in checks:
+                tag = "PASS" if c["status"] == "pass" else "FAIL"
+                color = typer.colors.GREEN if c["status"] == "pass" else typer.colors.RED
+                typer.secho(f"  [{tag}] {c['gate']}: {c['detail']}", fg=color)
+            if not overall_ok:
+                typer.secho(
+                    "\nOne or more regression gate checks failed.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+            else:
+                typer.echo("\nAll regression gate checks passed.")
+
+    if output is not None:
+        try:
+            write_json(output, payload, overwrite=overwrite)
+        except ArtifactError as exc:
+            typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
+        if not as_json:
+            typer.echo(f"Wrote {output}")
+
+    if not overall_ok:
+        raise typer.Exit(code=1)
 
 
 __all__ = ["eval_app"]
