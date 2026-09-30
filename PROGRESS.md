@@ -856,3 +856,41 @@ Phase 15 closes README roadmap item 14 by introducing automated comparative eval
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 16: Interactive Evaluation HTML Report Dashboard
+
+**Status:** In Progress
+**Repository Branch:** `main`
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 16 closes README roadmap item 15 by delivering a self-contained, responsive HTML evaluation dashboard with zero external CDN dependencies:
+
+1. **Dashboard Generator Engine (`src/nearfield360/perception/dashboard.py`):**
+   - Pure-Python offline report generator producing zero-CDN, standalone HTML5 documents.
+   - Self-contained modern styling (responsive layout, dark-mode inspired design system matching NearField360 aesthetics).
+   - High-level KPI summary cards for segmentation (mIoU, pixel accuracy, pixel counts) and detection (mAP, IoU thresholds, target counts, prediction counts).
+   - Class-level performance cards and tables displaying granular class metrics with support indicators.
+   - Inline SVG vector chart integration:
+     - Detection PR curves and operating points.
+     - Segmentation confidence reliability diagrams.
+     - Latency percentiles and engine execution distribution bar charts.
+   - Comparative diff visualization:
+     - Side-by-side metric comparison when baseline and candidate reports are provided.
+     - Formatted signed deltas, percentage changes, and throughput ratios.
+     - CI/CD regression gate check indicators (`[PASS]` / `[FAIL]`).
+2. **CLI Integration (`nearfield360 eval dashboard`):**
+   - Options for `--report`, optional `--baseline`, `--output`, `--overwrite`, and custom `--title`.
+   - Integrated regression gate verification flags matching `eval compare` (`--fail-under-miou-delta`, `--fail-under-map-delta`, `--fail-over-ece-delta`, `--fail-over-latency-ratio`).
+   - Atomic file output with existing file protection (`--overwrite`).
+   - Clean terminal status reporting and non-zero exit codes on gate failure or malformed reports.
+3. **Verification and Robustness:**
+   - 100% offline self-containment assertion (no external HTTP/HTTPS script or style dependencies).
+   - Validation against empty or non-eval reports, corrupted structures, and mismatched tasks.
+
+**Explicit exclusions:** Batched inference sweeps and TensorRT/C++ acceleration (tracked for subsequent milestones).
+
