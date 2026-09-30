@@ -28,7 +28,7 @@ the corresponding experiments have run.
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
 | WoodScape data layer | Implemented core | Discovery, bounded readers, semantic/calibration/detection contracts, integrity, statistics, explicit-group splits, semantic overlays; synthetic tests |
 | Fisheye calibration and geometry | Implemented core | Fourth-order radial projection/inverse, rigid transforms, vehicle cameras, surround rig, ground intersection, BEV grid; synthetic tests |
-| Segmentation and detection metrics | Implemented | Numpy-only confusion/IoU and XYXY box IoU, file-based and live model-driven evaluation (`eval segmentation|detection --model`), split-aware scoring (`--split-manifest`/`--split`), detection confidence operating points & PR curves (`--confidence-thresholds`), semantic confidence calibration & ECE (`--confidence-bins`), SVG chart rendering (`eval plot`), comparative regression evaluation (`eval compare`), prediction export, sample limits, and latency statistics |
+| Segmentation and detection metrics | Implemented | Numpy-only confusion/IoU and XYXY box IoU, file-based and live model-driven evaluation (`eval segmentation|detection --model`), split-aware scoring (`--split-manifest`/`--split`), detection confidence operating points & PR curves (`--confidence-thresholds`), semantic confidence calibration & ECE (`--confidence-bins`), SVG chart rendering (`eval plot`), comparative regression evaluation (`eval compare`), interactive HTML report dashboards (`eval dashboard`), prediction export, sample limits, and latency statistics |
 | BEV occupancy and risk | Implemented | Multi-camera surround fusion (`--all-cameras`), Bayesian uncertainty propagation, 360-degree parking zones (corridors/clearance/circles), occupancy & uncertainty rendering |
 | Controlled robustness evaluation | Implemented | Synthetic sensor corruptions (soiling, fog, noise, rain), extrinsic calibration perturbation engine, quantitative metrics (occupancy MAE, IoU, risk error), SVG/PNG charts, interactive HTML report dashboard |
 | Dynamic obstacle tracking and forecasting | Implemented core | 2D-to-3D ground footprint projection, 2D metric Kalman filter, state lifecycle, forward trajectory forecasting, collision TTC ingress, and BEV visual overlays |
@@ -283,6 +283,10 @@ uv run nearfield360 eval plot --report outputs/segmentation_calibration.json --o
 # 8. Compare two evaluation reports with delta metrics, tabular output, and regression gates:
 uv run nearfield360 eval compare --baseline outputs/baseline_report.json --candidate outputs/model_report.json
 uv run nearfield360 eval compare --baseline outputs/baseline.json --candidate outputs/candidate.json --fail-under-miou-delta -0.01 --fail-over-latency-ratio 1.15 --output outputs/comparison.json
+
+# 9. Render an interactive, standalone HTML evaluation dashboard (zero external CDN dependencies):
+uv run nearfield360 eval dashboard --report outputs/segmentation_report.json --output outputs/dashboard.html
+uv run nearfield360 eval dashboard --report outputs/candidate.json --baseline outputs/baseline.json --fail-under-miou-delta 0.0 --output outputs/comparison_dashboard.html
 ```
 
 With `--split-manifest`, the manifest's sample-identity digest is validated against the
@@ -300,6 +304,11 @@ detection), displaying summary deltas, class-level breakdowns, timing difference
 shifts. Regression gates (`--fail-under-miou-delta`, `--fail-under-map-delta`, `--fail-over-ece-delta`,
 `--fail-over-latency-ratio`) enforce automated CI thresholds, exiting with code 1 if any gate fails.
 Machine-readable delta payloads can be exported via `--output` or streamed via `--json`.
+
+`nearfield360 eval dashboard` generates a self-contained, responsive HTML evaluation dashboard
+combining KPI summary cards, per-class performance meters, embedded SVG PR curves, reliability diagrams,
+latency distribution bar charts, and comparative diff views with zero external CDN dependencies. When
+provided with `--baseline`, CI/CD regression gates are verified and embedded directly into the report.
 
 ## Dataset policy
 
@@ -438,11 +447,15 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     (`--fail-under-miou-delta`, `--fail-under-map-delta`, `--fail-over-ece-delta`,
     `--fail-over-latency-ratio`), and machine-readable delta JSON artifacts. Excludes HTML
     dashboards, batched inference, and TensorRT/C++ (roadmap item 7 residual).
-15. Interactive evaluation HTML report dashboard:
-    `eval dashboard` to render self-contained, responsive HTML evaluation reports combining
+15. ~~Interactive evaluation HTML report dashboard.~~ Done:
+    `eval dashboard` renders self-contained, responsive HTML evaluation reports combining
     summary metrics, class-level performance cards, embedded SVG PR curves, reliability diagrams,
-    latency histograms, and comparative diff views into a standalone report with zero external CDN
-    dependencies. Excludes batched inference and TensorRT/C++ (roadmap item 7 residual).
+    latency distribution bar charts, and comparative diff views into a standalone report with
+    zero external CDN dependencies. Excludes batched inference and TensorRT/C++ (roadmap item 7 residual).
+16. Batched inference throughput profiling and execution:
+    Batched ONNX model inference sweeps across multi-camera surround frames with optimized
+    Tensor memory layouts and throughput benchmarks. Excludes native TensorRT/C++ (roadmap
+    item 7 residual).
 
 ## Usage: integrated four-camera pipeline and release audit
 
