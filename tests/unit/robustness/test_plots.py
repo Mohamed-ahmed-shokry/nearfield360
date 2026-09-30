@@ -8,6 +8,7 @@ import pytest
 from nearfield360.robustness.plots import (
     generate_robustness_html_dashboard,
     render_raster_line_chart,
+    render_svg_bar_chart,
     render_svg_line_chart,
 )
 
@@ -55,6 +56,38 @@ def test_render_svg_line_chart_handles_edge_cases() -> None:
         "NaNs", "X", "Y", {"series": [(1.0, float("nan")), (2.0, 0.5), (3.0, float("inf"))]}
     )
     assert "<circle" in svg_nan
+
+
+def test_render_svg_bar_chart() -> None:
+    cats = ["Min", "P50", "Mean", "P95", "Max"]
+    vals = [10.2, 14.5, 15.1, 22.0, 35.4]
+    svg = render_svg_bar_chart(
+        title="Latency Profile",
+        x_label="Percentile",
+        y_label="Latency (ms)",
+        categories=cats,
+        values=vals,
+    )
+    assert svg.startswith("<svg")
+    assert svg.endswith("</svg>")
+    assert "Latency Profile" in svg
+    assert "P50" in svg
+    assert "14.5" in svg
+    assert "<rect" in svg
+
+
+def test_render_svg_bar_chart_edge_cases() -> None:
+    # Empty
+    svg_empty = render_svg_bar_chart("Empty", "X", "Y", [], [])
+    assert "<svg" in svg_empty
+
+    # Mismatched lengths
+    with pytest.raises(ValueError, match="Length mismatch"):
+        render_svg_bar_chart("Bad", "X", "Y", ["A"], [1.0, 2.0])
+
+    # Non-finite values
+    svg_nan = render_svg_bar_chart("NaNs", "X", "Y", ["A", "B"], [float("nan"), float("inf")])
+    assert "<rect" in svg_nan
 
 
 def test_render_raster_line_chart(

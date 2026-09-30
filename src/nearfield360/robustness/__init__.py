@@ -29,6 +29,7 @@ from nearfield360.robustness.corruptions import (
 from nearfield360.robustness.plots import (
     generate_robustness_html_dashboard,
     render_raster_line_chart,
+    render_svg_bar_chart,
     render_svg_line_chart,
 )
 
@@ -50,6 +51,7 @@ __all__ = [
     "perturb_camera_calibration",
     "perturb_rigid_transform",
     "render_raster_line_chart",
+    "render_svg_bar_chart",
     "render_svg_line_chart",
     "rotation_matrix_to_quaternion",
     "run_calibration_sweep",

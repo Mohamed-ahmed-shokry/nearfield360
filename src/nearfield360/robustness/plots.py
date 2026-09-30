@@ -203,6 +203,141 @@ def render_svg_line_chart(
     return "\n".join(svg)
 
 
+def render_svg_bar_chart(
+    title: str,
+    x_label: str,
+    y_label: str,
+    categories: Sequence[str],
+    values: Sequence[float],
+    *,
+    width: int = 760,
+    height: int = 400,
+    bar_color: str = "#2563eb",
+    y_min: float = 0.0,
+    y_max: float | None = None,
+) -> str:
+    """Render a responsive single-series vector bar chart as an SVG string.
+
+    Parameters
+    ----------
+    title:
+        Main plot title.
+    x_label:
+        Label along horizontal axis.
+    y_label:
+        Label along vertical axis.
+    categories:
+        Labels for each category / bar along horizontal axis.
+    values:
+        Numeric values for each category.
+    width:
+        SVG canvas width in pixels.
+    height:
+        SVG canvas height in pixels.
+    bar_color:
+        Hex fill color for bars.
+    y_min:
+        Fixed lower bound for Y axis (defaults to 0.0).
+    y_max:
+        Optional fixed upper bound for Y axis.
+
+    Returns
+    -------
+    str
+        Valid SVG document string.
+    """
+    if len(categories) != len(values):
+        raise ValueError(f"Length mismatch: {len(categories)} categories and {len(values)} values")
+
+    margin_l = 80
+    margin_r = 40
+    margin_t = 60
+    margin_b = 60
+
+    plot_w = width - margin_l - margin_r
+    plot_h = height - margin_t - margin_b
+
+    valid_vals = [float(v) for v in values if np.isfinite(v)]
+    calc_y_max = max(valid_vals) * 1.15 if valid_vals else 1.0
+    if calc_y_max <= y_min:
+        calc_y_max = y_min + 1.0
+
+    eff_y_min = y_min
+    eff_y_max = y_max if y_max is not None else calc_y_max
+    if eff_y_min == eff_y_max:
+        eff_y_max += 1.0
+
+    def to_svg_y(y: float) -> float:
+        return margin_t + plot_h - ((y - eff_y_min) / (eff_y_max - eff_y_min)) * plot_h
+
+    svg: list[str] = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'width="{width}" height="{height}" style="font-family: -apple-system, BlinkMacSystemFont, '
+        f'Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: #ffffff;">',
+        f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
+        f'<text x="{margin_l}" y="36" font-size="18" font-weight="600" fill="#1e293b">'
+        f"{html.escape(title)}</text>",
+        f'<rect x="{margin_l}" y="{margin_t}" width="{plot_w}" height="{plot_h}" '
+        f'fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>',
+    ]
+
+    # Y-axis ticks and horizontal gridlines (5 ticks)
+    for i in range(6):
+        val = eff_y_min + (i / 5.0) * (eff_y_max - eff_y_min)
+        y_pos = to_svg_y(val)
+        svg.append(
+            f'<line x1="{margin_l}" y1="{y_pos:.1f}" x2="{margin_l + plot_w}" y2="{y_pos:.1f}" '
+            f'stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3"/>'
+        )
+        svg.append(
+            f'<text x="{margin_l - 12}" y="{y_pos + 4:.1f}" font-size="11" fill="#64748b" '
+            f'text-anchor="end">{_format_num(val)}</text>'
+        )
+
+    # Bars and category labels
+    n_bars = len(categories)
+    if n_bars > 0:
+        slot_w = plot_w / n_bars
+        bar_w = min(slot_w * 0.6, 60.0)
+        for i, (cat, val) in enumerate(zip(categories, values, strict=True)):
+            center_x = margin_l + (i + 0.5) * slot_w
+            bar_x = center_x - bar_w / 2.0
+            finite_val = float(val) if np.isfinite(val) else eff_y_min
+            clamped_val = max(eff_y_min, min(eff_y_max, finite_val))
+            bar_top_y = to_svg_y(clamped_val)
+            bar_h = (margin_t + plot_h) - bar_top_y
+
+            svg.append(
+                f'<rect x="{bar_x:.1f}" y="{bar_top_y:.1f}" '
+                f'width="{bar_w:.1f}" height="{bar_h:.1f}" rx="3" fill="{bar_color}"/>'
+            )
+            # Value label above bar
+            text_y = max(margin_t + 14, bar_top_y - 6)
+            svg.append(
+                f'<text x="{center_x:.1f}" y="{text_y:.1f}" font-size="11" font-weight="600" '
+                f'fill="#334155" text-anchor="middle">{_format_num(finite_val)}</text>'
+            )
+            # Category label below axis
+            svg.append(
+                f'<text x="{center_x:.1f}" y="{margin_t + plot_h + 20:.1f}" font-size="11" '
+                f'fill="#64748b" text-anchor="middle">{html.escape(str(cat))}</text>'
+            )
+
+    # Axis titles
+    svg.append(
+        f'<text x="{margin_l + plot_w / 2}" y="{height - 18}" font-size="13" font-weight="500" '
+        f'fill="#334155" text-anchor="middle">{html.escape(x_label)}</text>'
+    )
+    svg.append(
+        f'<text x="24" y="{margin_t + plot_h / 2}" font-size="13" font-weight="500" '
+        f'fill="#334155" text-anchor="middle" transform="rotate(-90 24 {margin_t + plot_h / 2})">'
+        f"{html.escape(y_label)}</text>"
+    )
+
+    svg.append("</svg>")
+    return "\n".join(svg)
+
+
 def render_raster_line_chart(
     title: str,
     x_label: str,
@@ -633,5 +768,6 @@ def generate_robustness_html_dashboard(
 __all__ = [
     "generate_robustness_html_dashboard",
     "render_raster_line_chart",
+    "render_svg_bar_chart",
     "render_svg_line_chart",
 ]
