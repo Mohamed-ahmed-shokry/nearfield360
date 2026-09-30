@@ -861,8 +861,12 @@ Phase 15 closes README roadmap item 14 by introducing automated comparative eval
 
 ## Phase 16: Interactive Evaluation HTML Report Dashboard
 
-**Status:** In Progress
+**Status:** Completed
 **Repository Branch:** `main`
+**Test Suite:** 852 passed (0 failures)
+**Type Checking:** `mypy --strict` clean (73 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 91.57% (exceeds required 85.0% threshold)
 
 ---
 
@@ -894,3 +898,29 @@ Phase 16 closes README roadmap item 15 by delivering a self-contained, responsiv
 
 **Explicit exclusions:** Batched inference sweeps and TensorRT/C++ acceleration (tracked for subsequent milestones).
 
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| SVG vector bar chart generator | `src/nearfield360/robustness/plots.py` |
+| Evaluation HTML dashboard generator & domain exceptions | `src/nearfield360/perception/dashboard.py` |
+| Perception package exports | `src/nearfield360/perception/__init__.py` |
+| `nearfield360 eval dashboard` CLI command | `src/nearfield360/cli/eval.py` |
+| Bar chart unit tests | `tests/unit/robustness/test_plots.py` |
+| Dashboard generator unit tests | `tests/unit/perception/test_dashboard.py` (6 tests) |
+| Eval dashboard CLI integration tests | `tests/unit/test_eval_cli.py` (73 tests total, +8 tests) |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 852 passed |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 91.57% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 73 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
