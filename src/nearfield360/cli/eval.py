@@ -44,6 +44,10 @@ from nearfield360.perception.comparison import (
     EvaluationComparison,
     compare_evaluations,
 )
+from nearfield360.perception.dashboard import (
+    DashboardError,
+    generate_evaluation_html_dashboard,
+)
 from nearfield360.perception.evaluation import (
     detection_confidence_analysis,
     environment_metadata,
@@ -1255,6 +1259,173 @@ def compare_evaluation_reports(
 
     if not overall_ok:
         raise typer.Exit(code=1)
+
+
+@eval_app.command("dashboard")
+def render_evaluation_dashboard(
+    report: Annotated[
+        Path,
+        typer.Option(
+            "--report",
+            "-r",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Evaluation JSON report to visualize.",
+        ),
+    ],
+    output: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+            help="Destination filepath for generated HTML dashboard.",
+        ),
+    ],
+    baseline: Annotated[
+        Path | None,
+        typer.Option(
+            "--baseline",
+            "-b",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Optional baseline evaluation JSON report for comparative dashboard.",
+        ),
+    ] = None,
+    overwrite: Annotated[
+        bool, typer.Option("--overwrite", help="Overwrite existing output artifact.")
+    ] = False,
+    title: Annotated[
+        str | None, typer.Option("--title", help="Custom dashboard header title.")
+    ] = None,
+    fail_under_miou_delta: Annotated[
+        float | None,
+        typer.Option(
+            "--fail-under-miou-delta",
+            help="Exit 1 if candidate mIoU - baseline mIoU is less than this value.",
+        ),
+    ] = None,
+    fail_under_map_delta: Annotated[
+        float | None,
+        typer.Option(
+            "--fail-under-map-delta",
+            help="Exit 1 if candidate mAP - baseline mAP is less than this value.",
+        ),
+    ] = None,
+    fail_over_ece_delta: Annotated[
+        float | None,
+        typer.Option(
+            "--fail-over-ece-delta",
+            help="Exit 1 if candidate ECE - baseline ECE exceeds this value.",
+        ),
+    ] = None,
+    fail_over_latency_ratio: Annotated[
+        float | None,
+        typer.Option(
+            "--fail-over-latency-ratio",
+            help="Exit 1 if candidate/baseline mean latency ratio exceeds this value.",
+        ),
+    ] = None,
+) -> None:
+    """Render a self-contained, responsive HTML evaluation dashboard."""
+    if output.exists() and not overwrite:
+        typer.secho(
+            f"Artifact error: {output} already exists; pass --overwrite to replace.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        report_data = read_json(report)
+    except ArtifactError as exc:
+        typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    baseline_data: dict[str, Any] | None = None
+    overall_ok = True
+    gate_checks: list[dict[str, Any]] | None = None
+
+    if baseline is not None:
+        try:
+            baseline_data = read_json(baseline)
+        except ArtifactError as exc:
+            typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
+
+        try:
+            cmp = compare_evaluations(baseline_data, report_data)
+            overall_ok, gate_checks = _evaluate_gates(
+                cmp,
+                fail_under_miou_delta=fail_under_miou_delta,
+                fail_under_map_delta=fail_under_map_delta,
+                fail_over_ece_delta=fail_over_ece_delta,
+                fail_over_latency_ratio=fail_over_latency_ratio,
+            )
+        except ComparisonError as exc:
+            typer.secho(f"Compare error: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
+    else:
+        # Check if gate options were given without --baseline
+        if any(
+            g is not None
+            for g in (
+                fail_under_miou_delta,
+                fail_under_map_delta,
+                fail_over_ece_delta,
+                fail_over_latency_ratio,
+            )
+        ):
+            typer.secho(
+                "Regression gate options require --baseline to compare against.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+    try:
+        html_content = generate_evaluation_html_dashboard(
+            report_data,
+            baseline_report=baseline_data,
+            gate_results=gate_checks,
+            title=title,
+        )
+    except (DashboardError, ComparisonError) as exc:
+        typer.secho(f"Dashboard error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        output.write_text(html_content, encoding="utf-8")
+    except OSError as exc:
+        typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    typer.echo(f"Wrote {output}")
+    if gate_checks:
+        typer.echo("\nRegression Gate Checks")
+        typer.echo("-" * 76)
+        for c in gate_checks:
+            tag = "PASS" if c["status"] == "pass" else "FAIL"
+            color = typer.colors.GREEN if c["status"] == "pass" else typer.colors.RED
+            typer.secho(f"  [{tag}] {c['gate']}: {c['detail']}", fg=color)
+        if not overall_ok:
+            typer.secho(
+                "\nOne or more regression gate checks failed.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        else:
+            typer.echo("\nAll regression gate checks passed.")
 
 
 __all__ = ["eval_app"]

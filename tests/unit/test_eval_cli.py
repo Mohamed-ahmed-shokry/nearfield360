@@ -1863,3 +1863,200 @@ def test_eval_compare_task_mismatch_fails(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "task mismatch" in result.stderr
+
+
+def test_eval_dashboard_segmentation(tmp_path: Path) -> None:
+    report = tmp_path / "segmentation.json"
+    _write_segmentation_report(report)
+    out = tmp_path / "dashboard.html"
+
+    result = runner.invoke(
+        app,
+        ["eval", "dashboard", "--report", str(report), "--output", str(out)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert f"Wrote {out}" in result.stdout
+    assert out.is_file()
+    content = out.read_text(encoding="utf-8")
+    assert "<!DOCTYPE html>" in content
+    assert "Semantic Segmentation Evaluation Report" in content
+    assert "Mean IoU" in content
+    assert "<svg" in content
+    assert "Segmentation Reliability Diagram" in content
+
+
+def test_eval_dashboard_detection(tmp_path: Path) -> None:
+    report = tmp_path / "detection.json"
+    _write_detection_report(report)
+    out = tmp_path / "dashboard.html"
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "dashboard",
+            "-r",
+            str(report),
+            "-o",
+            str(out),
+            "--title",
+            "Custom Detection Summary",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert out.is_file()
+    content = out.read_text(encoding="utf-8")
+    assert "Custom Detection Summary" in content
+    assert "DETECTION" in content
+    assert "Detection Precision-Recall Curves" in content
+    assert "Detection Operating Points" in content
+
+
+def test_eval_dashboard_comparative(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    out = tmp_path / "comp_dash.html"
+    _write_segmentation_report(base, mean_iou=0.60)
+    _write_segmentation_report(cand, mean_iou=0.68)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "dashboard",
+            "-r",
+            str(cand),
+            "-b",
+            str(base),
+            "-o",
+            str(out),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert out.is_file()
+    content = out.read_text(encoding="utf-8")
+    assert "Comparative Semantic Segmentation Evaluation Report" in content
+    assert "Summary Metric Deltas (Baseline vs Candidate)" in content
+    assert "Class Performance Deltas (IoU)" in content
+
+
+def test_eval_dashboard_gates_pass(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    out = tmp_path / "gates_pass.html"
+    _write_segmentation_report(base, mean_iou=0.60)
+    _write_segmentation_report(cand, mean_iou=0.68)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "dashboard",
+            "-r",
+            str(cand),
+            "-b",
+            str(base),
+            "-o",
+            str(out),
+            "--fail-under-miou-delta",
+            "0.05",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "[PASS] fail_under_miou_delta" in result.stdout
+    assert "All regression gate checks passed." in result.stdout
+    assert out.is_file()
+    content = out.read_text(encoding="utf-8")
+    assert "ALL GATES PASSED" in content
+
+
+def test_eval_dashboard_gates_fail(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    out = tmp_path / "gates_fail.html"
+    _write_segmentation_report(base, mean_iou=0.60)
+    _write_segmentation_report(cand, mean_iou=0.62)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "dashboard",
+            "-r",
+            str(cand),
+            "-b",
+            str(base),
+            "-o",
+            str(out),
+            "--fail-under-miou-delta",
+            "0.05",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "[FAIL] fail_under_miou_delta" in result.stdout
+    assert "One or more regression gate checks failed." in result.stderr
+    assert out.is_file()  # Report is still written for analysis
+    content = out.read_text(encoding="utf-8")
+    assert "GATE REGRESSION DETECTED" in content
+
+
+def test_eval_dashboard_gates_without_baseline_fails(tmp_path: Path) -> None:
+    report = tmp_path / "seg.json"
+    out = tmp_path / "out.html"
+    _write_segmentation_report(report)
+
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "dashboard",
+            "-r",
+            str(report),
+            "-o",
+            str(out),
+            "--fail-under-miou-delta",
+            "0.0",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "require --baseline" in result.stderr
+
+
+def test_eval_dashboard_overwrite_protection(tmp_path: Path) -> None:
+    report = tmp_path / "seg.json"
+    out = tmp_path / "out.html"
+    _write_segmentation_report(report)
+
+    cmd = ["eval", "dashboard", "-r", str(report), "-o", str(out)]
+    first = runner.invoke(app, cmd)
+    assert first.exit_code == 0, first.output
+    assert out.is_file()
+
+    second = runner.invoke(app, cmd)
+    assert second.exit_code == 1
+    assert "already exists" in second.stderr
+
+    third = runner.invoke(app, [*cmd, "--overwrite"])
+    assert third.exit_code == 0, third.output
+
+
+def test_eval_dashboard_task_mismatch_fails(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    cand = tmp_path / "cand.json"
+    out = tmp_path / "out.html"
+    _write_segmentation_report(base)
+    _write_detection_report(cand)
+
+    result = runner.invoke(
+        app,
+        ["eval", "dashboard", "-r", str(cand), "-b", str(base), "-o", str(out)],
+    )
+
+    assert result.exit_code == 1
+    assert "task mismatch" in result.stderr
