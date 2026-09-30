@@ -7,6 +7,10 @@ from nearfield360.perception.comparison import (
     compare_evaluations,
     compute_metric_delta,
 )
+from nearfield360.perception.dashboard import (
+    DashboardError,
+    generate_evaluation_html_dashboard,
+)
 from nearfield360.perception.evaluation import (
     DetectionEvaluation,
     EvaluationError,
@@ -32,6 +36,7 @@ from nearfield360.perception.metrics import (
 
 __all__ = [
     "ComparisonError",
+    "DashboardError",
     "DetectionEvaluation",
     "EvaluationComparison",
     "EvaluationError",
@@ -47,6 +52,7 @@ __all__ = [
     "environment_metadata",
     "evaluate_detection",
     "evaluate_semantic",
+    "generate_evaluation_html_dashboard",
     "mean_iou",
     "semantic_confidence_analysis",
     "semantic_confidence_metrics",
