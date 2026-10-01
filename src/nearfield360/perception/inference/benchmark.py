@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
 
 from nearfield360.perception.inference.backend import InferenceBackend
-from nearfield360.perception.inference.models import BenchmarkSummary
+from nearfield360.perception.inference.models import (
+    BatchSweepItem,
+    BatchSweepSummary,
+    BenchmarkSummary,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,8 +182,106 @@ def benchmark_inference(
     )
 
 
+def benchmark_batch_sweep(
+    backend: InferenceBackend,
+    batch_sizes: Sequence[int] = (1, 2, 4, 8),
+    iterations: int = 50,
+    warmup: int = 10,
+    base_shape: tuple[int, ...] | None = None,
+) -> BatchSweepSummary:
+    """Profile inference throughput and scaling efficiency across a sweep of batch sizes.
+
+    Args:
+        backend: Loaded inference backend.
+        batch_sizes: Sequence of batch sizes to evaluate.
+        iterations: Number of timed inference iterations per batch size.
+        warmup: Number of untimed warmup iterations per batch size.
+        base_shape: Per-sample tensor shape (e.g. (3, H, W) or (1, 3, H, W)). If None,
+            inferred from backend metadata.
+
+    Returns:
+        BatchSweepSummary detailing per-batch latency, FPS, speedup, and optimal batch size.
+    """
+    if not batch_sizes:
+        msg = "batch_sizes sequence cannot be empty"
+        raise ValueError(msg)
+    for b in batch_sizes:
+        if b <= 0:
+            msg = f"All batch sizes must be positive integers, got {b}"
+            raise ValueError(msg)
+
+    c_h_w: tuple[int, ...]
+    if base_shape is not None:
+        if len(base_shape) == 4:
+            c_h_w = base_shape[1:]
+        elif len(base_shape) == 3:
+            c_h_w = base_shape
+        else:
+            msg = f"Invalid base_shape {base_shape}, expected 3 or 4 dimensions"
+            raise ValueError(msg)
+    elif backend.metadata.input_shapes:
+        raw_shape = backend.metadata.input_shapes[0]
+        c_h_w = raw_shape[1:] if len(raw_shape) == 4 else raw_shape
+    else:
+        c_h_w = (3, 480, 640)
+
+    summaries: list[tuple[int, BenchmarkSummary]] = []
+    for b in batch_sizes:
+        full_shape = (b, *c_h_w)
+        bm = benchmark_inference(
+            backend,
+            input_shape=full_shape,
+            iterations=iterations,
+            warmup=warmup,
+        )
+        summaries.append((b, bm))
+
+    # Baseline throughput: batch size 1 if present, else normalized per-sample FPS of first batch
+    baseline_fps: float | None = None
+    for b, bm in summaries:
+        if b == 1:
+            baseline_fps = bm.fps
+            break
+    if baseline_fps is None or baseline_fps <= 0.0:
+        first_b, first_bm = summaries[0]
+        baseline_fps = first_bm.fps / first_b
+
+    items: list[BatchSweepItem] = []
+    for b, bm in summaries:
+        speedup = round(bm.fps / baseline_fps, 3) if baseline_fps > 0 else 1.0
+        scaling_eff = round(speedup / b, 3)
+        items.append(
+            BatchSweepItem(
+                batch_size=b,
+                input_shape=bm.input_shape,
+                mean_latency_ms=bm.mean_latency_ms,
+                median_latency_ms=bm.median_latency_ms,
+                p95_latency_ms=bm.p95_latency_ms,
+                fps=bm.fps,
+                speedup=speedup,
+                scaling_efficiency=scaling_eff,
+            )
+        )
+
+    optimal_item = max(items, key=lambda it: it.fps)
+
+    return BatchSweepSummary(
+        backend=backend.backend_type.value,
+        device=backend.device.value,
+        iterations=iterations,
+        warmup=warmup,
+        base_input_shape=c_h_w,
+        items=tuple(items),
+        optimal_batch_size=optimal_item.batch_size,
+        max_fps=optimal_item.fps,
+    )
+
+
 __all__ = [
+    "BatchSweepItem",
+    "BatchSweepSummary",
     "ParityComparison",
+    "benchmark_batch_sweep",
     "benchmark_inference",
     "compare_numerical_parity",
     "verify_numerical_parity",

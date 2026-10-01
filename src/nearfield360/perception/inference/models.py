@@ -71,7 +71,45 @@ class InferenceResult(BaseModel):
     input_shape: tuple[int, ...] = Field(description="Preprocessed input tensor shape.")
 
 
+class BatchSweepItem(BaseModel):
+    """Metrics for a single evaluated batch size in a throughput sweep."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    batch_size: int = Field(gt=0, description="Evaluated batch size.")
+    input_shape: tuple[int, ...] = Field(description="Full batch tensor input shape.")
+    mean_latency_ms: float = Field(gt=0.0, description="Mean inference time in milliseconds.")
+    median_latency_ms: float = Field(gt=0.0, description="Median inference time in milliseconds.")
+    p95_latency_ms: float = Field(gt=0.0, description="95th percentile latency in milliseconds.")
+    fps: float = Field(gt=0.0, description="Throughput in frames per second.")
+    speedup: float = Field(
+        ge=0.0, description="Throughput speedup relative to single-sample baseline."
+    )
+    scaling_efficiency: float = Field(
+        ge=0.0, description="Batch scaling efficiency (speedup / batch_size)."
+    )
+
+
+class BatchSweepSummary(BaseModel):
+    """Aggregated results of an inference throughput sweep across multiple batch sizes."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    backend: str = Field(description="Inference runtime name.")
+    device: str = Field(description="Target compute hardware device.")
+    iterations: int = Field(gt=0, description="Timed iterations per batch size.")
+    warmup: int = Field(ge=0, description="Warmup passes per batch size.")
+    base_input_shape: tuple[int, ...] = Field(
+        description="Per-sample base tensor shape (e.g. C, H, W)."
+    )
+    items: tuple[BatchSweepItem, ...] = Field(description="Ordered sweep results per batch size.")
+    optimal_batch_size: int = Field(gt=0, description="Batch size that maximizes FPS throughput.")
+    max_fps: float = Field(gt=0.0, description="Maximum achieved throughput in FPS.")
+
+
 __all__ = [
+    "BatchSweepItem",
+    "BatchSweepSummary",
     "BenchmarkSummary",
     "InferenceBackendType",
     "InferenceDevice",

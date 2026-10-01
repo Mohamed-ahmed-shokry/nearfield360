@@ -10,6 +10,7 @@ import pytest
 from nearfield360.perception.inference.backend import OpenCVDNNBackend
 from nearfield360.perception.inference.benchmark import (
     ParityComparison,
+    benchmark_batch_sweep,
     benchmark_inference,
     compare_numerical_parity,
     verify_numerical_parity,
@@ -112,3 +113,51 @@ def test_benchmark_inference_with_dummy_input(dummy_model: Path) -> None:
     assert summary.iterations == 3
     assert summary.warmup == 1
     assert summary.input_shape == (1, 3, 32, 32)
+
+
+def test_benchmark_batch_sweep_success(dummy_model: Path) -> None:
+    backend = OpenCVDNNBackend(dummy_model)
+    sweep = benchmark_batch_sweep(
+        backend,
+        batch_sizes=(1, 2, 4),
+        iterations=3,
+        warmup=1,
+        base_shape=(3, 32, 32),
+    )
+
+    assert isinstance(sweep.items, tuple)
+    assert len(sweep.items) == 3
+    assert sweep.items[0].batch_size == 1
+    assert sweep.items[1].batch_size == 2
+    assert sweep.items[2].batch_size == 4
+    assert sweep.items[0].speedup == 1.0
+    assert sweep.items[0].scaling_efficiency == 1.0
+    assert sweep.optimal_batch_size in (1, 2, 4)
+    assert sweep.max_fps > 0.0
+    assert sweep.base_input_shape == (3, 32, 32)
+
+
+def test_benchmark_batch_sweep_without_batch_1(dummy_model: Path) -> None:
+    backend = OpenCVDNNBackend(dummy_model)
+    sweep = benchmark_batch_sweep(
+        backend,
+        batch_sizes=(2, 4),
+        iterations=2,
+        warmup=1,
+        base_shape=(1, 3, 32, 32),
+    )
+    assert len(sweep.items) == 2
+    assert sweep.items[0].batch_size == 2
+    assert sweep.items[0].speedup > 0.0
+
+
+def test_benchmark_batch_sweep_validation(dummy_model: Path) -> None:
+    backend = OpenCVDNNBackend(dummy_model)
+    with pytest.raises(ValueError, match="batch_sizes sequence cannot be empty"):
+        benchmark_batch_sweep(backend, batch_sizes=())
+
+    with pytest.raises(ValueError, match="All batch sizes must be positive integers"):
+        benchmark_batch_sweep(backend, batch_sizes=(1, 0, 2))
+
+    with pytest.raises(ValueError, match="Invalid base_shape"):
+        benchmark_batch_sweep(backend, batch_sizes=(1, 2), base_shape=(32, 32))

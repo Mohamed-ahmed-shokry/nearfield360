@@ -10,7 +10,10 @@ from nearfield360.perception.inference.backend import (
     create_backend,
 )
 from nearfield360.perception.inference.benchmark import (
+    BatchSweepItem,
+    BatchSweepSummary,
     ParityComparison,
+    benchmark_batch_sweep,
     benchmark_inference,
     compare_numerical_parity,
     verify_numerical_parity,
@@ -31,6 +34,8 @@ from nearfield360.perception.inference.preprocessor import (
 from nearfield360.perception.inference.semantic import SemanticSegmentationEngine
 
 __all__ = [
+    "BatchSweepItem",
+    "BatchSweepSummary",
     "BenchmarkSummary",
     "FisheyeImagePreprocessor",
     "InferenceBackend",
@@ -46,6 +51,7 @@ __all__ = [
     "PreprocessTransform",
     "PreprocessorError",
     "SemanticSegmentationEngine",
+    "benchmark_batch_sweep",
     "benchmark_inference",
     "compare_numerical_parity",
     "create_backend",
