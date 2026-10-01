@@ -924,3 +924,33 @@ Phase 16 closes README roadmap item 15 by delivering a self-contained, responsiv
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 17: Batched Inference Throughput Profiling and Multi-Camera Execution
+
+**Status:** In Progress
+**Repository Branch:** `main`
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 17 closes README roadmap item 16 by delivering batched perception inference sweeps and multi-camera surround execution:
+
+1. **Batched Object Detection & Segmentation:**
+   - Implement `predict_batch` and `predict_batch_annotations` on `ObjectDetectionEngine` with contiguous NCHW batched tensor forwarding, multi-head de-batching, and per-item coordinate unscaling / NMS.
+   - Validate numerical parity between single-image `predict` and batched `predict_batch`.
+2. **Batched Inference Benchmarking & Sweep Engine:**
+   - Implement `benchmark_batch_sweep` in `src/nearfield360/perception/inference/benchmark.py` across configurable batch sizes (e.g. 1, 2, 4, 8).
+   - Profile latency percentiles (mean, median, p90, p95, p99, min, max), effective throughput (FPS), relative speedup, and batch scaling efficiency.
+   - Structured `BatchSweepItem` and `BatchSweepSummary` data models with JSON export.
+3. **CLI Integration:**
+   - Update `nearfield360 infer benchmark` with `--batch-size` / `-b` for explicit batch size profiling and `--batch-sweep` / `--batch-sizes` for automated throughput sweeps.
+   - Update `nearfield360 pipeline run` with `--batch-cameras / --no-batch-cameras` (default true) to batch all four surround cameras (`FV`, `MVL`, `MVR`, `RV`) into a single model pass.
+4. **Verification & Quality Gates:**
+   - Complete unit and CLI integration tests across batch engines, sweeps, and multi-camera pipeline execution.
+   - Strict typing (`mypy`), linting (`ruff`), test coverage (>85%), and release readiness audit.
+
+**Explicit exclusions:** Native TensorRT engine builds and C++ runtime bindings (remain tracked under roadmap item 7 residual).
+
