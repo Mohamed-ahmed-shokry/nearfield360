@@ -257,10 +257,13 @@ def _frame_evidence(
     theta_max: float | None,
     health_aware: bool = False,
     model_engine: SemanticSegmentationEngine | None = None,
+    precomputed_mask: np.ndarray | None = None,
 ) -> tuple[OccupancyEvidence, CameraHealthReport | None]:
     config = get_state(context).config
     camera = _build_camera(context, sample, theta_max)
-    if model_engine is not None:
+    if precomputed_mask is not None:
+        mask = precomputed_mask
+    elif model_engine is not None:
         try:
             rgb_img = load_rgb_image(sample.image_path)
             mask, _ = model_engine.predict(rgb_img)

@@ -240,13 +240,18 @@ def _frame_footprints(
     context: typer.Context,
     sample: WoodScapeSample,
     det_engine: ObjectDetectionEngine | None = None,
+    precomputed_detections: tuple[DetectionAnnotation, ...] | None = None,
 ) -> list[GroundFootprint]:
     """Load detections for one sample and project them onto the ground plane."""
     config = get_state(context).config
     if sample.calibration_path is None:
         return []
-    detections = _load_detections(context, sample, det_engine)
-    if detections is None:
+    detections: tuple[DetectionAnnotation, ...] | None
+    if precomputed_detections is not None:
+        detections = precomputed_detections
+    else:
+        detections = _load_detections(context, sample, det_engine)
+    if not detections:
         return []
     try:
         calib = load_calibration(sample.calibration_path)
@@ -326,6 +331,13 @@ def run_pipeline(
     seg_model: SegModelOption = None,
     det_model: DetModelOption = None,
     backend: BackendOption = None,
+    batch_cameras: Annotated[
+        bool,
+        typer.Option(
+            "--batch-cameras/--no-batch-cameras",
+            help="Batch multi-camera frames during live model perception.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -369,8 +381,25 @@ def run_pipeline(
         frame_start = time.perf_counter()
         frame_evidence: OccupancyEvidence | None = None
         footprints: list[GroundFootprint] = []
-        for sample in frame_samples:
+
+        batch_masks: list[np.ndarray] | None = None
+        batch_dets: list[tuple[DetectionAnnotation, ...]] | None = None
+
+        if batch_cameras and (model_engine is not None or det_engine is not None):
+            rgb_images = [load_rgb_image(s.image_path) for s in frame_samples]
+            if model_engine is not None:
+                t_occ_b = time.perf_counter()
+                model_preds = model_engine.predict_batch(rgb_images)
+                batch_masks = [mask for mask, _conf in model_preds]
+                occupancy_ms += (time.perf_counter() - t_occ_b) * 1000.0
+            if det_engine is not None:
+                t_trk_b = time.perf_counter()
+                batch_dets = det_engine.predict_batch_annotations(rgb_images)
+                tracking_ms += (time.perf_counter() - t_trk_b) * 1000.0
+
+        for i, sample in enumerate(frame_samples):
             t_occ = time.perf_counter()
+            precomputed_m = batch_masks[i] if batch_masks is not None else None
             evidence, report = _frame_evidence(
                 context,
                 sample,
@@ -378,7 +407,8 @@ def run_pipeline(
                 policy,
                 theta_max=None,
                 health_aware=health_aware,
-                model_engine=model_engine,
+                model_engine=model_engine if batch_masks is None else None,
+                precomputed_mask=precomputed_m,
             )
             occupancy_ms += (time.perf_counter() - t_occ) * 1000.0
             if report is not None:
@@ -387,7 +417,15 @@ def run_pipeline(
             frame_evidence = evidence if frame_evidence is None else frame_evidence.add(evidence)
 
             t_trk = time.perf_counter()
-            footprints.extend(_frame_footprints(context, sample, det_engine))
+            precomputed_d = batch_dets[i] if batch_dets is not None else None
+            footprints.extend(
+                _frame_footprints(
+                    context,
+                    sample,
+                    det_engine if batch_dets is None else None,
+                    precomputed_detections=precomputed_d,
+                )
+            )
             tracking_ms += (time.perf_counter() - t_trk) * 1000.0
 
         if frame_evidence is not None:
@@ -435,6 +473,7 @@ def run_pipeline(
         "evaluated": frames_evaluated,
         "camera": "all",
         "per_camera": per_camera_counts,
+        "batch_cameras": batch_cameras,
     }
     if health_aware:
         samples_payload["health_aware"] = True

@@ -365,9 +365,54 @@ def test_pipeline_run_with_live_seg_and_det_models(tmp_path: Path) -> None:
     assert payload["samples"]["evaluated"] == 1
     assert payload["samples"]["seg_model"] == str(seg_path)
     assert payload["samples"]["det_model"] == str(det_path)
+    assert payload["samples"]["batch_cameras"] is False
     assert payload["timings"]["frame_latency"]["samples"] == 1
     assert payload["evidence"]["observed_cells"] >= 0
     assert json.dumps(payload)
+
+
+def test_pipeline_run_with_live_models_batch_cameras(tmp_path: Path) -> None:
+    from nearfield360.perception.inference.test_utils import (
+        create_dummy_detection_onnx,
+        create_dummy_segmentation_onnx,
+    )
+
+    seg_path = tmp_path / "models" / "seg_batch.onnx"
+    det_path = tmp_path / "models" / "det_batch.onnx"
+    create_dummy_segmentation_onnx(seg_path, num_classes=10, height=32, width=32)
+    create_dummy_detection_onnx(det_path, num_classes=5, num_boxes=3, height=32, width=32)
+
+    dataset = tmp_path / "dataset"
+    _write_live_dataset(dataset, "00001")
+    output = tmp_path / "live_pipeline_batch.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "pipeline",
+            "run",
+            "--root",
+            str(dataset),
+            "--output",
+            str(output),
+            "--seg-model",
+            str(seg_path),
+            "--det-model",
+            str(det_path),
+            "--backend",
+            "opencv",
+            "--batch-cameras",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "processed frame 00001" in result.stdout
+    payload = read_json(output)
+    assert payload["samples"]["evaluated"] == 1
+    assert payload["samples"]["batch_cameras"] is True
+    assert payload["samples"]["seg_model"] == str(seg_path)
+    assert payload["samples"]["det_model"] == str(det_path)
+    assert payload["evidence"]["observed_cells"] >= 0
 
 
 def test_pipeline_run_without_models_still_requires_annotations(tmp_path: Path) -> None:
