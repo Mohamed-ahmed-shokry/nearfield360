@@ -233,8 +233,9 @@ uv run nearfield360 infer semantic --model models/segmentation.onnx --image D:\d
 # 2. Run 2D object detection with box unscaling and non-maximum suppression (NMS):
 uv run nearfield360 infer detection --model models/detection.onnx --image D:\datasets\woodscape\rgb_images\00001_FV.png --output outputs/detections.json --json
 
-# 3. Benchmark inference latency distribution and throughput (FPS):
-uv run nearfield360 infer benchmark --model models/segmentation.onnx --iterations 50 --warmup 10 --output outputs/benchmark.json
+# 3. Benchmark inference latency distribution and throughput (single batch or scaling sweep):
+uv run nearfield360 infer benchmark --model models/segmentation.onnx --batch-size 4 --iterations 50 --warmup 10
+uv run nearfield360 infer benchmark --model models/segmentation.onnx --batch-sweep --batch-sizes 1,2,4,8 --output outputs/sweep.json
 
 # 4. Inspect ONNX model input/output shapes and metadata:
 uv run nearfield360 infer inspect --model models/segmentation.onnx
@@ -452,10 +453,17 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     summary metrics, class-level performance cards, embedded SVG PR curves, reliability diagrams,
     latency distribution bar charts, and comparative diff views into a standalone report with
     zero external CDN dependencies. Excludes batched inference and TensorRT/C++ (roadmap item 7 residual).
-16. Batched inference throughput profiling and execution:
-    Batched ONNX model inference sweeps across multi-camera surround frames with optimized
-    Tensor memory layouts and throughput benchmarks. Excludes native TensorRT/C++ (roadmap
-    item 7 residual).
+16. ~~Batched inference throughput profiling and execution.~~ Done:
+    Batched 2D object detection and semantic segmentation inference engines (`predict_batch`
+    and `predict_batch_annotations`), automated throughput sweep engine (`benchmark_batch_sweep`)
+    evaluating latency percentiles, throughput (FPS), relative speedup, and scaling efficiency;
+    CLI integration with `infer benchmark --batch-size` and `--batch-sweep / --batch-sizes`;
+    and multi-camera surround batched perception execution (`pipeline run --batch-cameras`).
+    Excludes native TensorRT/C++ (roadmap item 7 residual).
+17. Native TensorRT acceleration and C++ runtime wrapper:
+    High-performance TensorRT execution provider integration, INT8/FP16 precision quantization
+    calibration, zero-copy CUDA pinned memory buffers, and lightweight C++ deployment wrapper
+    for embedded automotive platforms.
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -468,6 +476,9 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --output outputs/p
 
 # Limit frames, render fused occupancy, and discount degraded camera evidence
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --samples 5 --health-aware --output outputs/pipeline/report.json --png outputs/pipeline/occupancy.png
+
+# Live surround perception with multi-camera batched neural network execution:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/seg.onnx --det-model models/det.onnx --batch-cameras --output outputs/pipeline/report.json
 ```
 
 The report includes `environment` provenance, effective `config`, per-stage timings
