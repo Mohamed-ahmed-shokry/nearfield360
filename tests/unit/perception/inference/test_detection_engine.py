@@ -182,3 +182,44 @@ def test_detection_engine_errors() -> None:
     mock_backend.forward.return_value = np.zeros((1, 5, 7), dtype=np.float32)
     with pytest.raises(InferenceError, match="Expected output dimension at least 9"):
         engine.predict(image)
+
+
+def test_detection_engine_predict_batch(dummy_det_model: Path) -> None:
+    backend = OpenCVDNNBackend(dummy_det_model)
+    preprocessor = FisheyeImagePreprocessor(target_size=(64, 64), preserve_aspect_ratio=False)
+    engine = ObjectDetectionEngine(backend, preprocessor=preprocessor, confidence_threshold=0.5)
+
+    img1 = np.zeros((100, 200, 3), dtype=np.uint8)
+    img2 = np.ones((50, 100, 3), dtype=np.uint8) * 128
+
+    batch_preds = engine.predict_batch([img1, img2])
+    assert len(batch_preds) == 2
+
+    # Verify parity with single-image predict
+    pred_single_1 = engine.predict(img1)
+    pred_single_2 = engine.predict(img2)
+
+    assert len(batch_preds[0]) == len(pred_single_1) == 1
+    assert batch_preds[0][0].class_id == pred_single_1[0].class_id
+    assert batch_preds[0][0].score == pytest.approx(pred_single_1[0].score, abs=1e-4)
+
+    assert len(batch_preds[1]) == len(pred_single_2) == 1
+    assert batch_preds[1][0].class_id == pred_single_2[0].class_id
+
+
+def test_detection_engine_predict_batch_empty() -> None:
+    mock_backend = MagicMock()
+    engine = ObjectDetectionEngine(mock_backend)
+    assert engine.predict_batch([]) == []
+    assert engine.predict_batch_annotations([]) == []
+
+
+def test_detection_engine_predict_batch_annotations(dummy_det_model: Path) -> None:
+    backend = OpenCVDNNBackend(dummy_det_model)
+    engine = ObjectDetectionEngine(backend, confidence_threshold=0.5)
+    img = np.zeros((64, 64, 3), dtype=np.uint8)
+
+    batch_ann = engine.predict_batch_annotations([img, img])
+    assert len(batch_ann) == 2
+    assert isinstance(batch_ann[0][0], DetectionAnnotation)
+    assert batch_ann[0][0].class_name == "vehicles"

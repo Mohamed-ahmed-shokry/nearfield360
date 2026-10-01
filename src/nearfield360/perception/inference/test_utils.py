@@ -39,9 +39,11 @@ def create_dummy_segmentation_onnx(
         kernel_shape=[1, 1],
     )
 
-    input_info = helper.make_tensor_value_info("input", TensorProto.FLOAT, [1, 3, height, width])
+    input_info = helper.make_tensor_value_info(
+        "input", TensorProto.FLOAT, ["batch", 3, height, width]
+    )
     output_info = helper.make_tensor_value_info(
-        "output", TensorProto.FLOAT, [1, num_classes, height, width]
+        "output", TensorProto.FLOAT, ["batch", num_classes, height, width]
     )
 
     w_init = helper.make_tensor(
@@ -77,48 +79,56 @@ def create_dummy_detection_onnx(
 ) -> Path:
     """Build a minimal ONNX model outputting 2D bounding boxes and class logits.
 
-    The model maps ``(1, 3, height, width)`` to ``(1, num_boxes, 4 + num_classes)``.
+    The model maps ``(batch, 3, height, width)`` to ``(batch, num_boxes, 4 + num_classes)``.
     Each row contains ``[cx, cy, w, h, class_0_score, ..., class_N_score]``.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
 
     output_dim = 4 + num_classes
     if boxes_and_scores is not None:
-        pred_data = np.asarray(boxes_and_scores, dtype=np.float32)
+        raw_pred = np.asarray(boxes_and_scores, dtype=np.float32)
+        pred_data = raw_pred[0] if raw_pred.ndim == 3 else raw_pred
     else:
-        pred_data = np.zeros((1, num_boxes, output_dim), dtype=np.float32)
+        pred_data = np.zeros((num_boxes, output_dim), dtype=np.float32)
         # Default box in center of image
-        pred_data[0, :, 0] = 0.5  # cx
-        pred_data[0, :, 1] = 0.5  # cy
-        pred_data[0, :, 2] = 0.2  # w
-        pred_data[0, :, 3] = 0.2  # h
-        pred_data[0, :, 4] = 0.9  # class 0 confidence high
+        pred_data[:, 0] = 0.5  # cx
+        pred_data[:, 1] = 0.5  # cy
+        pred_data[:, 2] = 0.2  # w
+        pred_data[:, 3] = 0.2  # h
+        pred_data[:, 4] = 0.9  # class 0 confidence high
 
-    pred_init = helper.make_tensor(
-        "pred_const",
-        TensorProto.FLOAT,
-        [1, num_boxes, output_dim],
-        pred_data.flatten(),
+    total_channels = num_boxes * output_dim
+    pool_node = helper.make_node("GlobalAveragePool", inputs=["input"], outputs=["pooled"])
+    conv_node = helper.make_node(
+        "Conv",
+        inputs=["pooled", "conv_w", "conv_b"],
+        outputs=["conv_out"],
+        kernel_shape=[1, 1],
     )
+    new_shape = helper.make_tensor("new_shape", TensorProto.INT64, [3], [0, num_boxes, output_dim])
+    reshape_node = helper.make_node("Reshape", inputs=["conv_out", "new_shape"], outputs=["output"])
 
-    mul_zero = helper.make_tensor("zero_val", TensorProto.FLOAT, [1], [0.0])
-    scale_node = helper.make_node("Mul", inputs=["input", "zero_val"], outputs=["zero_grid"])
-    reduce_node = helper.make_node(
-        "ReduceSum", inputs=["zero_grid"], outputs=["scalar_zero"], keepdims=0
+    weights = np.zeros((total_channels, 3, 1, 1), dtype=np.float32)
+    biases = pred_data.flatten()
+
+    w_init = helper.make_tensor(
+        "conv_w", TensorProto.FLOAT, [total_channels, 3, 1, 1], weights.flatten()
     )
-    add_node = helper.make_node("Add", inputs=["pred_const", "scalar_zero"], outputs=["output"])
+    b_init = helper.make_tensor("conv_b", TensorProto.FLOAT, [total_channels], biases.flatten())
 
-    input_info = helper.make_tensor_value_info("input", TensorProto.FLOAT, [1, 3, height, width])
+    input_info = helper.make_tensor_value_info(
+        "input", TensorProto.FLOAT, ["batch", 3, height, width]
+    )
     output_info = helper.make_tensor_value_info(
-        "output", TensorProto.FLOAT, [1, num_boxes, output_dim]
+        "output", TensorProto.FLOAT, ["batch", num_boxes, output_dim]
     )
 
     graph = helper.make_graph(
-        [scale_node, reduce_node, add_node],
+        [pool_node, conv_node, reshape_node],
         "dummy_detection",
         [input_info],
         [output_info],
-        [pred_init, mul_zero],
+        [w_init, b_init, new_shape],
     )
     model = helper.make_model(
         graph,

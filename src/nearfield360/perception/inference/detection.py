@@ -15,6 +15,7 @@ from nearfield360.data.detection import (
 from nearfield360.perception.inference.backend import InferenceBackend, InferenceError
 from nearfield360.perception.inference.preprocessor import (
     FisheyeImagePreprocessor,
+    PreprocessTransform,
 )
 
 
@@ -70,35 +71,19 @@ class ObjectDetectionEngine:
         """Return number of detection classes."""
         return self._num_classes
 
-    def predict(self, image: np.ndarray) -> tuple[DetectionPrediction, ...]:
-        """Run object detection inference on a single RGB fisheye image.
-
-        Args:
-            image: Raw input image array of shape (H, W, 3) and dtype uint8.
-
-        Returns:
-            Tuple of validated DetectionPrediction instances sorted by score descending.
-        """
-        blob, transform = self._preprocessor.preprocess(image)
-        outputs = self._backend.forward(blob)
-        raw_preds = outputs[0] if isinstance(outputs, tuple) else outputs
-
-        if raw_preds.ndim == 3:
-            if raw_preds.shape[0] != 1:
-                msg = f"Expected single-item batch, got shape {raw_preds.shape}"
-                raise InferenceError(msg)
-            # Handle transposed YOLO format (1, C+4, N)
-            if (
-                raw_preds.shape[1] == 4 + self._num_classes
-                and raw_preds.shape[2] != 4 + self._num_classes
-            ):
-                raw_preds = np.transpose(raw_preds, (0, 2, 1))
-            preds = raw_preds[0]
-        elif raw_preds.ndim == 2:
-            preds = raw_preds
-        else:
-            msg = f"Expected 2D or 3D detection tensor, got shape {raw_preds.shape}"
+    def _decode_predictions(
+        self,
+        preds: np.ndarray,
+        transform: PreprocessTransform,
+    ) -> tuple[DetectionPrediction, ...]:
+        """Decode raw 2D model prediction tensor into DetectionPrediction instances."""
+        if preds.ndim != 2:
+            msg = f"Expected 2D detection tensor per sample, got shape {preds.shape}"
             raise InferenceError(msg)
+
+        # Handle transposed YOLO format (C+4, N)
+        if preds.shape[0] == 4 + self._num_classes and preds.shape[1] != 4 + self._num_classes:
+            preds = np.transpose(preds, (1, 0))
 
         if preds.shape[1] < 4 + self._num_classes:
             msg = (
@@ -198,6 +183,60 @@ class ObjectDetectionEngine:
         all_predictions.sort(key=lambda p: p.score, reverse=True)
         return tuple(all_predictions)
 
+    def predict(self, image: np.ndarray) -> tuple[DetectionPrediction, ...]:
+        """Run object detection inference on a single RGB fisheye image.
+
+        Args:
+            image: Raw input image array of shape (H, W, 3) and dtype uint8.
+
+        Returns:
+            Tuple of validated DetectionPrediction instances sorted by score descending.
+        """
+        blob, transform = self._preprocessor.preprocess(image)
+        outputs = self._backend.forward(blob)
+        raw_preds = outputs[0] if isinstance(outputs, tuple) else outputs
+
+        if raw_preds.ndim == 3:
+            if raw_preds.shape[0] != 1:
+                msg = f"Expected single-item batch, got shape {raw_preds.shape}"
+                raise InferenceError(msg)
+            preds = raw_preds[0]
+        elif raw_preds.ndim == 2:
+            preds = raw_preds
+        else:
+            msg = f"Expected 2D or 3D detection tensor, got shape {raw_preds.shape}"
+            raise InferenceError(msg)
+
+        return self._decode_predictions(preds, transform)
+
+    def predict_batch(self, images: Sequence[np.ndarray]) -> list[tuple[DetectionPrediction, ...]]:
+        """Run batched object detection inference on a sequence of RGB images.
+
+        Args:
+            images: Sequence of raw input image arrays of shape (H, W, 3) and dtype uint8.
+
+        Returns:
+            List of tuples of validated DetectionPrediction instances, one per input image.
+        """
+        if not images:
+            return []
+
+        blob, transforms = self._preprocessor.preprocess_batch(images)
+        outputs = self._backend.forward(blob)
+        raw_preds = outputs[0] if isinstance(outputs, tuple) else outputs
+
+        if raw_preds.ndim != 3 or raw_preds.shape[0] != len(transforms):
+            msg = (
+                f"Expected 3D detection tensor with batch size {len(transforms)}, "
+                f"got shape {raw_preds.shape}"
+            )
+            raise InferenceError(msg)
+
+        return [
+            self._decode_predictions(raw_preds[i], transform)
+            for i, transform in enumerate(transforms)
+        ]
+
     @staticmethod
     def to_annotations(
         predictions: Sequence[DetectionPrediction],
@@ -218,6 +257,12 @@ class ObjectDetectionEngine:
     def predict_annotations(self, image: np.ndarray) -> tuple[DetectionAnnotation, ...]:
         """Run object detection inference and return DetectionAnnotation instances."""
         return self.to_annotations(self.predict(image))
+
+    def predict_batch_annotations(
+        self, images: Sequence[np.ndarray]
+    ) -> list[tuple[DetectionAnnotation, ...]]:
+        """Run batched object detection inference and return DetectionAnnotation instances."""
+        return [self.to_annotations(preds) for preds in self.predict_batch(images)]
 
 
 __all__ = [
