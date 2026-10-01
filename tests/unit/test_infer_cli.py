@@ -193,6 +193,89 @@ def test_infer_benchmark_success(dummy_seg_model: Path, tmp_path: Path) -> None:
     assert data["fps"] > 0
 
 
+def test_infer_benchmark_with_batch_size(dummy_seg_model: Path, tmp_path: Path) -> None:
+    out_json = tmp_path / "output" / "bench_b2.json"
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "benchmark",
+            "--model",
+            str(dummy_seg_model),
+            "--batch-size",
+            "2",
+            "--iterations",
+            "3",
+            "--warmup",
+            "1",
+            "--height",
+            "32",
+            "--width",
+            "32",
+            "--output",
+            str(out_json),
+        ],
+    )
+    assert result.exit_code == 0
+    assert out_json.is_file()
+    assert "Batch Size:        2" in result.stdout
+    with out_json.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    assert data["input_shape"][0] == 2
+
+
+def test_infer_benchmark_batch_sweep_success(dummy_seg_model: Path, tmp_path: Path) -> None:
+    out_json = tmp_path / "output" / "sweep.json"
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "benchmark",
+            "--model",
+            str(dummy_seg_model),
+            "--batch-sweep",
+            "--batch-sizes",
+            "1,2,4",
+            "--iterations",
+            "2",
+            "--warmup",
+            "1",
+            "--height",
+            "32",
+            "--width",
+            "32",
+            "--output",
+            str(out_json),
+        ],
+    )
+    assert result.exit_code == 0
+    assert out_json.is_file()
+    assert "Batch Sweep Complete" in result.stdout
+    assert "Optimal Batch:" in result.stdout
+    assert "Throughput (fps)" in result.stdout
+    with out_json.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    assert len(data["items"]) == 3
+    assert data["optimal_batch_size"] in (1, 2, 4)
+
+
+def test_infer_benchmark_batch_sweep_invalid_sizes(dummy_seg_model: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "benchmark",
+            "--model",
+            str(dummy_seg_model),
+            "--batch-sweep",
+            "--batch-sizes",
+            "1,-2,foo",
+        ],
+    )
+    assert result.exit_code == 1
+    assert "Invalid --batch-sizes" in result.stderr or "Invalid --batch-sizes" in result.stdout
+
+
 def test_infer_inspect_success(dummy_seg_model: Path, tmp_path: Path) -> None:
     out_json = tmp_path / "output" / "meta.json"
     result = runner.invoke(

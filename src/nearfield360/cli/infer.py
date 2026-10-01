@@ -21,6 +21,7 @@ from nearfield360.perception.inference.backend import (
     create_backend,
 )
 from nearfield360.perception.inference.benchmark import (
+    benchmark_batch_sweep,
     benchmark_inference,
     compare_numerical_parity,
 )
@@ -460,6 +461,24 @@ def infer_benchmark(
         int,
         typer.Option("--width", min=1, help="Input tensor width in pixels."),
     ] = 640,
+    batch_size: Annotated[
+        int,
+        typer.Option("--batch-size", "-b", min=1, help="Batch size for single-run benchmark."),
+    ] = 1,
+    batch_sweep: Annotated[
+        bool,
+        typer.Option(
+            "--batch-sweep",
+            help="Run a throughput scaling sweep across multiple batch sizes.",
+        ),
+    ] = False,
+    batch_sizes: Annotated[
+        str,
+        typer.Option(
+            "--batch-sizes",
+            help="Comma-separated batch sizes to evaluate during sweep (e.g. '1,2,4,8').",
+        ),
+    ] = "1,2,4,8",
     output: Annotated[
         Path | None,
         typer.Option("--output", "-o", resolve_path=True, help="Save summary JSON to file."),
@@ -484,9 +503,79 @@ def infer_benchmark(
             backend_type=b_type,
             device=dev_enum,
         )
+    except (InferenceError, ValueError) as exc:
+        typer.secho(f"Failed to initialize backend: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    target_info = f"{backend_obj.backend_type.value.upper()} on {backend_obj.device.value.upper()}"
+
+    if batch_sweep:
+        try:
+            parsed_batch_sizes = [
+                int(item.strip()) for item in batch_sizes.split(",") if item.strip()
+            ]
+            if not parsed_batch_sizes:
+                raise ValueError("No batch sizes provided.")
+            if any(b <= 0 for b in parsed_batch_sizes):
+                raise ValueError("All batch sizes must be positive integers.")
+        except ValueError as exc:
+            typer.secho(f"Invalid --batch-sizes: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
+
+        try:
+            sweep_summary = benchmark_batch_sweep(
+                backend_obj,
+                batch_sizes=parsed_batch_sizes,
+                iterations=iterations,
+                warmup=warmup,
+                base_shape=(3, height, width),
+            )
+        except (InferenceError, ValueError) as exc:
+            typer.secho(f"Batch sweep failed: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
+
+        sweep_dict = sweep_summary.model_dump()
+        if output is not None:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            write_json(output, sweep_dict, overwrite=True)
+            typer.echo(f"Wrote batch sweep report to {output}")
+
+        typer.secho(
+            f"Batch Sweep Complete ({target_info})",
+            fg=typer.colors.GREEN,
+            bold=True,
+        )
+        typer.echo(f"  Base Shape:        {sweep_summary.base_input_shape}")
+        typer.echo(
+            f"  Iterations:        {sweep_summary.iterations} (warmup: {sweep_summary.warmup})"
+        )
+        typer.echo(
+            f"  Optimal Batch:     {sweep_summary.optimal_batch_size} "
+            f"({sweep_summary.max_fps:.1f} fps)"
+        )
+        typer.echo("")
+        header = (
+            f"  {'Batch':<7} {'Latency (ms)':<14} {'p95 (ms)':<10} "
+            f"{'Throughput (fps)':<18} {'Speedup':<9} {'Efficiency':<10}"
+        )
+        typer.echo(header)
+        typer.echo("  " + "-" * (len(header) - 2))
+        for item in sweep_summary.items:
+            eff_pct = item.scaling_efficiency * 100.0
+            typer.echo(
+                f"  {item.batch_size:<7} "
+                f"{item.mean_latency_ms:<14.2f} "
+                f"{item.p95_latency_ms:<10.2f} "
+                f"{item.fps:<18.1f} "
+                f"{item.speedup:<9.2f}x "
+                f"{eff_pct:<10.1f}%"
+            )
+        return
+
+    try:
         summary = benchmark_inference(
             backend_obj,
-            input_shape=(1, 3, height, width),
+            input_shape=(batch_size, 3, height, width),
             iterations=iterations,
             warmup=warmup,
         )
@@ -501,13 +590,13 @@ def infer_benchmark(
         write_json(output, summary_dict, overwrite=True)
         typer.echo(f"Wrote benchmark report to {output}")
 
-    target_info = f"{backend_obj.backend_type.value.upper()} on {backend_obj.device.value.upper()}"
     typer.secho(
         f"Benchmark Complete ({target_info})",
         fg=typer.colors.GREEN,
         bold=True,
     )
     typer.echo(f"  Input Shape:       {summary.input_shape}")
+    typer.echo(f"  Batch Size:        {batch_size}")
     typer.echo(f"  Iterations:        {summary.iterations} (warmup: {summary.warmup})")
     typer.echo(f"  Mean Latency:      {summary.mean_latency_ms:.2f} ms")
     typer.echo(f"  Median Latency:    {summary.median_latency_ms:.2f} ms")
