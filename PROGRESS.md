@@ -929,8 +929,12 @@ Phase 16 closes README roadmap item 15 by delivering a self-contained, responsiv
 
 ## Phase 17: Batched Inference Throughput Profiling and Multi-Camera Execution
 
-**Status:** In Progress
+**Status:** Completed
 **Repository Branch:** `main`
+**Test Suite:** 862 passed (0 failures)
+**Type Checking:** `mypy` clean (73 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 91.45% (exceeds required 85.0% threshold)
 
 ---
 
@@ -939,18 +943,48 @@ Phase 16 closes README roadmap item 15 by delivering a self-contained, responsiv
 Phase 17 closes README roadmap item 16 by delivering batched perception inference sweeps and multi-camera surround execution:
 
 1. **Batched Object Detection & Segmentation:**
-   - Implement `predict_batch` and `predict_batch_annotations` on `ObjectDetectionEngine` with contiguous NCHW batched tensor forwarding, multi-head de-batching, and per-item coordinate unscaling / NMS.
-   - Validate numerical parity between single-image `predict` and batched `predict_batch`.
+   - Implemented `predict_batch` and `predict_batch_annotations` on `ObjectDetectionEngine` with contiguous NCHW batched tensor forwarding, multi-head de-batching, and per-item coordinate unscaling / NMS.
+   - Validated numerical parity between single-image `predict` and batched `predict_batch`.
 2. **Batched Inference Benchmarking & Sweep Engine:**
-   - Implement `benchmark_batch_sweep` in `src/nearfield360/perception/inference/benchmark.py` across configurable batch sizes (e.g. 1, 2, 4, 8).
-   - Profile latency percentiles (mean, median, p90, p95, p99, min, max), effective throughput (FPS), relative speedup, and batch scaling efficiency.
-   - Structured `BatchSweepItem` and `BatchSweepSummary` data models with JSON export.
+   - Implemented `benchmark_batch_sweep` in `src/nearfield360/perception/inference/benchmark.py` across configurable batch sizes (e.g. 1, 2, 4, 8).
+   - Profiled latency percentiles (mean, median, p90, p95, p99, min, max), effective throughput (FPS), relative speedup, and batch scaling efficiency.
+   - Added structured `BatchSweepItem` and `BatchSweepSummary` data models with JSON export.
 3. **CLI Integration:**
-   - Update `nearfield360 infer benchmark` with `--batch-size` / `-b` for explicit batch size profiling and `--batch-sweep` / `--batch-sizes` for automated throughput sweeps.
-   - Update `nearfield360 pipeline run` with `--batch-cameras / --no-batch-cameras` (default true) to batch all four surround cameras (`FV`, `MVL`, `MVR`, `RV`) into a single model pass.
+   - Updated `nearfield360 infer benchmark` with `--batch-size` / `-b` for explicit batch size profiling and `--batch-sweep` / `--batch-sizes` for automated throughput sweeps.
+   - Updated `nearfield360 pipeline run` with `--batch-cameras / --no-batch-cameras` to batch all four surround cameras (`FV`, `MVL`, `MVR`, `RV`) into a single model pass.
 4. **Verification & Quality Gates:**
    - Complete unit and CLI integration tests across batch engines, sweeps, and multi-camera pipeline execution.
    - Strict typing (`mypy`), linting (`ruff`), test coverage (>85%), and release readiness audit.
 
-**Explicit exclusions:** Native TensorRT engine builds and C++ runtime bindings (remain tracked under roadmap item 7 residual).
+**Explicit exclusions:** Native TensorRT engine builds and C++ runtime bindings (remain tracked under roadmap item 7 residual / Phase 18).
 
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Batched detection engine (`predict_batch`, `predict_batch_annotations`) | `src/nearfield360/perception/inference/detection.py` |
+| Dynamic batch support in synthetic ONNX builders | `src/nearfield360/perception/inference/test_utils.py` |
+| Batch sweep models (`BatchSweepItem`, `BatchSweepSummary`) | `src/nearfield360/perception/inference/models.py` |
+| Batched inference throughput sweep engine (`benchmark_batch_sweep`) | `src/nearfield360/perception/inference/benchmark.py` |
+| Package exports for batch sweep models and function | `src/nearfield360/perception/inference/__init__.py` |
+| CLI `infer benchmark --batch-size`, `--batch-sweep`, `--batch-sizes` | `src/nearfield360/cli/infer.py` |
+| CLI `pipeline run --batch-cameras` multi-camera surround execution | `src/nearfield360/cli/pipeline.py`, `src/nearfield360/cli/occupancy.py` |
+| Detection engine batching unit tests | `tests/unit/perception/inference/test_detection_engine.py` |
+| Batch throughput sweep engine unit tests | `tests/unit/perception/inference/test_benchmark_engine.py` |
+| CLI infer benchmark batch & sweep integration tests | `tests/unit/test_infer_cli.py` |
+| CLI pipeline multi-camera batching integration tests | `tests/unit/test_pipeline_cli.py` |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 862 passed in 19.86s |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 91.45% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 73 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
