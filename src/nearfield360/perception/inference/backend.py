@@ -188,7 +188,7 @@ class OnnxRuntimeBackend:
             raise InferenceError(f"Model file not found: {model_path}")
 
         try:
-            import onnxruntime as ort  # type: ignore[import-not-found]
+            import onnxruntime as ort  # type: ignore[import-not-found,import-untyped,unused-ignore]
         except ImportError as exc:
             raise InferenceError(
                 "onnxruntime is not installed. Install with "
