@@ -59,5 +59,3 @@ __all__ = [
     "surround_parking_zones",
     "validate_zone_mask",
 ]
-
-

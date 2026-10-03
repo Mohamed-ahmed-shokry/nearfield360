@@ -519,7 +519,6 @@ def _render_forecast_png(
     typer.echo(f"Wrote {path}")
 
 
-
 def _evidence_summary(evidence: OccupancyEvidence, min_evidence: int) -> dict[str, Any]:
     confident = evidence.observed >= min_evidence
     occupancy = evidence.occupancy()[confident]
@@ -953,4 +952,3 @@ def occupancy_export_model(
 
 
 __all__ = ["occupancy_app"]
-

@@ -467,4 +467,3 @@ def test_occupancy_export_model_cli(tmp_path: Path) -> None:
         ["occupancy", "export-model", "--output", str(model_path), "--overwrite"],
     )
     assert overwrite_res.exit_code == 0
-

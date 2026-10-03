@@ -192,4 +192,3 @@ def test_forecast_without_update_raises(bev_grid: BevGrid) -> None:
     forecaster = TemporalOccupancyForecaster(bev_grid)
     with pytest.raises(RuntimeError, match="Cannot forecast occupancy without prior state"):
         forecaster.forecast()
-

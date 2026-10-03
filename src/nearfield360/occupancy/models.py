@@ -292,7 +292,7 @@ class OccupancyForecastGrid:
         min_tti: float | None = None
         critical_zone: str | None = None
         if threats:
-            earliest = min(threats, key=lambda z: (z.time_to_intrusion_s or float("inf")))
+            earliest = min(threats, key=lambda z: z.time_to_intrusion_s or float("inf"))
             min_tti = earliest.time_to_intrusion_s
             critical_zone = earliest.zone_name
 

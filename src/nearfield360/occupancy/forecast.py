@@ -93,10 +93,7 @@ def fuse_cross_attention_occupancy(
     # Pre-extract observation masks and weights
     layer_obs = [layer.observed for layer in layers]
     layer_weights = np.stack(
-        [
-            (obs.astype(np.float64) * hw)
-            for obs, hw in zip(layer_obs, health_weights, strict=True)
-        ],
+        [(obs.astype(np.float64) * hw) for obs, hw in zip(layer_obs, health_weights, strict=True)],
         axis=0,
     )
 
@@ -357,8 +354,7 @@ class TemporalOccupancyForecaster:
 
         # Preserve unknown marker (NaN) where cells have never been observed
         never_observed = (evidence.observed == 0) & (
-            self._current_state is None
-            or np.isnan(self._current_state.occupancy)
+            self._current_state is None or np.isnan(self._current_state.occupancy)
         )
         filtered_occ = np.where(never_observed, np.nan, filtered_occ)
         filtered_unc = np.where(never_observed, np.nan, filtered_unc)

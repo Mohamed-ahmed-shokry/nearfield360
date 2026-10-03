@@ -472,4 +472,3 @@ def test_pipeline_run_with_temporal_forecast(tmp_path: Path) -> None:
     assert "temporal_forecast_ms" in payload["timings"]
     assert payload["temporal_forecast"]["horizon_seconds"] == 3.0
     assert payload["temporal_forecast"]["num_steps"] == 6
-
