@@ -34,7 +34,7 @@ public:
 
     /**
      * @brief Preprocess a single HWC image into planar CHW normalized float buffer.
-     * 
+     *
      * @param src_hwc Pointer to raw RGB/BGR packed uint8 image pixels.
      * @param src_width Width of the source image.
      * @param src_height Height of the source image.
@@ -86,7 +86,7 @@ public:
 
     /**
      * @brief Batch 4 surround fisheye cameras (FV, MVL, MVR, RV) into contiguous NCHW buffer.
-     * 
+     *
      * @param camera_frames Pointers to the 4 camera frame buffers.
      * @param src_width Width of camera frames.
      * @param src_height Height of camera frames.

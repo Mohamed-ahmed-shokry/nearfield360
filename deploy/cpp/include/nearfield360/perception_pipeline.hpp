@@ -66,7 +66,7 @@ public:
 
     /**
      * @brief Process 4 synchronized surround camera frames through TensorRT perception.
-     * 
+     *
      * @param camera_frames Pointers to the 4 camera frame buffers (FV, MVL, MVR, RV).
      * @param width Source frame width.
      * @param height Source frame height.

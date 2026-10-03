@@ -106,4 +106,3 @@ forecast:
   diffusion_rate: 0.02
   spatial_kernel_size: 3
   hidden_channels: 16
-

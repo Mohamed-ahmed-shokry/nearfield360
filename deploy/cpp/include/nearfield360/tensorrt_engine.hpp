@@ -45,7 +45,7 @@ struct EngineProfileStats {
 
 /**
  * @brief High-performance RAII TensorRT inference engine wrapper for embedded automotive targets.
- * 
+ *
  * Supports dynamic shapes, FP16/INT8 precision modes, asynchronous CUDA stream execution,
  * and zero-copy host pinned buffer binding.
  */
