@@ -27,7 +27,13 @@ from nearfield360.data.images import load_rgb_image
 from nearfield360.data.woodscape import CameraId, WoodScapeSample
 from nearfield360.geometry.camera import CalibratedCamera
 from nearfield360.health import CameraHealthReport
-from nearfield360.occupancy import OccupancyEvidence, OccupancyPolicy, RiskZone, risk_report
+from nearfield360.occupancy import (
+    OccupancyEvidence,
+    OccupancyPolicy,
+    RiskZone,
+    TemporalOccupancyForecaster,
+    risk_report,
+)
 from nearfield360.perception.evaluation import environment_metadata
 from nearfield360.perception.inference import (
     InferenceBackendType,
@@ -338,6 +344,13 @@ def run_pipeline(
             help="Batch multi-camera frames during live model perception.",
         ),
     ] = False,
+    temporal_forecast: Annotated[
+        bool,
+        typer.Option(
+            "--temporal-forecast/--no-temporal-forecast",
+            help="Generate 4D recurrent spatiotemporal BEV occupancy forecast grids.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -367,6 +380,9 @@ def run_pipeline(
 
     zones = _configured_zones(grid, context)
     tracker = MultiObjectTracker(config.tracking)
+    forecaster = (
+        TemporalOccupancyForecaster(grid, config=config.forecast) if temporal_forecast else None
+    )
 
     fused: OccupancyEvidence | None = None
     health_reports: list[CameraHealthReport] = []
@@ -428,9 +444,12 @@ def run_pipeline(
             )
             tracking_ms += (time.perf_counter() - t_trk) * 1000.0
 
+        active_obstacles = tracker.update(footprints)
         if frame_evidence is not None:
             fused = frame_evidence if fused is None else fused.add(frame_evidence)
-        active_obstacles = tracker.update(footprints)
+            if forecaster is not None:
+                timestamp = (frame_index - 1) * config.tracking.dt
+                forecaster.update(frame_evidence, timestamp=timestamp, obstacles=active_obstacles)
         frames_evaluated += 1
         frame_latencies_ms.append((time.perf_counter() - frame_start) * 1000.0)
         typer.echo(f"[{frame_index}/{len(frames)}] processed frame {frame_id}")
@@ -466,6 +485,25 @@ def run_pipeline(
         confirmed_only=False,
     )
     timings["forecast_ms"] = (time.perf_counter() - stage_start) * 1000.0
+
+    temporal_forecast_payload: dict[str, Any] | None = None
+    temporal_forecast_grid_payload: dict[str, Any] | None = None
+    if forecaster is not None:
+        stage_start = time.perf_counter()
+        temporal_forecast_grid = forecaster.forecast()
+        curr_st = forecaster.current_state
+        obs_c = int(np.sum(curr_st.occupancy >= 0.0)) if curr_st is not None else 0
+        dyn_c = int(np.sum(curr_st.dynamic_mask)) if curr_st is not None else 0
+        temporal_summary = temporal_forecast_grid.summary(
+            zones,
+            danger_occupancy=config.risk.danger_occupancy,
+            observed_cells=obs_c,
+            dynamic_cells=dyn_c,
+        )
+        timings["temporal_forecast_ms"] = (time.perf_counter() - stage_start) * 1000.0
+        temporal_forecast_payload = temporal_summary.model_dump(mode="json")
+        temporal_forecast_grid_payload = temporal_forecast_grid.to_dict()
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -475,6 +513,8 @@ def run_pipeline(
         "per_camera": per_camera_counts,
         "batch_cameras": batch_cameras,
     }
+    if temporal_forecast:
+        samples_payload["temporal_forecast"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -527,6 +567,9 @@ def run_pipeline(
         "tracks": [obs.model_dump(mode="json") for obs in active_obstacles],
         "forecasts": [f.model_dump(mode="json") for f in forecasts],
     }
+    if temporal_forecast_payload is not None:
+        payload["temporal_forecast"] = temporal_forecast_payload
+        payload["temporal_forecast_grid"] = temporal_forecast_grid_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
