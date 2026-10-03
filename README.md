@@ -156,6 +156,19 @@ The scene-level policy is configurable: `occupancy.free_classes` vote for free s
 dangerous. Single-frame CLIs (`geometry ground`) and multi-camera fusion (`occupancy layer`)
 share the identical ray, calibration, and grid models.
 
+### Temporal BEV occupancy forecasting
+
+Forecast future bird's-eye-view space occupancy across a multi-second parking horizon ($[t+\Delta t, \dots, t+H]$)
+using spatiotemporal recurrence and dynamic velocity flow fields:
+
+```powershell
+# Forecast 3.0 seconds into the future over 0.5s increments with multi-step panel visualization:
+uv run nearfield360 occupancy forecast --root D:\datasets\woodscape --all-cameras --horizon 3.0 --step 0.5 --output outputs/occupancy/forecast.json --png outputs/occupancy/forecast_panels.png
+
+# Export the recurrent temporal forecasting network as an ONNX model graph:
+uv run nearfield360 occupancy export-model --output models/temporal_forecaster.onnx --hidden-channels 16 --horizon-steps 6
+```
+
 ### Camera health assessment
 
 Evaluate camera optical health, lens soiling, blur, and exposure anomalies for any surround camera frame:
@@ -468,9 +481,16 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     provider discovery (`infer providers`), zero-copy CUDA pinned memory buffer pools
     (`CUDAPinnedBufferPool`), and standalone embedded automotive C++ deployment architecture
     with multi-camera surround batching and BEV ground-plane unprojection (`deploy/cpp/`).
-18. Temporal bird's-eye-view multi-camera occupancy forecasting network:
-    End-to-end spatiotemporal transformer BEV perception network with cross-attention camera fusion,
-    recurrent temporal state updates, and forward occupancy forecasting over multi-second parking horizons.
+18. ~~Temporal bird's-eye-view multi-camera occupancy forecasting network.~~ Done:
+    Spatiotemporal recurrent BEV perception engine (`TemporalOccupancyForecaster`), cross-attention
+    multi-camera boundary fusion (`fuse_cross_attention_occupancy`), ConvGRU temporal recurrence
+    modeling occlusion memory and belief persistence, 2D continuous metric velocity field estimation
+    anchored by Kalman-tracked obstacles (`TrackedObstacle`), multi-step forward forecasting rollout
+    (`OccupancyForecastGrid`) with flow advection, static decay, and Bayesian uncertainty diffusion;
+    temporal safety zone risk forecasting (time-to-intrusion, peak hazard envelopes); exportable
+    ONNX computation graph generator (`export_temporal_forecaster_onnx`); CLI commands
+    `occupancy forecast` and `occupancy export-model` with multi-horizon panel visualization;
+    and surround pipeline integration (`pipeline run --temporal-forecast`).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -483,6 +503,9 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --output outputs/p
 
 # Limit frames, render fused occupancy, and discount degraded camera evidence
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --samples 5 --health-aware --output outputs/pipeline/report.json --png outputs/pipeline/occupancy.png
+
+# Live surround perception with temporal BEV occupancy forecasting:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --temporal-forecast --output outputs/pipeline/report.json
 
 # Live surround perception with multi-camera batched neural network execution:
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/seg.onnx --det-model models/det.onnx --batch-cameras --output outputs/pipeline/report.json
