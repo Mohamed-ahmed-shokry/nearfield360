@@ -20,6 +20,7 @@ from nearfield360.occupancy.models import (
     TemporalOccupancyState,
     ZoneForecastRisk,
 )
+from nearfield360.occupancy.onnx_exporter import export_temporal_forecaster_onnx
 from nearfield360.occupancy.risk import (
     RiskZone,
     ZoneRisk,
@@ -48,6 +49,7 @@ __all__ = [
     "circular_zone",
     "corridor_zone",
     "distance_weights",
+    "export_temporal_forecaster_onnx",
     "fuse_cross_attention_occupancy",
     "fuse_occupancy",
     "lateral_clearance_zone",
