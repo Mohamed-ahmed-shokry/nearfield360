@@ -15,6 +15,7 @@ from numpy.typing import NDArray
 from nearfield360.cli.data_common import DatasetRootOption, discover_dataset
 from nearfield360.cli.inference_common import BackendOption, load_backend
 from nearfield360.cli.state import get_state
+from nearfield360.config import OccupancyForecastConfig
 from nearfield360.data.calibration import CalibrationError, load_calibration
 from nearfield360.data.images import ImageReadError, load_rgb_image
 from nearfield360.data.semantic import SemanticMaskError, load_semantic_mask
@@ -30,10 +31,14 @@ from nearfield360.health import (
 )
 from nearfield360.occupancy import (
     OccupancyEvidence,
+    OccupancyForecastGrid,
     OccupancyPolicy,
     OccupancyPolicyError,
     RiskZone,
+    TemporalOccupancyForecaster,
     distance_weights,
+    export_temporal_forecaster_onnx,
+    fuse_cross_attention_occupancy,
     rasterize_occupancy,
     risk_report,
     surround_parking_zones,
@@ -117,6 +122,24 @@ ModelOption = Annotated[
         readable=True,
         resolve_path=True,
         help="ONNX semantic segmentation model path for live perception.",
+    ),
+]
+
+HorizonOption = Annotated[
+    float | None,
+    typer.Option(
+        "--horizon",
+        min=0.1,
+        help="Total forward prediction horizon in seconds.",
+    ),
+]
+
+StepOption = Annotated[
+    float | None,
+    typer.Option(
+        "--step",
+        min=0.05,
+        help="Time discretization step between forecast grids in seconds.",
     ),
 ]
 
@@ -437,6 +460,66 @@ def _render_uncertainty_png(
     typer.echo(f"Wrote {path}")
 
 
+def _render_forecast_png(
+    grid: BevGrid, forecast: OccupancyForecastGrid, zones: list[RiskZone], path: Path
+) -> None:
+    panels: list[np.ndarray] = []
+    step_indices = (
+        list(range(len(forecast.steps)))
+        if len(forecast.steps) <= 4
+        else [
+            0,
+            len(forecast.steps) // 3,
+            2 * len(forecast.steps) // 3,
+            len(forecast.steps) - 1,
+        ]
+    )
+
+    for s_idx in step_indices:
+        step = forecast.steps[s_idx]
+        occ = np.nan_to_num(step.occupancy, nan=0.0)
+        has_val = np.isfinite(step.occupancy)
+
+        red = np.asarray(np.where(has_val, occ * 255.0, 0.0), dtype=np.uint8)
+        green = np.asarray(np.where(has_val, (1.0 - occ) * 255.0, 0.0), dtype=np.uint8)
+        blue = np.asarray(np.where(step.dynamic_mask, 255.0, 0.0), dtype=np.uint8)
+
+        panel = np.zeros((*grid.shape, 3), dtype=np.uint8)
+        panel[has_val, 0] = red[has_val]
+        panel[has_val, 1] = green[has_val]
+        panel[step.dynamic_mask, 2] = blue[step.dynamic_mask]
+
+        for zone in zones:
+            color = _ZONE_COLORS.get(zone.name, (128, 128, 128))
+            for row, col in np.argwhere(_border(zone.mask)):
+                panel[row, col] = color
+
+        label = f"t = +{step.time_offset_s:.1f}s"
+        cv2.putText(
+            panel,
+            label,
+            (10, 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        panels.append(panel)
+
+    combined = (
+        np.hstack(panels)
+        if len(panels) <= 4
+        else np.vstack(
+            [np.hstack(panels[: len(panels) // 2]), np.hstack(panels[len(panels) // 2 :])]
+        )
+    )
+    if not cv2.imwrite(str(path), combined):
+        raise ValueError(f"unable to write PNG: {path}")
+    typer.echo(f"Wrote {path}")
+
+
+
 def _evidence_summary(evidence: OccupancyEvidence, min_evidence: int) -> dict[str, Any]:
     confident = evidence.observed >= min_evidence
     occupancy = evidence.occupancy()[confident]
@@ -668,4 +751,206 @@ def occupancy_zones(
         )
 
 
+@occupancy_app.command("forecast")
+def occupancy_forecast(
+    context: typer.Context,
+    output: OutputOption,
+    root: DatasetRootOption = None,
+    camera: CameraOption = CameraId.FRONT,
+    all_cameras: Annotated[
+        bool,
+        typer.Option(
+            "--all-cameras",
+            help="Fuse evidence from all four cameras per frame using cross-attention.",
+        ),
+    ] = False,
+    samples: Annotated[
+        int,
+        typer.Option(
+            "--samples", min=0, help="Number of consecutive frames to evaluate (0 for all)."
+        ),
+    ] = 0,
+    horizon: HorizonOption = None,
+    step: StepOption = None,
+    overwrite: OverwriteOption = False,
+    png: PngOption = None,
+    theta_max: ThetaMaxOption = None,
+    health_aware: HealthAwareOption = False,
+    model: ModelOption = None,
+    backend: BackendOption = None,
+) -> None:
+    """Predict future BEV occupancy grids over a multi-second parking horizon."""
+    grid = _configured_grid(context)
+    policy = _configured_policy(context)
+    default_cfg = get_state(context).config.forecast
+    horizon_s = horizon if horizon is not None else default_cfg.horizon_seconds
+    step_s = step if step is not None else default_cfg.step_seconds
+
+    forecast_cfg = OccupancyForecastConfig(
+        horizon_seconds=horizon_s,
+        step_seconds=step_s,
+        memory_decay=default_cfg.memory_decay,
+        flow_decay=default_cfg.flow_decay,
+        min_velocity_threshold=default_cfg.min_velocity_threshold,
+        diffusion_rate=default_cfg.diffusion_rate,
+        spatial_kernel_size=default_cfg.spatial_kernel_size,
+        hidden_channels=default_cfg.hidden_channels,
+    )
+
+    forecaster = TemporalOccupancyForecaster(grid, config=forecast_cfg)
+
+    model_engine: SemanticSegmentationEngine | None = None
+    if model is not None:
+        loaded = load_backend(context, model, backend=backend)
+        model_engine = SemanticSegmentationEngine(backend=loaded)
+
+    health_reports: list[CameraHealthReport] = []
+    evaluated_frames = 0
+
+    if all_cameras:
+        frames = _select_all_cameras(context, root, samples, allow_live_model=model is not None)
+        evaluated_frames = len(frames)
+        for frame_idx, (frame_id, frame_samples) in enumerate(frames):
+            frame_layers: list[OccupancyEvidence] = []
+            frame_health: list[CameraHealthReport | None] = []
+            for sample in frame_samples:
+                ev, report = _frame_evidence(
+                    context,
+                    sample,
+                    grid,
+                    policy,
+                    theta_max,
+                    health_aware=health_aware,
+                    model_engine=model_engine,
+                )
+                frame_layers.append(ev)
+                frame_health.append(report)
+                if report is not None:
+                    health_reports.append(report)
+            fused = fuse_cross_attention_occupancy(
+                grid, frame_layers, health_reports=frame_health if health_aware else None
+            )
+            timestamp = frame_idx * 0.1
+            forecaster.update(fused, timestamp=timestamp)
+            typer.echo(
+                f"[{frame_idx + 1}/{len(frames)}] updated frame {frame_id} (t={timestamp:.2f}s)"
+            )
+    else:
+        selected = _select_samples(
+            context, root, camera, samples, allow_live_model=model is not None
+        )
+        evaluated_frames = len(selected)
+        for frame_idx, sample in enumerate(selected):
+            ev, report = _frame_evidence(
+                context,
+                sample,
+                grid,
+                policy,
+                theta_max,
+                health_aware=health_aware,
+                model_engine=model_engine,
+            )
+            if report is not None:
+                health_reports.append(report)
+            timestamp = frame_idx * 0.1
+            forecaster.update(ev, timestamp=timestamp)
+            typer.echo(
+                f"[{frame_idx + 1}/{len(selected)}] updated {sample.key.stem} (t={timestamp:.2f}s)"
+            )
+
+    forecast_grid = forecaster.forecast()
+    zones = _configured_zones(grid, context)
+    danger_occ = get_state(context).config.risk.danger_occupancy
+
+    curr_state = forecaster.current_state
+    obs_count = int(np.sum(curr_state.occupancy >= 0.0)) if curr_state is not None else 0
+    dyn_count = int(np.sum(curr_state.dynamic_mask)) if curr_state is not None else 0
+
+    forecast_summary = forecast_grid.summary(
+        zones,
+        danger_occupancy=danger_occ,
+        observed_cells=obs_count,
+        dynamic_cells=dyn_count,
+    )
+
+    payload: dict[str, Any] = {
+        "environment": environment_metadata(),
+        "config": get_state(context).config.model_dump(mode="json"),
+        "samples": {
+            "requested": evaluated_frames if samples == 0 else samples,
+            "evaluated": evaluated_frames,
+            "camera": "all" if all_cameras else camera.value,
+        },
+        "forecast": forecast_summary.model_dump(mode="json"),
+        "grid_forecast": forecast_grid.to_dict(),
+    }
+    if health_aware:
+        payload["health"] = [r.model_dump(mode="json") for r in health_reports]
+
+    try:
+        write_json(output, payload, overwrite=overwrite)
+    except ArtifactError as exc:
+        typer.secho(f"Artifact error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+    typer.echo(f"Wrote {output}")
+
+    if png is not None:
+        try:
+            _render_forecast_png(grid, forecast_grid, zones, png)
+        except (OSError, ValueError) as exc:
+            typer.secho(f"PNG error: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from None
+
+
+@occupancy_app.command("export-model")
+def occupancy_export_model(
+    context: typer.Context,
+    output: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            resolve_path=True,
+            help="Destination path for the exported ONNX model.",
+        ),
+    ] = Path("models/temporal_forecaster.onnx"),
+    hidden_channels: Annotated[
+        int,
+        typer.Option("--hidden-channels", min=1, max=128, help="Hidden channel dimension."),
+    ] = 16,
+    horizon_steps: Annotated[
+        int,
+        typer.Option("--horizon-steps", min=1, max=60, help="Number of forward prediction steps."),
+    ] = 6,
+    opset: Annotated[
+        int,
+        typer.Option("--opset", min=11, max=20, help="ONNX operator set version."),
+    ] = 13,
+    overwrite: OverwriteOption = False,
+) -> None:
+    """Export an ONNX model graph for the temporal BEV occupancy forecasting network."""
+    if output.exists() and not overwrite:
+        typer.secho(
+            f"Output file already exists: {output}. Use --overwrite to replace it.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    grid = _configured_grid(context)
+    exported = export_temporal_forecaster_onnx(
+        output,
+        grid_shape=grid.shape,
+        hidden_channels=hidden_channels,
+        horizon_steps=horizon_steps,
+        opset_version=opset,
+    )
+    typer.echo(
+        f"Exported temporal forecaster ONNX model to {exported} "
+        f"(grid={grid.shape}, hidden_channels={hidden_channels}, "
+        f"horizon_steps={horizon_steps}, opset={opset})"
+    )
+
+
 __all__ = ["occupancy_app"]
+
