@@ -19,6 +19,13 @@ from nearfield360.perception.inference.benchmark import (
     verify_numerical_parity,
 )
 from nearfield360.perception.inference.detection import ObjectDetectionEngine
+from nearfield360.perception.inference.memory import (
+    BufferAllocation,
+    CUDAPinnedBufferPool,
+    MemoryLayoutPlan,
+    PinnedMemoryBuffer,
+    is_cuda_pinned_memory_available,
+)
 from nearfield360.perception.inference.models import (
     BenchmarkSummary,
     CalibrationSummary,
@@ -47,6 +54,8 @@ __all__ = [
     "BatchSweepItem",
     "BatchSweepSummary",
     "BenchmarkSummary",
+    "BufferAllocation",
+    "CUDAPinnedBufferPool",
     "CalibrationSummary",
     "FisheyeImagePreprocessor",
     "InferenceBackend",
@@ -54,12 +63,14 @@ __all__ = [
     "InferenceDevice",
     "InferenceError",
     "InferenceResult",
+    "MemoryLayoutPlan",
     "ModelMetadata",
     "ObjectDetectionEngine",
     "OnnxRuntimeBackend",
     "OpenCVDNNBackend",
     "OptimizationSummary",
     "ParityComparison",
+    "PinnedMemoryBuffer",
     "PrecisionType",
     "PreprocessTransform",
     "PreprocessorError",
@@ -73,5 +84,6 @@ __all__ = [
     "build_tensorrt_provider_options",
     "compare_numerical_parity",
     "create_backend",
+    "is_cuda_pinned_memory_available",
     "verify_numerical_parity",
 ]
