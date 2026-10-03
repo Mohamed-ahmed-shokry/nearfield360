@@ -188,9 +188,9 @@ class InferenceConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    backend: Literal["opencv", "onnxruntime"] = "opencv"
+    backend: Literal["opencv", "onnxruntime", "tensorrt"] = "opencv"
     device: Literal["cpu", "cuda", "directml"] = "cpu"
-    precision: Literal["fp32", "fp16"] = "fp32"
+    precision: Literal["fp32", "fp16", "int8"] = "fp32"
     input_height: int = Field(default=480, gt=0, le=4096)
     input_width: int = Field(default=640, gt=0, le=4096)
     mean: tuple[float, float, float] = (0.485, 0.456, 0.406)
@@ -198,6 +198,9 @@ class InferenceConfig(BaseModel):
     confidence_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
     nms_threshold: float = Field(default=0.4, ge=0.0, le=1.0)
     batch_size: int = Field(default=1, gt=0, le=64)
+    tensorrt_workspace_mb: int = Field(default=1024, gt=0)
+    tensorrt_cache_dir: Path | None = None
+    tensorrt_dla_core: int | None = Field(default=None, ge=0)
 
     @field_validator("std")
     @classmethod

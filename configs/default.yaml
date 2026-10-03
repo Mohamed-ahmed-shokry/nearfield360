@@ -94,3 +94,6 @@ inference:
   confidence_threshold: 0.5
   nms_threshold: 0.4
   batch_size: 1
+  tensorrt_workspace_mb: 1024
+  tensorrt_cache_dir: null
+  tensorrt_dla_core: null

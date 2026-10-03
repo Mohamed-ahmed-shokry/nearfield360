@@ -253,7 +253,9 @@ def test_inference_config_defaults() -> None:
         ("input_width", "-10", "greater than 0"),
         ("confidence_threshold", "1.5", "less than or equal to 1"),
         ("nms_threshold", "-0.1", "greater than or equal to 0"),
-        ("backend", "tensorflow", "Input should be 'opencv' or 'onnxruntime'"),
+        ("backend", "tensorflow", "Input should be 'opencv', 'onnxruntime' or 'tensorrt'"),
+        ("precision", "int4", "Input should be 'fp32', 'fp16' or 'int8'"),
+        ("tensorrt_workspace_mb", "0", "greater than 0"),
         ("device", "tpu", "Input should be 'cpu', 'cuda' or 'directml'"),
     ],
 )
@@ -306,5 +308,7 @@ def test_repository_default_config_deserializes_completely() -> None:
     assert config.risk.danger_occupancy > 0
     assert config.health.blur_threshold > 0
     assert config.tracking.dt > 0
-    assert config.inference.backend in ("opencv", "onnxruntime")
+    assert config.inference.backend in ("opencv", "onnxruntime", "tensorrt")
     assert config.inference.device in ("cpu", "cuda", "directml")
+    assert config.inference.precision in ("fp32", "fp16", "int8")
+    assert config.inference.tensorrt_workspace_mb == 1024
