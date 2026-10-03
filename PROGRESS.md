@@ -988,3 +988,51 @@ Phase 17 closes README roadmap item 16 by delivering batched perception inferenc
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 18: TensorRT Acceleration, Quantization Optimization, and Embedded C++ Runtime Deployment
+
+**Status:** In Progress
+**Repository Branch:** `main`
+**Expected Milestone Scope:** Closes README roadmap item 17 (TensorRT acceleration, FP16/INT8 quantization, zero-copy memory management, and embedded C++ runtime deployment).
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 18 completes roadmap item 17 with the following major deliverables:
+
+1. **TensorRT Inference Backend (`TensorrtBackend`):**
+   - High-performance TensorRT runtime execution provider integration via ONNX Runtime and native engine execution interfaces.
+   - Configurable execution provider settings: workspace memory allocation (`tensorrt_workspace_mb`), engine cache persistence (`tensorrt_cache_dir`), precision modes (`fp32`, `fp16`, `int8`), and Deep Learning Accelerator core mapping (`tensorrt_dla_core`).
+   - Diagnostic hardware and provider discovery with actionable error messaging when CUDA or TensorRT dynamic libraries are unavailable.
+2. **Quantization & Precision Optimization Engine (`src/nearfield360/perception/inference/optimization.py`):**
+   - Half-precision FP16 model conversion with node-level weight casting and topological ONNX graph verification.
+   - Dynamic INT8 quantization engine with weight scale / zero-point calibration and parameter compression profiling.
+   - INT8 calibration table generation from WoodScape fisheye dataset frames for static TensorRT calibration cache export.
+   - Numerical drift evaluator measuring maximum and mean absolute divergence between FP32 baseline and optimized models.
+3. **Zero-Copy & Pinned Memory Buffer Management (`src/nearfield360/perception/inference/memory.py`):**
+   - Pinned memory allocation interfaces (`CUDAPinnedBufferPool`) enabling page-locked host buffer reuse for DMA transfers.
+   - 256-byte alignment and memory footprint planning for batched multi-camera perception workloads.
+4. **Embedded Automotive C++ Deployment Architecture (`deploy/cpp/`):**
+   - Production C++17/C++20 runtime wrapper with clean RAII abstractions (`TensorRTEngine`, `FisheyePreprocessor`, `PerceptionPipeline`) for automotive compute platforms (NVIDIA DRIVE AGX, Jetson Orin).
+   - CMake build configuration supporting cross-compilation and verification test harnesses.
+5. **CLI Integration:**
+   - `nearfield360 infer providers`: Inspect available execution providers, devices, and runtime capabilities.
+   - `nearfield360 infer optimize`: Convert and optimize ONNX models to FP16 or INT8 with validation and numerical drift reporting.
+   - `nearfield360 infer calibrate`: Generate INT8 calibration cache tables from WoodScape sample frames.
+   - `--backend tensorrt` and `--precision {fp32,fp16,int8}` integrated into `infer`, `pipeline run`, `occupancy layer`, and `track run`.
+6. **Verification & Quality Gates:**
+   - Strict typing (`mypy`), linting (`ruff`), release audit, and unit test suite coverage maintaining >85% coverage.
+
+### 2. Implementation Tasks
+
+- [ ] Task 1: Configuration & Domain Models (`InferenceConfig`, `InferenceBackendType.TENSORRT`, optimization & provider models).
+- [ ] Task 2: TensorRT Inference Backend (`src/nearfield360/perception/inference/tensorrt_backend.py`, factory wiring, unit tests).
+- [ ] Task 3: Zero-Copy & Pinned Memory Management (`src/nearfield360/perception/inference/memory.py`, unit tests).
+- [ ] Task 4: Quantization, FP16 Optimization & INT8 Calibration Engine (`src/nearfield360/perception/inference/optimization.py`, unit tests).
+- [ ] Task 5: Embedded Automotive C++ Deployment Architecture (`deploy/cpp/` headers, pipeline, CMake, tests, docs).
+- [ ] Task 6: CLI Integration (`infer providers`, `infer optimize`, `infer calibrate`, `--backend tensorrt`, `--precision`, CLI tests).
+- [ ] Task 7: Full verification gates (pytest, ruff, mypy, release audit) & documentation updates.
+
