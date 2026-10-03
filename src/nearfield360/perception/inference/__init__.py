@@ -21,10 +21,16 @@ from nearfield360.perception.inference.benchmark import (
 from nearfield360.perception.inference.detection import ObjectDetectionEngine
 from nearfield360.perception.inference.models import (
     BenchmarkSummary,
+    CalibrationSummary,
     InferenceBackendType,
     InferenceDevice,
     InferenceResult,
     ModelMetadata,
+    OptimizationSummary,
+    PrecisionType,
+    ProviderInfo,
+    ProvidersReport,
+    QuantizationType,
 )
 from nearfield360.perception.inference.preprocessor import (
     FisheyeImagePreprocessor,
@@ -32,11 +38,16 @@ from nearfield360.perception.inference.preprocessor import (
     PreprocessTransform,
 )
 from nearfield360.perception.inference.semantic import SemanticSegmentationEngine
+from nearfield360.perception.inference.tensorrt_backend import (
+    TensorrtBackend,
+    build_tensorrt_provider_options,
+)
 
 __all__ = [
     "BatchSweepItem",
     "BatchSweepSummary",
     "BenchmarkSummary",
+    "CalibrationSummary",
     "FisheyeImagePreprocessor",
     "InferenceBackend",
     "InferenceBackendType",
@@ -47,12 +58,19 @@ __all__ = [
     "ObjectDetectionEngine",
     "OnnxRuntimeBackend",
     "OpenCVDNNBackend",
+    "OptimizationSummary",
     "ParityComparison",
+    "PrecisionType",
     "PreprocessTransform",
     "PreprocessorError",
+    "ProviderInfo",
+    "ProvidersReport",
+    "QuantizationType",
     "SemanticSegmentationEngine",
+    "TensorrtBackend",
     "benchmark_batch_sweep",
     "benchmark_inference",
+    "build_tensorrt_provider_options",
     "compare_numerical_parity",
     "create_backend",
     "verify_numerical_parity",

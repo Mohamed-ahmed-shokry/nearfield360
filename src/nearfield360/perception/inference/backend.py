@@ -292,7 +292,11 @@ def create_backend(
     precision: str = "fp32",
 ) -> InferenceBackend:
     """Instantiate the appropriate inference backend according to configuration or parameters."""
+    workspace_mb = 1024
+    cache_dir: Path | None = None
+    dla_core: int | None = None
     prec: str
+
     if isinstance(model_or_config, InferenceConfig):
         if model_path is None:
             msg = "model_path is required when passing InferenceConfig"
@@ -301,6 +305,9 @@ def create_backend(
         b_type = model_or_config.backend.lower()
         dev = InferenceDevice(model_or_config.device.lower())
         prec = model_or_config.precision
+        workspace_mb = model_or_config.tensorrt_workspace_mb
+        cache_dir = model_or_config.tensorrt_cache_dir
+        dla_core = model_or_config.tensorrt_dla_core
     else:
         target_model = model_or_config
         b_type = (
@@ -317,6 +324,17 @@ def create_backend(
         return OpenCVDNNBackend(target_model, device=dev, precision=prec)
     if b_type == InferenceBackendType.ONNXRUNTIME.value:
         return OnnxRuntimeBackend(target_model, device=dev, precision=prec)
+    if b_type == InferenceBackendType.TENSORRT.value:
+        from nearfield360.perception.inference.tensorrt_backend import TensorrtBackend
+
+        return TensorrtBackend(
+            target_model,
+            device=dev,
+            precision=prec,
+            workspace_mb=workspace_mb,
+            cache_dir=cache_dir,
+            dla_core=dla_core,
+        )
     msg = f"Unsupported inference backend: {b_type}"
     raise InferenceError(msg)
 
