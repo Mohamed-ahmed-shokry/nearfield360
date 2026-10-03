@@ -365,3 +365,106 @@ def test_occupancy_layer_with_live_model(tmp_path: Path) -> None:
     payload = read_json(out_file)
     assert payload["samples"]["evaluated"] == 1
     assert payload["samples"]["model"] == str(model_path)
+
+
+def test_occupancy_forecast_cli_writes_report_and_png(tmp_path: Path) -> None:
+    _write_dataset(tmp_path)
+    output = tmp_path / "forecast_report.json"
+    png = tmp_path / "forecast_panels.png"
+
+    result = runner.invoke(
+        app,
+        [
+            "occupancy",
+            "forecast",
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(output),
+            "--png",
+            str(png),
+            "--horizon",
+            "2.0",
+            "--step",
+            "0.5",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Wrote" in result.stdout
+    payload = read_json(output)
+    assert "forecast" in payload
+    assert "grid_forecast" in payload
+    forecast_data = payload["forecast"]
+    assert forecast_data["horizon_seconds"] == 2.0
+    assert forecast_data["step_seconds"] == 0.5
+    assert forecast_data["num_steps"] == 4
+    assert len(forecast_data["zone_risks"]) == 6
+    assert png.is_file()
+    rendered = cv2.imread(str(png))
+    assert rendered is not None
+    assert rendered.shape[0] > 0 and rendered.shape[1] > 0
+
+
+def test_occupancy_forecast_cli_all_cameras(tmp_path: Path) -> None:
+    _write_surround_dataset(tmp_path, ["00001", "00002"])
+    output = tmp_path / "surround_forecast.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "occupancy",
+            "forecast",
+            "--all-cameras",
+            "--root",
+            str(tmp_path),
+            "--output",
+            str(output),
+            "--samples",
+            "2",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = read_json(output)
+    assert payload["samples"]["camera"] == "all"
+    assert payload["samples"]["evaluated"] == 2
+    assert "forecast" in payload
+    assert payload["forecast"]["num_steps"] == 6
+
+
+def test_occupancy_export_model_cli(tmp_path: Path) -> None:
+    model_path = tmp_path / "exported_forecaster.onnx"
+
+    result = runner.invoke(
+        app,
+        [
+            "occupancy",
+            "export-model",
+            "--output",
+            str(model_path),
+            "--hidden-channels",
+            "8",
+            "--horizon-steps",
+            "4",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Exported temporal forecaster ONNX model" in result.stdout
+    assert model_path.is_file()
+
+    # Re-exporting without overwrite should fail
+    dup = runner.invoke(
+        app,
+        ["occupancy", "export-model", "--output", str(model_path)],
+    )
+    assert dup.exit_code == 1
+
+    # With overwrite should succeed
+    overwrite_res = runner.invoke(
+        app,
+        ["occupancy", "export-model", "--output", str(model_path), "--overwrite"],
+    )
+    assert overwrite_res.exit_code == 0
+

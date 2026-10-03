@@ -443,3 +443,33 @@ def test_latency_stats_helper_empty_and_populated() -> None:
     assert 20.0 <= stats["p50_ms"] <= 30.0
     assert stats["p95_ms"] >= stats["p50_ms"]
     assert stats["p99_ms"] >= stats["p95_ms"]
+
+
+def test_pipeline_run_with_temporal_forecast(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    _write_four_camera_frame(dataset, "00001")
+    output = tmp_path / "pipeline_report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "pipeline",
+            "run",
+            "--root",
+            str(dataset),
+            "--output",
+            str(output),
+            "--temporal-forecast",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Pipeline complete" in result.stdout
+    payload = read_json(output)
+    assert payload["samples"]["temporal_forecast"] is True
+    assert "temporal_forecast" in payload
+    assert "temporal_forecast_grid" in payload
+    assert "temporal_forecast_ms" in payload["timings"]
+    assert payload["temporal_forecast"]["horizon_seconds"] == 3.0
+    assert payload["temporal_forecast"]["num_steps"] == 6
+
