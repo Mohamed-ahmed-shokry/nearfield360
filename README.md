@@ -460,10 +460,17 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     CLI integration with `infer benchmark --batch-size` and `--batch-sweep / --batch-sizes`;
     and multi-camera surround batched perception execution (`pipeline run --batch-cameras`).
     Excludes native TensorRT/C++ (roadmap item 7 residual).
-17. Native TensorRT acceleration and C++ runtime wrapper:
-    High-performance TensorRT execution provider integration, INT8/FP16 precision quantization
-    calibration, zero-copy CUDA pinned memory buffers, and lightweight C++ deployment wrapper
-    for embedded automotive platforms.
+17. ~~Native TensorRT acceleration and C++ runtime wrapper.~~ Done:
+    High-performance `TensorrtBackend` integration via ONNX Runtime `TensorrtExecutionProvider`
+    and native engine execution interfaces, configuration-driven workspace and cache parameters,
+    FP16 half-precision conversion and dynamic INT8 quantization engines (`infer optimize`),
+    TensorRT INT8 calibration cache table generator (`infer calibrate`), host acceleration
+    provider discovery (`infer providers`), zero-copy CUDA pinned memory buffer pools
+    (`CUDAPinnedBufferPool`), and standalone embedded automotive C++ deployment architecture
+    with multi-camera surround batching and BEV ground-plane unprojection (`deploy/cpp/`).
+18. Temporal bird's-eye-view multi-camera occupancy forecasting network:
+    End-to-end spatiotemporal transformer BEV perception network with cross-attention camera fusion,
+    recurrent temporal state updates, and forward occupancy forecasting over multi-second parking horizons.
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -495,7 +502,7 @@ For live neural perception without precomputed annotations, pass ONNX models:
 # Annotation-free live pipeline: RGB + calibration only, models supply masks and boxes
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/segmentation.onnx --det-model models/detection.onnx --output outputs/pipeline/live.json
 
-# Select the inference backend (defaults to config.inference.backend; opencv | onnxruntime)
+# Select the inference backend (defaults to config.inference.backend; opencv | onnxruntime | tensorrt)
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/segmentation.onnx --det-model models/detection.onnx --backend opencv --output outputs/pipeline/live.json
 ```
 
@@ -503,14 +510,36 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models
 detection files for ground-footprint projection. Model paths are recorded under
 `samples.seg_model` / `samples.det_model` in the report.
 
-### Inference backends
+### Inference backends and model optimization
 
 Live perception commands (`infer`, `occupancy layer`, `track run`, `pipeline run`) accept
-`--backend {opencv,onnxruntime}`. When omitted, the backend and device come from
-`config.inference.backend` / `config.inference.device`. Detection confidence and NMS
-thresholds default from `config.inference.confidence_threshold` and
-`config.inference.nms_threshold` (overridable per command with
-`--confidence-threshold` / `--nms-threshold`).
+`--backend {opencv,onnxruntime,tensorrt}` and `--precision {fp32,fp16,int8}`. When omitted,
+the backend, device, and precision come from `config.inference.backend`, `config.inference.device`,
+and `config.inference.precision`. Detection confidence and NMS thresholds default from
+`config.inference.confidence_threshold` and `config.inference.nms_threshold`.
+
+Inspect hardware acceleration execution providers on the current host:
+
+```powershell
+uv run nearfield360 infer providers
+uv run nearfield360 infer providers --json
+```
+
+Optimize an ONNX model with half-precision FP16 or dynamic INT8 quantization:
+
+```powershell
+# Convert to FP16 with numerical drift verification against FP32 baseline:
+uv run nearfield360 infer optimize --model models/detection.onnx --output models/detection_fp16.onnx --precision fp16 --check-drift
+
+# Quantize to dynamic INT8:
+uv run nearfield360 infer optimize --model models/segmentation.onnx --output models/segmentation_int8.onnx --precision int8
+```
+
+Generate a TensorRT-compatible INT8 calibration cache table from fisheye samples:
+
+```powershell
+uv run nearfield360 infer calibrate --model models/detection.onnx --output outputs/calibration.cache --samples 50
+```
 
 ONNX Runtime is an optional extra — install with:
 
