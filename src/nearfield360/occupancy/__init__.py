@@ -9,6 +9,10 @@ from nearfield360.occupancy.evidence import (
     fuse_occupancy,
     rasterize_occupancy,
 )
+from nearfield360.occupancy.forecast import (
+    TemporalOccupancyForecaster,
+    fuse_cross_attention_occupancy,
+)
 from nearfield360.occupancy.models import (
     OccupancyForecastGrid,
     OccupancyForecastStep,
@@ -37,12 +41,14 @@ __all__ = [
     "OccupancyPolicyError",
     "RiskZone",
     "TemporalForecastSummary",
+    "TemporalOccupancyForecaster",
     "TemporalOccupancyState",
     "ZoneForecastRisk",
     "ZoneRisk",
     "circular_zone",
     "corridor_zone",
     "distance_weights",
+    "fuse_cross_attention_occupancy",
     "fuse_occupancy",
     "lateral_clearance_zone",
     "rasterize_occupancy",
@@ -51,4 +57,5 @@ __all__ = [
     "surround_parking_zones",
     "validate_zone_mask",
 ]
+
 
