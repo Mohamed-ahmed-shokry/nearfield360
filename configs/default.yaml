@@ -97,3 +97,13 @@ inference:
   tensorrt_workspace_mb: 1024
   tensorrt_cache_dir: null
   tensorrt_dla_core: null
+forecast:
+  horizon_seconds: 3.0
+  step_seconds: 0.5
+  memory_decay: 0.9
+  flow_decay: 0.85
+  min_velocity_threshold: 0.1
+  diffusion_rate: 0.02
+  spatial_kernel_size: 3
+  hidden_channels: 16
+

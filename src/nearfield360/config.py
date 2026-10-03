@@ -210,6 +210,32 @@ class InferenceConfig(BaseModel):
         return value
 
 
+class OccupancyForecastConfig(BaseModel):
+    """Parameters for temporal BEV multi-camera occupancy forecasting."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    horizon_seconds: float = Field(default=3.0, gt=0.0, allow_inf_nan=False)
+    step_seconds: float = Field(default=0.5, gt=0.0, allow_inf_nan=False)
+    memory_decay: float = Field(default=0.9, ge=0.0, le=1.0, allow_inf_nan=False)
+    flow_decay: float = Field(default=0.85, ge=0.0, le=1.0, allow_inf_nan=False)
+    min_velocity_threshold: float = Field(default=0.1, ge=0.0, allow_inf_nan=False)
+    diffusion_rate: float = Field(default=0.02, ge=0.0, allow_inf_nan=False)
+    spatial_kernel_size: int = Field(default=3, ge=1)
+    hidden_channels: int = Field(default=16, ge=1, le=128)
+
+    @model_validator(mode="after")
+    def validate_forecast_parameters(self) -> Self:
+        if self.step_seconds > self.horizon_seconds:
+            raise ValueError(
+                f"step_seconds ({self.step_seconds}) cannot exceed "
+                f"horizon_seconds ({self.horizon_seconds})"
+            )
+        if self.spatial_kernel_size % 2 == 0:
+            raise ValueError(f"spatial_kernel_size ({self.spatial_kernel_size}) must be odd")
+        return self
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -237,6 +263,7 @@ class ProjectConfig(BaseSettings):
     health: CameraHealthConfig = Field(default_factory=CameraHealthConfig)
     tracking: TrackingConfig = Field(default_factory=TrackingConfig)
     inference: InferenceConfig = Field(default_factory=InferenceConfig)
+    forecast: OccupancyForecastConfig = Field(default_factory=OccupancyForecastConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -289,6 +316,7 @@ __all__ = [
     "InferenceConfig",
     "LoggingConfig",
     "OccupancyConfig",
+    "OccupancyForecastConfig",
     "PathsConfig",
     "ProjectConfig",
     "RiskConfig",

@@ -312,3 +312,43 @@ def test_repository_default_config_deserializes_completely() -> None:
     assert config.inference.device in ("cpu", "cuda", "directml")
     assert config.inference.precision in ("fp32", "fp16", "int8")
     assert config.inference.tensorrt_workspace_mb == 1024
+    assert config.forecast.horizon_seconds == 3.0
+    assert config.forecast.step_seconds == 0.5
+    assert config.forecast.memory_decay == 0.9
+    assert config.forecast.flow_decay == 0.85
+    assert config.forecast.min_velocity_threshold == 0.1
+    assert config.forecast.diffusion_rate == 0.02
+    assert config.forecast.spatial_kernel_size == 3
+    assert config.forecast.hidden_channels == 16
+
+
+def test_forecast_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("forecast:\n  horizon_seconds: 4.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_FORECAST__HORIZON_SECONDS", "5.0")
+    monkeypatch.setenv("NEARFIELD360_FORECAST__STEP_SECONDS", "1.0")
+
+    config = load_config(config_path)
+
+    assert config.forecast.horizon_seconds == 5.0
+    assert config.forecast.step_seconds == 1.0
+
+
+def test_forecast_config_rejects_step_exceeding_horizon(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "forecast:\n  horizon_seconds: 1.0\n  step_seconds: 2.0\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValidationError, match="cannot exceed horizon_seconds"):
+        load_config(config_path)
+
+
+def test_forecast_config_rejects_even_kernel_size(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("forecast:\n  spatial_kernel_size: 4\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="must be odd"):
+        load_config(config_path)
