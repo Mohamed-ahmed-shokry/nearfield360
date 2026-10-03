@@ -39,6 +39,14 @@ from nearfield360.perception.inference.models import (
     ProvidersReport,
     QuantizationType,
 )
+from nearfield360.perception.inference.optimization import (
+    OptimizationError,
+    convert_model_to_fp16,
+    detect_hardware_providers,
+    generate_int8_calibration_table,
+    optimize_model_precision,
+    quantize_model_dynamic_int8,
+)
 from nearfield360.perception.inference.preprocessor import (
     FisheyeImagePreprocessor,
     PreprocessorError,
@@ -68,6 +76,7 @@ __all__ = [
     "ObjectDetectionEngine",
     "OnnxRuntimeBackend",
     "OpenCVDNNBackend",
+    "OptimizationError",
     "OptimizationSummary",
     "ParityComparison",
     "PinnedMemoryBuffer",
@@ -83,7 +92,12 @@ __all__ = [
     "benchmark_inference",
     "build_tensorrt_provider_options",
     "compare_numerical_parity",
+    "convert_model_to_fp16",
     "create_backend",
+    "detect_hardware_providers",
+    "generate_int8_calibration_table",
     "is_cuda_pinned_memory_available",
+    "optimize_model_precision",
+    "quantize_model_dynamic_int8",
     "verify_numerical_parity",
 ]
