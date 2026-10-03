@@ -104,7 +104,7 @@ def test_create_backend_unsupported_type_raises(tmp_path: Path) -> None:
     create_dummy_segmentation_onnx(model_path, num_classes=10, height=32, width=32)
 
     with pytest.raises(InferenceError, match="Unsupported inference backend"):
-        create_backend(model_path, backend_type="tensorrt", device="cpu")
+        create_backend(model_path, backend_type="tensorflow", device="cpu")
 
 
 def test_create_backend_onnxruntime_raises_when_missing(tmp_path: Path) -> None:
