@@ -1066,4 +1066,39 @@ Phase 18 completes roadmap item 17 with the following major deliverables:
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
 
+---
+
+## Phase 19: Temporal Bird's-Eye-View (BEV) Multi-Camera Occupancy Forecasting Network
+
+**Status:** In Progress
+**Repository Branch:** `main`
+**Baseline Test Suite:** 892 passed, 5 skipped (0 failures)
+**Baseline Type Checking:** `mypy --strict` clean (76 source files)
+**Baseline Code Coverage:** 90.12%
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 19 completes roadmap item 18:
+
+1. **Temporal BEV Configuration & Models (`src/nearfield360/config.py`, `src/nearfield360/occupancy/models.py`):**
+   - Configurable `OccupancyForecastConfig` with horizon length, temporal discretization ($\Delta t$), memory persistence decay, dynamic flow velocity thresholds, spatial diffusion rate, and hidden recurrent channel parameters.
+   - Pydantic models for temporal states (`TemporalOccupancyState`), discrete forecast steps (`OccupancyForecastStep`), 4D spatio-temporal forecast grids (`OccupancyForecastGrid`), and safety zone intrusion risks (`ZoneForecastRisk`).
+2. **Spatiotemporal Cross-Attention & Recurrent Forecasting Engine (`src/nearfield360/occupancy/forecast.py`):**
+   - Cross-attention multi-camera projection and camera overlap weighting.
+   - Recurrent ConvGRU / gated temporal state updates fusing historical memory with new observations.
+   - Dynamic velocity field estimation on the BEV plane from multi-camera sequence updates and tracked obstacle motion.
+   - Autoregressive / advective forward rollout predicting per-cell occupancy probabilities, dynamic motion masks, and propagating Bayesian uncertainty diffusion over multi-second horizons ($[t+\Delta t, \dots, t+H]$).
+   - Temporal safety zone risk forecasting: time-to-intrusion ($TTI$), peak occupancy envelope, and hazard trajectories across all 6 surround parking zones.
+3. **ONNX Graph Exporter & Runtime (`src/nearfield360/occupancy/onnx_exporter.py`):**
+   - End-to-end exportable ONNX model graph for recurrent temporal BEV forecasting with hardware acceleration fallback.
+4. **CLI Integration & Multi-Horizon Visualization:**
+   - `nearfield360 occupancy forecast`: Run multi-step temporal forecasting over multi-camera or single-camera sequences with JSON report export and multi-horizon PNG panel visualization ($t=0, +1s, +2s, +3s$).
+   - `nearfield360 occupancy export-model`: Export the recurrent temporal BEV forecasting network as an ONNX model graph.
+   - `nearfield360 pipeline run --temporal-forecast`: Unify 2D tracking velocities with the BEV grid velocity field to produce temporally consistent 4D occupancy forecasting alongside discrete track predictions.
+5. **Quality Gates & Acceptance Criteria:**
+   - Full test coverage (>85%), strict typing with zero mypy errors, clean ruff linter/formatter, and passing release audit.
+
+
 
