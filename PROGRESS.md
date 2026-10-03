@@ -993,9 +993,12 @@ Phase 17 closes README roadmap item 16 by delivering batched perception inferenc
 
 ## Phase 18: TensorRT Acceleration, Quantization Optimization, and Embedded C++ Runtime Deployment
 
-**Status:** In Progress
+**Status:** Completed
 **Repository Branch:** `main`
-**Expected Milestone Scope:** Closes README roadmap item 17 (TensorRT acceleration, FP16/INT8 quantization, zero-copy memory management, and embedded C++ runtime deployment).
+**Test Suite:** 892 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (76 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 90.12% (exceeds required 85.0% threshold)
 
 ---
 
@@ -1024,15 +1027,43 @@ Phase 18 completes roadmap item 17 with the following major deliverables:
    - `nearfield360 infer calibrate`: Generate INT8 calibration cache tables from WoodScape sample frames.
    - `--backend tensorrt` and `--precision {fp32,fp16,int8}` integrated into `infer`, `pipeline run`, `occupancy layer`, and `track run`.
 6. **Verification & Quality Gates:**
-   - Strict typing (`mypy`), linting (`ruff`), release audit, and unit test suite coverage maintaining >85% coverage.
+   - Strict typing (`mypy`), linting (`ruff`), release audit, and unit test suite coverage maintaining 90.12% coverage.
 
-### 2. Implementation Tasks
+**Explicit exclusions:** Temporal cross-attention transformers and multi-frame 4D recurrent state networks (tracked under Phase 19 / roadmap item 18).
 
-- [ ] Task 1: Configuration & Domain Models (`InferenceConfig`, `InferenceBackendType.TENSORRT`, optimization & provider models).
-- [ ] Task 2: TensorRT Inference Backend (`src/nearfield360/perception/inference/tensorrt_backend.py`, factory wiring, unit tests).
-- [ ] Task 3: Zero-Copy & Pinned Memory Management (`src/nearfield360/perception/inference/memory.py`, unit tests).
-- [ ] Task 4: Quantization, FP16 Optimization & INT8 Calibration Engine (`src/nearfield360/perception/inference/optimization.py`, unit tests).
-- [ ] Task 5: Embedded Automotive C++ Deployment Architecture (`deploy/cpp/` headers, pipeline, CMake, tests, docs).
-- [ ] Task 6: CLI Integration (`infer providers`, `infer optimize`, `infer calibrate`, `--backend tensorrt`, `--precision`, CLI tests).
-- [ ] Task 7: Full verification gates (pytest, ruff, mypy, release audit) & documentation updates.
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| TensorRT inference runtime backend (`TensorrtBackend`) | `src/nearfield360/perception/inference/tensorrt_backend.py` |
+| Zero-copy pinned memory management (`CUDAPinnedBufferPool`, `PinnedMemoryBuffer`, `MemoryLayoutPlan`) | `src/nearfield360/perception/inference/memory.py` |
+| Precision optimization & INT8 calibration engine (`optimize_model_precision`, `generate_int8_calibration_table`, `detect_hardware_providers`) | `src/nearfield360/perception/inference/optimization.py` |
+| Extended configuration models (`InferenceConfig`, `InferenceBackendType.TENSORRT`, `PrecisionType`, `OptimizationSummary`) | `src/nearfield360/config.py`, `src/nearfield360/perception/inference/models.py` |
+| CLI commands (`infer providers`, `infer optimize`, `infer calibrate`, `--backend tensorrt`, `--precision`) | `src/nearfield360/cli/infer.py`, `src/nearfield360/cli/inference_common.py` |
+| Embedded automotive C++ RAII engine wrapper | `deploy/cpp/include/nearfield360/tensorrt_engine.hpp` |
+| Embedded automotive SIMD fisheye preprocessor | `deploy/cpp/include/nearfield360/fisheye_preprocessor.hpp` |
+| Embedded automotive surround perception & BEV pipeline | `deploy/cpp/include/nearfield360/perception_pipeline.hpp` |
+| Standalone embedded benchmark executable | `deploy/cpp/src/main.cpp` |
+| Embedded CMake build definition & documentation | `deploy/cpp/CMakeLists.txt`, `deploy/cpp/README.md` |
+| C++ deployment test suite | `tests/unit/test_cpp_deployment.py` |
+| TensorRT backend unit tests | `tests/unit/perception/inference/test_tensorrt_backend.py` (8 tests) |
+| Memory management unit tests | `tests/unit/perception/inference/test_memory.py` (6 tests) |
+| Model optimization & calibration unit tests | `tests/unit/perception/inference/test_optimization.py` (9 tests) |
+| Infer CLI integration tests | `tests/unit/test_infer_cli.py` (21 tests, +5 tests) |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 892 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 90.12% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 76 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass |
+| Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
+
 
