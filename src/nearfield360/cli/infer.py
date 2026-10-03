@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Annotated, Any
@@ -11,7 +12,12 @@ import cv2
 import numpy as np
 import typer
 
-from nearfield360.cli.inference_common import BackendOption, resolve_backend_type
+from nearfield360.cli.inference_common import (
+    BackendOption,
+    PrecisionOption,
+    resolve_backend_type,
+    resolve_precision,
+)
 from nearfield360.cli.state import get_state
 from nearfield360.data.detection import DetectionPrediction
 from nearfield360.data.images import ImageReadError, load_rgb_image
@@ -28,6 +34,13 @@ from nearfield360.perception.inference.benchmark import (
 from nearfield360.perception.inference.detection import ObjectDetectionEngine
 from nearfield360.perception.inference.models import (
     InferenceDevice,
+    PrecisionType,
+)
+from nearfield360.perception.inference.optimization import (
+    OptimizationError,
+    detect_hardware_providers,
+    generate_int8_calibration_table,
+    optimize_model_precision,
 )
 from nearfield360.perception.inference.preprocessor import (
     FisheyeImagePreprocessor,
@@ -35,6 +48,8 @@ from nearfield360.perception.inference.preprocessor import (
 )
 from nearfield360.perception.inference.semantic import SemanticSegmentationEngine
 from nearfield360.utils.artifacts import write_json
+
+logger = logging.getLogger(__name__)
 
 infer_app = typer.Typer(
     help="Neural network perception inference, benchmarking, and model inspection.",
@@ -445,6 +460,7 @@ def infer_benchmark(
         ),
     ] = "cpu",
     backend: BackendOption = None,
+    precision: PrecisionOption = None,
     iterations: Annotated[
         int,
         typer.Option("--iterations", "-n", min=1, help="Number of timed iterations."),
@@ -498,10 +514,12 @@ def infer_benchmark(
 
     try:
         b_type = resolve_backend_type(context, backend)
+        prec = resolve_precision(context, precision)
         backend_obj = create_backend(
             model,
             backend_type=b_type,
             device=dev_enum,
+            precision=prec,
         )
     except (InferenceError, ValueError) as exc:
         typer.secho(f"Failed to initialize backend: {exc}", fg=typer.colors.RED, err=True)
@@ -766,6 +784,244 @@ def infer_inspect(
         write_json(output, meta, overwrite=True)
 
     typer.echo(json.dumps(meta, indent=2))
+
+
+@infer_app.command("providers")
+def infer_providers(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Print machine-readable JSON providers report."),
+    ] = False,
+) -> None:
+    """Inspect detected execution providers (TensorRT, CUDA, DirectML, CPU)."""
+    report = detect_hardware_providers()
+    if json_output:
+        typer.echo(json.dumps(report.model_dump(), indent=2))
+        return
+
+    typer.secho("Execution Providers & Acceleration Discovery", bold=True)
+    typer.echo(f"  Recommended Backend: {report.recommended_backend}")
+    typer.echo(f"  Recommended Device:  {report.recommended_device}")
+    typer.echo(f"  NVIDIA CUDA:         {'Detected' if report.cuda_available else 'Not detected'}")
+    typer.echo(
+        f"  TensorRT Support:    {'Detected' if report.tensorrt_available else 'Not detected'}"
+    )
+    typer.echo("")
+    typer.echo(f"  {'Provider':<28} {'Available':<11} {'Device':<10} {'Priority':<10} Details")
+    typer.echo("  " + "-" * 78)
+    for p in report.providers:
+        avail_str = "[YES]" if p.available else "[NO]"
+        color = typer.colors.GREEN if p.available else typer.colors.YELLOW
+        typer.echo(
+            f"  {p.name:<28} "
+            + typer.style(f"{avail_str:<11}", fg=color)
+            + f"{p.device:<10} {p.priority:<10} {p.details}"
+        )
+
+
+@infer_app.command("optimize")
+def infer_optimize(
+    model: Annotated[
+        Path,
+        typer.Option(
+            "--model",
+            "-m",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Path to source FP32 ONNX model file.",
+        ),
+    ],
+    output: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            resolve_path=True,
+            help="Path to save optimized ONNX model.",
+        ),
+    ],
+    precision: Annotated[
+        PrecisionType,
+        typer.Option(
+            "--precision",
+            "-p",
+            case_sensitive=False,
+            help="Target precision ('fp16' or 'int8').",
+        ),
+    ] = PrecisionType.FP16,
+    check_drift: Annotated[
+        bool,
+        typer.Option(
+            "--check-drift/--no-check-drift",
+            help="Evaluate numerical output drift against FP32 baseline on sample input.",
+        ),
+    ] = True,
+    overwrite: Annotated[
+        bool,
+        typer.Option(
+            "--overwrite/--no-overwrite",
+            help="Allow overwriting target file if it already exists.",
+        ),
+    ] = True,
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Print machine-readable JSON optimization summary.",
+        ),
+    ] = False,
+) -> None:
+    """Optimize an ONNX model with FP16 half-precision conversion or dynamic INT8 quantization."""
+    sample: np.ndarray | None = None
+    if check_drift:
+        sample = np.random.default_rng(42).standard_normal((1, 3, 480, 640)).astype(np.float32)
+
+    try:
+        summary = optimize_model_precision(
+            model,
+            output,
+            target_precision=precision,
+            test_sample=sample,
+            overwrite=overwrite,
+        )
+    except OptimizationError as exc:
+        typer.secho(f"Model optimization failed: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    if json_output:
+        typer.echo(json.dumps(summary.model_dump(), indent=2))
+        return
+
+    typer.secho(
+        f"Model Precision Optimization ({precision.value.upper()}) Complete",
+        fg=typer.colors.GREEN,
+        bold=True,
+    )
+    typer.echo(f"  Source Model:        {summary.source_path}")
+    typer.echo(f"  Optimized Model:     {summary.optimized_path}")
+    typer.echo(f"  Quantization Method: {summary.quantization_type}")
+    typer.echo(f"  Source Size:         {summary.source_size_bytes / (1024 * 1024):.2f} MB")
+    typer.echo(f"  Optimized Size:      {summary.optimized_size_bytes / (1024 * 1024):.2f} MB")
+    typer.echo(f"  Compression Ratio:   {summary.compression_ratio:.2f}x")
+    typer.echo(
+        f"  Node Count:          {summary.node_count} ({summary.quantized_node_count} converted)"
+    )
+    if summary.max_absolute_drift is not None:
+        typer.echo(f"  Max Absolute Drift:  {summary.max_absolute_drift:.2e}")
+        typer.echo(f"  Mean Absolute Drift: {summary.mean_absolute_drift:.2e}")
+
+
+@infer_app.command("calibrate")
+def infer_calibrate(
+    model: Annotated[
+        Path,
+        typer.Option(
+            "--model",
+            "-m",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Path to ONNX model to profile for INT8 calibration.",
+        ),
+    ],
+    output: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            resolve_path=True,
+            help="Path to save TensorRT calibration cache table.",
+        ),
+    ],
+    samples: Annotated[
+        int,
+        typer.Option(
+            "--samples",
+            "-s",
+            min=1,
+            help="Number of calibration samples to evaluate.",
+        ),
+    ] = 20,
+    method: Annotated[
+        str,
+        typer.Option(
+            "--method",
+            help="Calibration method ('entropy' or 'minmax').",
+        ),
+    ] = "entropy",
+    root: Annotated[
+        Path | None,
+        typer.Option(
+            "--root",
+            "-r",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            help="Path to WoodScape dataset root or image directory.",
+        ),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Print machine-readable JSON calibration summary.",
+        ),
+    ] = False,
+) -> None:
+    """Generate a TensorRT-compatible INT8 calibration cache table from fisheye samples."""
+    sample_tensors: list[np.ndarray] = []
+    if root is not None:
+        img_paths = list(root.glob("**/*.png")) + list(root.glob("**/*.jpg"))
+        for p in img_paths[:samples]:
+            try:
+                img = load_rgb_image(p)
+                preproc = FisheyeImagePreprocessor()
+                blob, _ = preproc.preprocess(img)
+                sample_tensors.append(blob)
+            except Exception as exc:
+                logger.debug("Failed reading calibration sample %s: %s", p, exc)
+                continue
+
+    if not sample_tensors:
+        rng = np.random.default_rng(42)
+        sample_tensors.extend(
+            rng.standard_normal((1, 3, 480, 640)).astype(np.float32) for _ in range(samples)
+        )
+
+    try:
+        calib = generate_int8_calibration_table(
+            model,
+            sample_tensors,
+            output,
+            method=method,
+        )
+    except OptimizationError as exc:
+        typer.secho(f"Calibration failed: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from None
+
+    if json_output:
+        typer.echo(json.dumps(calib.model_dump(), indent=2))
+        return
+
+    typer.secho(
+        "INT8 Calibration Table Generated",
+        fg=typer.colors.GREEN,
+        bold=True,
+    )
+    typer.echo(f"  Model:               {calib.model_path}")
+    typer.echo(f"  Cache Table:         {calib.cache_path}")
+    typer.echo(f"  Samples Evaluated:   {calib.num_samples}")
+    typer.echo(f"  Calibration Method:  {calib.calibration_method}")
+    typer.echo(f"  Tensors Profiled:    {len(calib.tensor_ranges)}")
+    for name, (min_v, max_v) in calib.tensor_ranges.items():
+        typer.echo(f"    - {name:<20} [{min_v:.3f}, {max_v:.3f}]")
 
 
 __all__ = [

@@ -49,6 +49,9 @@ def test_infer_help() -> None:
     assert "detection" in result.stdout
     assert "benchmark" in result.stdout
     assert "inspect" in result.stdout
+    assert "providers" in result.stdout
+    assert "optimize" in result.stdout
+    assert "calibrate" in result.stdout
 
 
 def test_infer_semantic_success(dummy_seg_model: Path, sample_image: Path, tmp_path: Path) -> None:
@@ -442,3 +445,123 @@ def test_infer_inspect_accepts_backend_flag(dummy_seg_model: Path) -> None:
     assert result.exit_code == 0
     data = json.loads(result.stdout)
     assert data["backend"] == "opencv"
+
+
+def test_infer_providers_cli() -> None:
+    result = runner.invoke(app, ["infer", "providers"])
+    assert result.exit_code == 0
+    assert "Execution Providers & Acceleration Discovery" in result.stdout
+    assert "CPUExecutionProvider" in result.stdout
+
+    # Test JSON output
+    result_json = runner.invoke(app, ["infer", "providers", "--json"])
+    assert result_json.exit_code == 0
+    data = json.loads(result_json.stdout)
+    assert "providers" in data
+    assert "recommended_backend" in data
+
+
+def test_infer_optimize_cli(dummy_seg_model: Path, tmp_path: Path) -> None:
+    out_opt = tmp_path / "model_fp16.onnx"
+
+    # Human-readable output
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "optimize",
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(out_opt),
+            "--precision",
+            "fp16",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Model Precision Optimization (FP16) Complete" in result.stdout
+    assert "Compression Ratio" in result.stdout
+    assert out_opt.is_file()
+
+    # JSON output with INT8
+    out_int8 = tmp_path / "model_int8.onnx"
+    result_json = runner.invoke(
+        app,
+        [
+            "infer",
+            "optimize",
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(out_int8),
+            "--precision",
+            "int8",
+            "--json",
+        ],
+    )
+    assert result_json.exit_code == 0
+    data = json.loads(result_json.stdout)
+    assert data["target_precision"] == "int8"
+    assert out_int8.is_file()
+
+
+def test_infer_calibrate_cli(dummy_seg_model: Path, tmp_path: Path) -> None:
+    cache_path = tmp_path / "test.cache"
+
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "calibrate",
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(cache_path),
+            "--samples",
+            "5",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "INT8 Calibration Table Generated" in result.stdout
+    assert cache_path.is_file()
+
+    # JSON output
+    cache_json = tmp_path / "test_json.cache"
+    result_json = runner.invoke(
+        app,
+        [
+            "infer",
+            "calibrate",
+            "--model",
+            str(dummy_seg_model),
+            "--output",
+            str(cache_json),
+            "--samples",
+            "3",
+            "--json",
+        ],
+    )
+    assert result_json.exit_code == 0
+    data = json.loads(result_json.stdout)
+    assert data["num_samples"] == 3
+    assert cache_json.is_file()
+
+
+def test_infer_benchmark_precision_option(dummy_seg_model: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "infer",
+            "benchmark",
+            "--model",
+            str(dummy_seg_model),
+            "--precision",
+            "fp32",
+            "--iterations",
+            "5",
+            "--warmup",
+            "1",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Benchmark Complete" in result.stdout

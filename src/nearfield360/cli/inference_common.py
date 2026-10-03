@@ -13,7 +13,11 @@ from nearfield360.perception.inference.backend import (
     InferenceError,
     create_backend,
 )
-from nearfield360.perception.inference.models import InferenceBackendType, InferenceDevice
+from nearfield360.perception.inference.models import (
+    InferenceBackendType,
+    InferenceDevice,
+    PrecisionType,
+)
 
 BackendOption = Annotated[
     InferenceBackendType | None,
@@ -30,6 +34,15 @@ DeviceOption = Annotated[
         "--device",
         case_sensitive=False,
         help="Inference device (defaults to config.inference.device).",
+    ),
+]
+
+PrecisionOption = Annotated[
+    PrecisionType | None,
+    typer.Option(
+        "--precision",
+        case_sensitive=False,
+        help="Inference precision (defaults to config.inference.precision).",
     ),
 ]
 
@@ -56,18 +69,30 @@ def resolve_device(
     return InferenceDevice(configured)
 
 
+def resolve_precision(
+    context: typer.Context,
+    precision: PrecisionType | None,
+) -> str:
+    """Return the CLI override or the configured inference precision."""
+    if precision is not None:
+        return precision.value
+    return str(get_state(context).config.inference.precision)
+
+
 def load_backend(
     context: typer.Context,
     model: Path,
     *,
     backend: InferenceBackendType | None = None,
     device: InferenceDevice | None = None,
+    precision: PrecisionType | None = None,
 ) -> InferenceBackend:
     """Create an inference backend from CLI overrides or project configuration."""
     b_type = resolve_backend_type(context, backend)
     dev = resolve_device(context, device)
+    prec = resolve_precision(context, precision)
     try:
-        return create_backend(model, backend_type=b_type, device=dev)
+        return create_backend(model, backend_type=b_type, device=dev, precision=prec)
     except InferenceError as exc:
         typer.secho(f"Failed to load backend: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from None
@@ -76,7 +101,9 @@ def load_backend(
 __all__ = [
     "BackendOption",
     "DeviceOption",
+    "PrecisionOption",
     "load_backend",
     "resolve_backend_type",
     "resolve_device",
+    "resolve_precision",
 ]
