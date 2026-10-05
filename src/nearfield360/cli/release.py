@@ -129,6 +129,7 @@ def _run_checks() -> list[dict[str, Any]]:
         "pipeline",
         "release",
         "robustness",
+        "slots",
         "track",
     }
     from nearfield360.cli.app import app as root_app

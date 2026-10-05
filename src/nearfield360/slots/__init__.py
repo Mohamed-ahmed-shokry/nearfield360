@@ -27,6 +27,7 @@ from nearfield360.slots.models import (
     SlotDetectionSummary,
     SlotOccupancyStatus,
 )
+from nearfield360.slots.viz import render_slots_bev_overlay
 
 __all__ = [
     "ApproachCorridorEvaluator",
@@ -46,4 +47,5 @@ __all__ = [
     "point_to_segment_distance",
     "polygon_iou",
     "rasterize_slot_mask",
+    "render_slots_bev_overlay",
 ]
