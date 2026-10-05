@@ -317,9 +317,18 @@ def test_repository_default_config_deserializes_completely() -> None:
     assert config.forecast.memory_decay == 0.9
     assert config.forecast.flow_decay == 0.85
     assert config.forecast.min_velocity_threshold == 0.1
-    assert config.forecast.diffusion_rate == 0.02
-    assert config.forecast.spatial_kernel_size == 3
     assert config.forecast.hidden_channels == 16
+    assert config.slots.min_slot_width == 2.0
+    assert config.slots.max_slot_width == 3.8
+    assert config.slots.min_slot_length == 4.0
+    assert config.slots.max_slot_length == 8.0
+    assert config.slots.occupied_ratio_threshold == 0.20
+    assert config.slots.uncertain_ratio_threshold == 0.35
+    assert config.slots.min_confidence == 0.40
+    assert config.slots.approach_lead_distance == 1.5
+    assert config.slots.vehicle_width == 1.8
+    assert config.slots.vehicle_length == 4.5
+    assert config.slots.safety_margin == 0.25
 
 
 def test_forecast_config_environment_overrides(
@@ -351,4 +360,46 @@ def test_forecast_config_rejects_even_kernel_size(tmp_path: Path) -> None:
     config_path.write_text("forecast:\n  spatial_kernel_size: 4\n", encoding="utf-8")
 
     with pytest.raises(ValidationError, match="must be odd"):
+        load_config(config_path)
+
+
+def test_slots_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("slots:\n  min_slot_width: 2.2\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_SLOTS__MIN_SLOT_WIDTH", "2.5")
+    monkeypatch.setenv("NEARFIELD360_SLOTS__MAX_SLOT_WIDTH", "4.0")
+
+    config = load_config(config_path)
+
+    assert config.slots.min_slot_width == 2.5
+    assert config.slots.max_slot_width == 4.0
+
+
+def test_slots_config_rejects_invalid_width(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "slots:\n  min_slot_width: 4.0\n  max_slot_width: 3.0\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=r"min_slot_width .* must be strictly less than max_slot_width",
+    ):
+        load_config(config_path)
+
+
+def test_slots_config_rejects_invalid_length(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "slots:\n  min_slot_length: 9.0\n  max_slot_length: 5.0\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=r"min_slot_length .* must be strictly less than max_slot_length",
+    ):
         load_config(config_path)

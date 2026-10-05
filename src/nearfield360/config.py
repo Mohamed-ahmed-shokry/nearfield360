@@ -236,6 +236,38 @@ class OccupancyForecastConfig(BaseModel):
         return self
 
 
+class ParkingSlotConfig(BaseModel):
+    """Parameters for BEV metric parking slot delineation, occupancy, and approach feasibility."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    min_slot_width: float = Field(default=2.0, gt=0.0, allow_inf_nan=False)
+    max_slot_width: float = Field(default=3.8, gt=0.0, allow_inf_nan=False)
+    min_slot_length: float = Field(default=4.0, gt=0.0, allow_inf_nan=False)
+    max_slot_length: float = Field(default=8.0, gt=0.0, allow_inf_nan=False)
+    occupied_ratio_threshold: float = Field(default=0.20, ge=0.0, le=1.0, allow_inf_nan=False)
+    uncertain_ratio_threshold: float = Field(default=0.35, ge=0.0, le=1.0, allow_inf_nan=False)
+    min_confidence: float = Field(default=0.40, ge=0.0, le=1.0, allow_inf_nan=False)
+    approach_lead_distance: float = Field(default=1.5, gt=0.0, allow_inf_nan=False)
+    vehicle_width: float = Field(default=1.8, gt=0.0, allow_inf_nan=False)
+    vehicle_length: float = Field(default=4.5, gt=0.0, allow_inf_nan=False)
+    safety_margin: float = Field(default=0.25, ge=0.0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def validate_slot_dimensions(self) -> Self:
+        if self.min_slot_width >= self.max_slot_width:
+            raise ValueError(
+                f"min_slot_width ({self.min_slot_width}) must be strictly less than "
+                f"max_slot_width ({self.max_slot_width})"
+            )
+        if self.min_slot_length >= self.max_slot_length:
+            raise ValueError(
+                f"min_slot_length ({self.min_slot_length}) must be strictly less than "
+                f"max_slot_length ({self.max_slot_length})"
+            )
+        return self
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -264,6 +296,7 @@ class ProjectConfig(BaseSettings):
     tracking: TrackingConfig = Field(default_factory=TrackingConfig)
     inference: InferenceConfig = Field(default_factory=InferenceConfig)
     forecast: OccupancyForecastConfig = Field(default_factory=OccupancyForecastConfig)
+    slots: ParkingSlotConfig = Field(default_factory=ParkingSlotConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -317,6 +350,7 @@ __all__ = [
     "LoggingConfig",
     "OccupancyConfig",
     "OccupancyForecastConfig",
+    "ParkingSlotConfig",
     "PathsConfig",
     "ProjectConfig",
     "RiskConfig",

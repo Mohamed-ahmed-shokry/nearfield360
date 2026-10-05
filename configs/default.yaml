@@ -106,3 +106,16 @@ forecast:
   diffusion_rate: 0.02
   spatial_kernel_size: 3
   hidden_channels: 16
+slots:
+  min_slot_width: 2.0
+  max_slot_width: 3.8
+  min_slot_length: 4.0
+  max_slot_length: 8.0
+  occupied_ratio_threshold: 0.20
+  uncertain_ratio_threshold: 0.35
+  min_confidence: 0.40
+  approach_lead_distance: 1.5
+  vehicle_width: 1.8
+  vehicle_length: 4.5
+  safety_margin: 0.25
+
