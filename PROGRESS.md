@@ -1131,3 +1131,61 @@ Phase 19 completes roadmap item 18:
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 20: 3D Metric Parking Slot & Free-Space Delineation Engine
+
+**Status:** In Progress
+**Repository Branch:** `main`
+**Test Suite:** Baseline 915 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage Target:** >85.0%
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 20 completes roadmap item 19:
+
+1. **Parking Slot Domain Configuration & Data Models (`src/nearfield360/config.py`, `src/nearfield360/slots/models.py`):**
+   - Configurable `ParkingSlotConfig` specifying metric slot width/length bounds, vacancy occupancy ratio thresholds, uncertainty thresholds, vehicle corridor dimensions, and safety clearance margins.
+   - Pydantic models for slot geometry (`ParkingSlotType`, `SlotOccupancyStatus`, `ParkingSlotCorner`, `ParkingSlot`), approach kinematics (`SlotApproachPath`), and comprehensive detection summaries (`SlotDetectionReport`).
+2. **BEV Metric Slot Detection & Geometric Fitting (`src/nearfield360/slots/detector.py`):**
+   - Delineate parking slot boundary geometries from BEV road markings (`lanemarks`, `curb`) and free-space gaps between parked obstacles.
+   - Extract and fit oriented 4-corner polygons with metric length, width, center, and heading estimation.
+   - Slot type classification into `PARALLEL`, `PERPENDICULAR`, and `SLANTED` geometries based on vehicle frame alignment.
+3. **Slot Occupancy & Vacancy Classification (`src/nearfield360/slots/classifier.py`):**
+   - Rasterize slot interior footprint against metric BEV occupancy grid and Bayesian uncertainty fields.
+   - Dynamic track intersection testing against active obstacles and 3D bounding boxes.
+   - Classify slot status into `VACANT`, `OCCUPIED`, or `UNCERTAIN` with quantitative occupancy ratios and Bayesian variance metrics.
+4. **Approach Corridor Kinematics & Feasibility Engine (`src/nearfield360/slots/corridor.py`):**
+   - Calculate vehicle parking entry vector, entry waypoints, and target center parking posture.
+   - Project ego vehicle swept path corridor into the slot and verify collision-free clearance against surround obstacles and occupancy grid.
+   - Compute metric lateral clearance margin and determine trajectory feasibility flag (`is_feasible`).
+5. **CLI Integration & Multi-Camera Pipeline Support:**
+   - First-class CLI command group: `nearfield360 slots detect` with JSON reporting, `--vacant-only` filtering, and rich visual PNG rendering with slot polygons, occupancy shading, and approach vectors.
+   - Full surround pipeline integration: `nearfield360 pipeline run --slots` embedding detected parking slots into multi-camera run reports.
+6. **Quality Gates & Acceptance Criteria:**
+   - Unit test coverage exceeding 85%, strict typing with zero mypy errors, clean ruff linter and formatter, passing release audit, and valid package builds.
+
+### 2. Planned Components
+
+| Component | Location |
+| --- | --- |
+| Parking slot configuration (`ParkingSlotConfig`) | `src/nearfield360/config.py`, `configs/default.yaml` |
+| Slot geometry and approach domain models (`ParkingSlot`, `SlotApproachPath`, `SlotDetectionReport`) | `src/nearfield360/slots/models.py` |
+| Geometric slot detector & line fitting (`ParkingSlotDetector`) | `src/nearfield360/slots/detector.py` |
+| Slot occupancy & uncertainty classifier (`SlotOccupancyClassifier`) | `src/nearfield360/slots/classifier.py` |
+| Approach corridor feasibility evaluator (`ApproachCorridorEvaluator`) | `src/nearfield360/slots/corridor.py` |
+| Slots package exports | `src/nearfield360/slots/__init__.py` |
+| CLI command group (`nearfield360 slots detect`, `--png`, `--vacant-only`) | `src/nearfield360/cli/slots.py` |
+| Surround pipeline slot integration (`pipeline run --slots`) | `src/nearfield360/cli/pipeline.py` |
+| Release audit CLI consistency | `src/nearfield360/cli/release.py` |
+| Slot domain model unit tests | `tests/unit/slots/test_slot_models.py` |
+| Slot detector & classifier unit tests | `tests/unit/slots/test_slot_detector.py` |
+| Corridor feasibility unit tests | `tests/unit/slots/test_slot_corridor.py` |
+| Slot CLI integration tests | `tests/unit/test_slots_cli.py` |
+| Pipeline CLI slot integration tests | `tests/unit/test_pipeline_cli.py` |
+

@@ -491,6 +491,13 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     ONNX computation graph generator (`export_temporal_forecaster_onnx`); CLI commands
     `occupancy forecast` and `occupancy export-model` with multi-horizon panel visualization;
     and surround pipeline integration (`pipeline run --temporal-forecast`).
+19. 3D metric parking slot and free-space delineation engine (in progress):
+    Metric slot boundary extraction from BEV road markings (`lanemarks`, `curb`) and obstacle
+    free-space gaps, oriented 4-corner polygon fitting, slot type categorization (`parallel`,
+    `perpendicular`, `slanted`), interior occupancy and Bayesian uncertainty classification
+    (`vacant`, `occupied`, `uncertain`), dynamic obstacle clearance validation, approach corridor
+    kinematics and collision feasibility evaluation, CLI command group `nearfield360 slots detect`,
+    and surround pipeline integration (`pipeline run --slots`).
 
 ## Usage: integrated four-camera pipeline and release audit
 
