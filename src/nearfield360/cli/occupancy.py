@@ -281,6 +281,7 @@ def _frame_evidence(
     health_aware: bool = False,
     model_engine: SemanticSegmentationEngine | None = None,
     precomputed_mask: np.ndarray | None = None,
+    markings_out: np.ndarray | None = None,
 ) -> tuple[OccupancyEvidence, CameraHealthReport | None]:
     config = get_state(context).config
     camera = _build_camera(context, sample, theta_max)
@@ -334,6 +335,17 @@ def _frame_evidence(
         weights=weights,
         valid=valid,
     )
+
+    if markings_out is not None:
+        is_marking = np.isin(mask, [1, 2]) & valid
+        marking_ground = footprints.points[..., :2][is_marking]
+        if marking_ground.size > 0:
+            indexed = grid.world_to_grid(marking_ground)
+            valid_idx = indexed.valid
+            if np.any(valid_idx):
+                rows_m = indexed.indices[valid_idx, 0]
+                cols_m = indexed.indices[valid_idx, 1]
+                markings_out[rows_m, cols_m] = 255
 
     report: CameraHealthReport | None = None
     if health_aware:

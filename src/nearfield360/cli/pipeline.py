@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
 
+import cv2
 import numpy as np
 import typer
 
@@ -40,6 +42,16 @@ from nearfield360.perception.inference import (
     ObjectDetectionEngine,
     SemanticSegmentationEngine,
 )
+from nearfield360.slots.classifier import SlotOccupancyClassifier
+from nearfield360.slots.corridor import ApproachCorridorEvaluator
+from nearfield360.slots.detector import ParkingSlotDetector
+from nearfield360.slots.models import (
+    ParkingSlot,
+    ParkingSlotType,
+    SlotDetectionSummary,
+    SlotOccupancyStatus,
+)
+from nearfield360.slots.viz import render_slots_bev_overlay
 from nearfield360.tracking.models import (
     GroundFootprint,
     TrackedObstacle,
@@ -318,6 +330,33 @@ def _summary_payload(
     }
 
 
+def _render_pipeline_png_with_slots(
+    grid: Any,
+    evidence: OccupancyEvidence,
+    zones: list[RiskZone],
+    slots: Sequence[ParkingSlot],
+    path: Path,
+) -> None:
+    occupancy = evidence.occupancy()
+    observed = evidence.observed > 0
+    with np.errstate(invalid="ignore", over="ignore"):
+        red = np.asarray(np.where(observed, occupancy * 255.0, 0.0), dtype=np.uint8)
+        green = np.asarray(np.where(observed, (1.0 - occupancy) * 255.0, 0.0), dtype=np.uint8)
+    canvas = np.zeros((*grid.shape, 3), dtype=np.uint8)
+    canvas[observed, 0] = red[observed]
+    canvas[observed, 1] = green[observed]
+    for zone in zones:
+        from nearfield360.cli.occupancy import _ZONE_COLORS, _border
+
+        color = _ZONE_COLORS.get(zone.name, (128, 128, 128))
+        for row, col in np.argwhere(_border(zone.mask)):
+            canvas[row, col] = color
+    canvas = render_slots_bev_overlay(grid, slots, base_canvas=canvas)
+    if not cv2.imwrite(str(path), canvas):
+        raise ValueError(f"unable to write PNG: {path}")
+    typer.echo(f"Wrote {path}")
+
+
 @pipeline_app.command("run")
 def run_pipeline(
     context: typer.Context,
@@ -349,6 +388,16 @@ def run_pipeline(
         typer.Option(
             "--temporal-forecast/--no-temporal-forecast",
             help="Generate 4D recurrent spatiotemporal BEV occupancy forecast grids.",
+        ),
+    ] = False,
+    slots: Annotated[
+        bool,
+        typer.Option(
+            "--slots/--no-slots",
+            help=(
+                "Delineate 3D metric parking slots, evaluate occupancy, "
+                "and check approach corridors."
+            ),
         ),
     ] = False,
 ) -> None:
@@ -391,6 +440,7 @@ def run_pipeline(
     frames_evaluated = 0
     occupancy_ms = 0.0
     tracking_ms = 0.0
+    markings_mask: np.ndarray | None = np.zeros(grid.shape, dtype=np.uint8) if slots else None
 
     stage_start = time.perf_counter()
     for frame_index, (frame_id, frame_samples) in enumerate(frames, start=1):
@@ -425,6 +475,7 @@ def run_pipeline(
                 health_aware=health_aware,
                 model_engine=model_engine if batch_masks is None else None,
                 precomputed_mask=precomputed_m,
+                markings_out=markings_mask if slots else None,
             )
             occupancy_ms += (time.perf_counter() - t_occ) * 1000.0
             if report is not None:
@@ -504,6 +555,68 @@ def run_pipeline(
         temporal_forecast_payload = temporal_summary.model_dump(mode="json")
         temporal_forecast_grid_payload = temporal_forecast_grid.to_dict()
 
+    slots_payload: dict[str, Any] | None = None
+    evaluated_slots: list[ParkingSlot] = []
+    if slots:
+        stage_start = time.perf_counter()
+        clean_markings: np.ndarray | None = None
+        if markings_mask is not None:
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+            clean_markings = np.asarray(
+                cv2.morphologyEx(markings_mask, cv2.MORPH_CLOSE, kernel), dtype=np.uint8
+            )
+        detector = ParkingSlotDetector(config.slots)
+        candidate_slots = detector.detect_slots(
+            grid=grid,
+            markings_mask=clean_markings,
+            obstacles=active_obstacles,
+        )
+        classifier = SlotOccupancyClassifier(config.slots)
+        classified_slots = classifier.classify_slots(
+            slots=candidate_slots,
+            occupancy=fused.occupancy(),
+            uncertainty=fused.uncertainty(),
+            grid=grid,
+            obstacles=active_obstacles,
+            danger_threshold=config.risk.danger_occupancy,
+        )
+        corridor_evaluator = ApproachCorridorEvaluator(config.slots)
+        evaluated_slots = corridor_evaluator.evaluate_slots(
+            slots=classified_slots,
+            occupancy=fused.occupancy(),
+            grid=grid,
+            obstacles=active_obstacles,
+            danger_threshold=config.risk.danger_occupancy,
+        )
+        timings["slots_ms"] = (time.perf_counter() - stage_start) * 1000.0
+
+        slot_summary = SlotDetectionSummary(
+            total_slots=len(evaluated_slots),
+            vacant_slots=sum(1 for s in evaluated_slots if s.status == SlotOccupancyStatus.VACANT),
+            occupied_slots=sum(
+                1 for s in evaluated_slots if s.status == SlotOccupancyStatus.OCCUPIED
+            ),
+            uncertain_slots=sum(
+                1 for s in evaluated_slots if s.status == SlotOccupancyStatus.UNCERTAIN
+            ),
+            parallel_slots=sum(
+                1 for s in evaluated_slots if s.slot_type == ParkingSlotType.PARALLEL
+            ),
+            perpendicular_slots=sum(
+                1 for s in evaluated_slots if s.slot_type == ParkingSlotType.PERPENDICULAR
+            ),
+            slanted_slots=sum(1 for s in evaluated_slots if s.slot_type == ParkingSlotType.SLANTED),
+            feasible_approaches=sum(
+                1
+                for s in evaluated_slots
+                if s.approach_path is not None and s.approach_path.is_feasible
+            ),
+        )
+        slots_payload = {
+            "summary": slot_summary.model_dump(mode="json"),
+            "slots": [s.model_dump(mode="json") for s in evaluated_slots],
+        }
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -515,6 +628,8 @@ def run_pipeline(
     }
     if temporal_forecast:
         samples_payload["temporal_forecast"] = True
+    if slots:
+        samples_payload["slots"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -570,6 +685,8 @@ def run_pipeline(
     if temporal_forecast_payload is not None:
         payload["temporal_forecast"] = temporal_forecast_payload
         payload["temporal_forecast_grid"] = temporal_forecast_grid_payload
+    if slots_payload is not None:
+        payload["slots"] = slots_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
@@ -589,6 +706,13 @@ def run_pipeline(
         f"total {timings['total_ms']:.1f} ms ({fps} fps), "
         f"frame p50={latency['p50_ms']} ms p95={latency['p95_ms']} ms."
     )
+    if slots and slots_payload is not None:
+        slot_summ = slots_payload["summary"]
+        typer.echo(
+            f"Slots complete: {slot_summ['total_slots']} detected "
+            f"({slot_summ['vacant_slots']} vacant, "
+            f"{slot_summ['feasible_approaches']} feasible corridors)."
+        )
     if summary["intrusions_detected"]:
         typer.secho(
             f"WARNING: {summary['intrusions_detected']} collision intrusions predicted! "
@@ -599,7 +723,10 @@ def run_pipeline(
 
     if png is not None:
         try:
-            _render_occupancy_png(grid, fused, zones, png)
+            if slots and evaluated_slots:
+                _render_pipeline_png_with_slots(grid, fused, zones, evaluated_slots, png)
+            else:
+                _render_occupancy_png(grid, fused, zones, png)
         except (OSError, ValueError) as exc:
             typer.secho(f"PNG error: {exc}", fg=typer.colors.RED, err=True)
             raise typer.Exit(code=1) from None

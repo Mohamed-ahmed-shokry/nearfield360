@@ -472,3 +472,62 @@ def test_pipeline_run_with_temporal_forecast(tmp_path: Path) -> None:
     assert "temporal_forecast_ms" in payload["timings"]
     assert payload["temporal_forecast"]["horizon_seconds"] == 3.0
     assert payload["temporal_forecast"]["num_steps"] == 6
+
+
+def test_pipeline_run_with_slots(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    _write_four_camera_frame(dataset, "00001")
+    output = tmp_path / "pipeline_slots_report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "pipeline",
+            "run",
+            "--root",
+            str(dataset),
+            "--output",
+            str(output),
+            "--slots",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Pipeline complete" in result.stdout
+    assert "Slots complete" in result.stdout
+    payload = read_json(output)
+    assert payload["samples"]["slots"] is True
+    assert "slots" in payload
+    assert "summary" in payload["slots"]
+    assert "slots" in payload["slots"]
+    assert "slots_ms" in payload["timings"]
+    summary = payload["slots"]["summary"]
+    assert summary["total_slots"] >= 0
+    assert summary["vacant_slots"] >= 0
+    assert summary["occupied_slots"] >= 0
+
+
+def test_pipeline_run_with_slots_and_png(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    _write_four_camera_frame(dataset, "00001")
+    output = tmp_path / "pipeline_slots_report.json"
+    png_path = tmp_path / "pipeline_slots.png"
+
+    result = runner.invoke(
+        app,
+        [
+            "pipeline",
+            "run",
+            "--root",
+            str(dataset),
+            "--output",
+            str(output),
+            "--slots",
+            "--png",
+            str(png_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert png_path.is_file()
+    assert png_path.stat().st_size > 0
