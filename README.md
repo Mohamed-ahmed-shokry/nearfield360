@@ -22,7 +22,7 @@ the corresponding experiments have run.
 | --- | --- | --- |
 | Reproducible Python package | Implemented | Locked uv environment; wheel and sdist isolated-install smokes |
 | Typed configuration and logging | Implemented | Strict validation, environment overrides, human/JSON logs; geometry and BEV sections |
-| CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, `data`, `occupancy`, and `robustness` commands |
+| CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, `data`, `occupancy`, `robustness`, and `slots` commands |
 | Integrated four-camera pipeline | Implemented | `nearfield360 pipeline run` with per-stage timings, FPS, health-aware fusion, tracking, risk, and occupancy PNG |
 | Release readiness audit | Implemented | `nearfield360 release audit` verifying license, version consistency, default config, and CLI surface |
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
@@ -34,6 +34,7 @@ the corresponding experiments have run.
 | Dynamic obstacle tracking and forecasting | Implemented core | 2D-to-3D ground footprint projection, 2D metric Kalman filter, state lifecycle, forward trajectory forecasting, collision TTC ingress, and BEV visual overlays |
 | Camera health monitoring and discounting | Implemented core | Laplacian blur variance, adaptive high-frequency lens soiling detection, blockage/underexposure detection, and health-aware Bayesian evidence discounting (`--health-aware`) |
 | Modular ONNX perception runtime & inference engines | Implemented | OpenCV DNN backend, letterboxing/normalization, semantic segmentation & object detection engines, numerical parity verification, latency benchmarking, and live pipeline integration |
+| 3D metric parking slot and free-space delineation | Implemented | Oriented 4-corner polygon fitting from road markings and obstacle gaps, occupancy/vacancy classification, approach corridor kinematics and collision feasibility, BEV visual overlays, `nearfield360 slots detect`, and surround pipeline integration (`pipeline run --slots`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -491,13 +492,14 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     ONNX computation graph generator (`export_temporal_forecaster_onnx`); CLI commands
     `occupancy forecast` and `occupancy export-model` with multi-horizon panel visualization;
     and surround pipeline integration (`pipeline run --temporal-forecast`).
-19. 3D metric parking slot and free-space delineation engine (in progress):
+19. ~~3D metric parking slot and free-space delineation engine.~~ Done:
     Metric slot boundary extraction from BEV road markings (`lanemarks`, `curb`) and obstacle
     free-space gaps, oriented 4-corner polygon fitting, slot type categorization (`parallel`,
     `perpendicular`, `slanted`), interior occupancy and Bayesian uncertainty classification
     (`vacant`, `occupied`, `uncertain`), dynamic obstacle clearance validation, approach corridor
-    kinematics and collision feasibility evaluation, CLI command group `nearfield360 slots detect`,
-    and surround pipeline integration (`pipeline run --slots`).
+    kinematics and collision feasibility evaluation, CLI command group `nearfield360 slots detect`
+    (with `--vacant-only` and `--png` vector overlay), and surround pipeline integration
+    (`pipeline run --slots`).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -513,6 +515,9 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --samples 5 --heal
 
 # Live surround perception with temporal BEV occupancy forecasting:
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --temporal-forecast --output outputs/pipeline/report.json
+
+# Live surround perception with 3D metric parking slot and approach corridor delineation:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --slots --output outputs/pipeline/slots.json --png outputs/pipeline/slots.png
 
 # Live surround perception with multi-camera batched neural network execution:
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/seg.onnx --det-model models/det.onnx --batch-cameras --output outputs/pipeline/report.json
@@ -539,6 +544,20 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models
 `--seg-model` replaces semantic masks for occupancy evidence; `--det-model` replaces
 detection files for ground-footprint projection. Model paths are recorded under
 `samples.seg_model` / `samples.det_model` in the report.
+
+### 3D metric parking slot detection and feasibility
+
+Delineate 3D metric parking slots from road markings (`lanemarks`, `curb`) and obstacle free-space gaps, classify occupancy, and evaluate approach corridor feasibility:
+
+```powershell
+# Detect parking slots across surround cameras with PNG BEV overlay:
+uv run nearfield360 slots detect --root D:\datasets\woodscape --all-cameras --output outputs/slots/report.json --png outputs/slots/bev.png
+
+# Single-camera front view slot detection filtering to vacant slots only:
+uv run nearfield360 slots detect --root D:\datasets\woodscape --camera FV --vacant-only --output outputs/slots/vacant.json
+```
+
+The output JSON report documents detected slots (`slot_id`, `slot_type`, `corners`, `center`, `heading_rad`, `width_m`, `length_m`, `status`, `confidence`, and `approach_path` feasibility), along with a summary of total, vacant, occupied, uncertain, and feasible slot counts.
 
 ### Inference backends and model optimization
 
