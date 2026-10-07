@@ -22,7 +22,7 @@ the corresponding experiments have run.
 | --- | --- | --- |
 | Reproducible Python package | Implemented | Locked uv environment; wheel and sdist isolated-install smokes |
 | Typed configuration and logging | Implemented | Strict validation, environment overrides, human/JSON logs; geometry and BEV sections |
-| CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, `data`, `occupancy`, `robustness`, and `slots` commands |
+| CLI and environment diagnostics | Implemented | `config validate`, `config show`, `doctor`, `geometry`, `data`, `occupancy`, `robustness`, `slots`, `plan`, and `control` commands |
 | Integrated four-camera pipeline | Implemented | `nearfield360 pipeline run` with per-stage timings, FPS, health-aware fusion, tracking, risk, and occupancy PNG |
 | Release readiness audit | Implemented | `nearfield360 release audit` verifying license, version consistency, default config, and CLI surface |
 | Automated quality gates | Implemented | Ruff, strict mypy, pytest coverage, pre-commit, cross-platform CI |
@@ -36,6 +36,7 @@ the corresponding experiments have run.
 | Modular ONNX perception runtime & inference engines | Implemented | OpenCV DNN backend, letterboxing/normalization, semantic segmentation & object detection engines, numerical parity verification, latency benchmarking, and live pipeline integration |
 | 3D metric parking slot and free-space delineation | Implemented | Oriented 4-corner polygon fitting from road markings and obstacle gaps, occupancy/vacancy classification, approach corridor kinematics and collision feasibility, BEV visual overlays, `nearfield360 slots detect`, and surround pipeline integration (`pipeline run --slots`) |
 | Autonomous parking trajectory planning and maneuvers | Implemented | Non-holonomic Ackermann vehicle kinematics, multi-stage maneuvers (parallel reverse S-turn, perpendicular/slanted reverse dock), continuous swept footprint collision validation against BEV occupancy and dynamic obstacles, time-parameterized speed profiling, `nearfield360 plan parking`, and surround pipeline integration (`pipeline run --plan-parking`) |
+| Closed-loop trajectory tracking control & execution simulation | Implemented | Forward/reverse Stanley path follower, curvature feedforward, longitudinal PI control, kinematic bicycle simulator with actuator lag, real-time swept footprint safety monitoring and AEB, docking accuracy KPIs, `nearfield360 control execute`, and surround pipeline integration (`pipeline run --simulate-control`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -510,6 +511,8 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     and dynamic obstacles, smooth time-parameterized trapezoidal speed profiler, CLI command group `nearfield360 plan parking`
     (with `--slots-json`, custom start pose, and `--png` visualization), and surround pipeline integration
     (`pipeline run --plan-parking`).
+21. ~~Closed-loop parking trajectory tracking control, maneuver execution simulation, and dynamic safety monitoring.~~ Done:
+    Nonlinear forward and reverse Stanley path tracking controller, feedforward curvature steering and longitudinal PI velocity profiling, kinematic bicycle simulator with first-order actuator lag ($\tau$) and Gaussian localization noise, multi-stage maneuver state machine with gear shift dwell, real-time swept footprint safety monitoring and automated emergency braking (AEB), tracking error watchdog abort protection, terminal docking accuracy KPIs ($\Delta x, \Delta y, \Delta \theta$), CLI command group `nearfield360 control execute` (with `--plan-json`, `--output`, `--png`, `--telemetry-png`, and `--inject-obstacle`), and surround pipeline integration (`pipeline run --simulate-control`).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -531,6 +534,12 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --slots --output o
 
 # Live surround perception with autonomous parking trajectory planning into the best vacant slot:
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --slots --plan-parking --output outputs/pipeline/plan_report.json --png outputs/pipeline/plan_overlay.png
+
+# Live surround perception with closed-loop parking execution simulation & docking verification:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --simulate-control --output outputs/pipeline/control_report.json --png outputs/pipeline/control_bev.png
+
+# Execute a precomputed trajectory plan with BEV overlay and time-series telemetry charts:
+uv run nearfield360 control execute --plan-json outputs/pipeline/plan_report.json --output outputs/control/exec_report.json --png outputs/control/bev_exec.png --telemetry-png outputs/control/telemetry.png
 
 # Live surround perception with multi-camera batched neural network execution:
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/seg.onnx --det-model models/det.onnx --batch-cameras --output outputs/pipeline/report.json
