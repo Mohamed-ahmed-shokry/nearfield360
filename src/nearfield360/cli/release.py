@@ -120,6 +120,7 @@ def _run_checks() -> list[dict[str, Any]]:
 
     expected_groups = {
         "config",
+        "control",
         "data",
         "eval",
         "geometry",
