@@ -298,6 +298,27 @@ class ParkingPlannerConfig(BaseModel):
         return self.wheelbase + self.front_overhang + self.rear_overhang
 
 
+class ParkingControlConfig(BaseModel):
+    """Parameters for closed-loop trajectory tracking control and simulation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    dt: float = Field(default=0.05, gt=0.0, allow_inf_nan=False)
+    lookahead_distance: float = Field(default=1.0, gt=0.0, allow_inf_nan=False)
+    stanley_k: float = Field(default=1.5, gt=0.0, allow_inf_nan=False)
+    stanley_soften_speed: float = Field(default=0.2, ge=0.0, allow_inf_nan=False)
+    kp_speed: float = Field(default=1.2, ge=0.0, allow_inf_nan=False)
+    ki_speed: float = Field(default=0.1, ge=0.0, allow_inf_nan=False)
+    max_steer_rate_rad_s: float = Field(default=0.8, gt=0.0, allow_inf_nan=False)
+    steer_time_constant_s: float = Field(default=0.15, ge=0.0, allow_inf_nan=False)
+    max_cross_track_error_m: float = Field(default=0.50, gt=0.0, allow_inf_nan=False)
+    max_heading_error_rad: float = Field(default=0.60, gt=0.0, allow_inf_nan=False)
+    emergency_brake_decel: float = Field(default=2.5, gt=0.0, allow_inf_nan=False)
+    collision_check_interval: int = Field(default=2, ge=1)
+    terminal_dock_tol_xy: float = Field(default=0.15, gt=0.0, allow_inf_nan=False)
+    terminal_dock_tol_heading: float = Field(default=0.10, gt=0.0, allow_inf_nan=False)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -328,6 +349,7 @@ class ProjectConfig(BaseSettings):
     forecast: OccupancyForecastConfig = Field(default_factory=OccupancyForecastConfig)
     slots: ParkingSlotConfig = Field(default_factory=ParkingSlotConfig)
     planner: ParkingPlannerConfig = Field(default_factory=ParkingPlannerConfig)
+    control: ParkingControlConfig = Field(default_factory=ParkingControlConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -381,6 +403,7 @@ __all__ = [
     "LoggingConfig",
     "OccupancyConfig",
     "OccupancyForecastConfig",
+    "ParkingControlConfig",
     "ParkingPlannerConfig",
     "ParkingSlotConfig",
     "PathsConfig",

@@ -444,3 +444,45 @@ def test_planner_config_rejects_invalid_values(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="greater than 0"):
         load_config(config_path)
+
+
+def test_control_config_defaults() -> None:
+    config = load_config()
+
+    assert config.control.dt == 0.05
+    assert config.control.lookahead_distance == 1.0
+    assert config.control.stanley_k == 1.5
+    assert config.control.stanley_soften_speed == 0.2
+    assert config.control.kp_speed == 1.2
+    assert config.control.ki_speed == 0.1
+    assert config.control.max_steer_rate_rad_s == 0.8
+    assert config.control.steer_time_constant_s == 0.15
+    assert config.control.max_cross_track_error_m == 0.50
+    assert config.control.max_heading_error_rad == 0.60
+    assert config.control.emergency_brake_decel == 2.5
+    assert config.control.collision_check_interval == 2
+    assert config.control.terminal_dock_tol_xy == 0.15
+    assert config.control.terminal_dock_tol_heading == 0.10
+
+
+def test_control_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("control:\n  dt: 0.02\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_CONTROL__STANLEY_K", "2.0")
+    monkeypatch.setenv("NEARFIELD360_CONTROL__LOOKAHEAD_DISTANCE", "1.5")
+
+    config = load_config(config_path)
+
+    assert config.control.dt == 0.02
+    assert config.control.stanley_k == 2.0
+    assert config.control.lookahead_distance == 1.5
+
+
+def test_control_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("control:\n  dt: -0.05\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
