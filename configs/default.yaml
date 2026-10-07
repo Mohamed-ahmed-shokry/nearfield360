@@ -146,4 +146,3 @@ control:
   collision_check_interval: 2
   terminal_dock_tol_xy: 0.15
   terminal_dock_tol_heading: 0.10
-
