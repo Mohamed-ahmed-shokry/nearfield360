@@ -1208,12 +1208,12 @@ Phase 20 completes roadmap item 19:
 
 ## Phase 21: Autonomous Parking Trajectory Planning, Ackermann Kinematics, and Multi-Stage Maneuver Engine
 
-**Status:** In Progress
+**Status:** Completed
 **Repository Branch:** `main`
-**Test Suite:** Baseline 942 passed, 5 skipped (0 failures)
-**Type Checking:** `mypy --strict` clean
-**Linting & Style:** `ruff check` and `ruff format` clean
-**Test Coverage Target:** >85.0%
+**Test Suite:** 975 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (93 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean (172 files)
+**Test Coverage:** 89.34% (exceeds required 85.0% threshold)
 
 ---
 
@@ -1249,7 +1249,7 @@ Phase 21 introduces an autonomous parking motion planning engine to transform de
    - Unit tests covering domain models, kinematics, collision checking, parallel/perpendicular/slanted maneuver planners, speed profilers, CLI commands, and pipeline integration.
    - Strict typing under `mypy --strict`, clean `ruff` linter/formatter, passing release audit, and >85% test coverage.
 
-### 2. Planned Components
+### 2. Delivered Components
 
 | Component | Location |
 | --- | --- |
@@ -1257,16 +1257,32 @@ Phase 21 introduces an autonomous parking motion planning engine to transform de
 | Trajectory planning domain models (`ParkingTrajectoryPlan`, `TrajectoryWaypoint`) | `src/nearfield360/planning/models.py` |
 | Ackermann kinematics & footprint geometry (`AckermannVehicle`, Reeds-Shepp primitives) | `src/nearfield360/planning/kinematics.py` |
 | Swept volume collision & clearance evaluator (`SweptFootprintEvaluator`) | `src/nearfield360/planning/collision.py` |
-| Multi-stage parking maneuver planner (`ParkingTrajectoryPlanner`) | `src/nearfield360/planning/planner.py` |
+| Multi-stage parking maneuver planner (`ParkingTrajectoryPlanner`, speed profiler) | `src/nearfield360/planning/planner.py` |
 | Trajectory BEV visualization (`render_parking_plan_bev_overlay`) | `src/nearfield360/planning/viz.py` |
 | Planning package exports | `src/nearfield360/planning/__init__.py` |
 | CLI command group (`nearfield360 plan parking`) | `src/nearfield360/cli/plan.py` |
 | Surround pipeline integration (`pipeline run --plan-parking`) | `src/nearfield360/cli/pipeline.py` |
 | Release audit CLI consistency | `src/nearfield360/cli/release.py` |
-| Domain model unit tests | `tests/unit/planning/test_planning_models.py` |
-| Kinematics & footprint unit tests | `tests/unit/planning/test_planning_kinematics.py` |
-| Collision & swept volume unit tests | `tests/unit/planning/test_planning_collision.py` |
-| Maneuver planner unit tests | `tests/unit/planning/test_planning_planner.py` |
-| Trajectory CLI integration tests | `tests/unit/test_plan_cli.py` |
-| Pipeline CLI planning integration tests | `tests/unit/test_pipeline_plan.py` |
+| Domain model unit tests | `tests/unit/planning/test_planning_models.py` (5 tests) |
+| Kinematics & footprint unit tests | `tests/unit/planning/test_planning_kinematics.py` (6 tests) |
+| Collision & swept volume unit tests | `tests/unit/planning/test_planning_collision.py` (5 tests) |
+| Maneuver planner unit tests | `tests/unit/planning/test_planning_planner.py` (6 tests) |
+| Trajectory visualization unit tests | `tests/unit/planning/test_planning_viz.py` (3 tests) |
+| Planning package init unit tests | `tests/unit/planning/test_planning_init.py` (1 test) |
+| Trajectory CLI integration tests | `tests/unit/test_plan_cli.py` (5 tests) |
+| Pipeline CLI planning integration tests | `tests/unit/test_pipeline_plan.py` (2 tests) |
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 975 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | 89.34% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors in 172 files |
+| Strict Typing | `uv run mypy` | 0 errors in 93 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (13 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
 
