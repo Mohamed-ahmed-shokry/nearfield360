@@ -1203,3 +1203,70 @@ Phase 20 completes roadmap item 19:
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 21: Autonomous Parking Trajectory Planning, Ackermann Kinematics, and Multi-Stage Maneuver Engine
+
+**Status:** In Progress
+**Repository Branch:** `main`
+**Test Suite:** Baseline 942 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage Target:** >85.0%
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 21 introduces an autonomous parking motion planning engine to transform detected 3D metric parking slots and BEV environment maps into kinematically feasible, collision-free vehicle trajectory maneuvers:
+
+1. **Parking Motion Planning Configuration & Domain Models (`src/nearfield360/config.py`, `src/nearfield360/planning/models.py`):**
+   - Configurable `ParkingPlannerConfig` specifying vehicle kinematics (wheelbase, front/rear overhangs, steering angle limit), dynamic limits (max speed, acceleration, jerk), spatial step size, temporal step size, and collision safety margins.
+   - Pydantic models for gear states (`ManeuverGear`: `FORWARD`, `REVERSE`), maneuver phases (`ManeuverPhase`: `APPROACH`, `STEER_IN`, `ALIGN`, `DOCK`, `FINAL_ALIGN`), time-parameterized waypoints (`TrajectoryWaypoint`), multi-segment trajectories (`ManeuverSegment`, `ParkingTrajectoryPlan`), and plan reports (`ParkingPlanReport`).
+2. **Ackermann Kinematics & Geometric Motion Primitives (`src/nearfield360/planning/kinematics.py`):**
+   - Non-holonomic bicycle model establishing minimum turning radius $R_{\min} = L / \tan(\delta_{\max})$ and bounding curvature $|\kappa| \le 1/R_{\min}$.
+   - Geometric arc and straight line segment generation.
+   - Bounded vehicle footprint polygon extraction at arbitrary poses $(x, y, \theta)$ accounting for wheelbase and front/rear overhangs.
+   - Reeds-Shepp curve primitives combining forward/reverse arcs and straight segments for non-holonomic pose-to-pose transitions.
+3. **Continuous Swept-Footprint & Obstacle Clearance Verification (`src/nearfield360/planning/collision.py`):**
+   - Continuous vehicle polygon rasterization along trajectory waypoints against metric BEV occupancy grid (`fused.occupancy()`) at configured danger threshold.
+   - Uncertainty masking evaluating Dirichlet/Beta variance along swept envelope.
+   - Dynamic obstacle clearance validation against active Kalman-tracked obstacles (`TrackedObstacle`) and predicted collision envelopes.
+   - Quantitative trajectory minimum clearance margin computation.
+4. **Multi-Stage Parking Maneuver Synthesis (`src/nearfield360/planning/planner.py`):**
+   - Parallel parking planner: Multi-segment reverse S-turn (dual inflection circular arcs) followed by forward alignment dock.
+   - Perpendicular parking planner: 90-degree reverse sweeping turn with tangent straight entry docking into slot center.
+   - Slanted parking planner: Oriented reverse/forward docking based on slot inclination angle.
+   - Automated slot selection ranking candidate vacant slots by approach feasibility, obstacle clearance, and trajectory length.
+   - Smooth trapezoidal speed profiler generating time-parameterized velocity $v(t)$, acceleration $a(t)$, and arrival timestamps $t$, enforcing $v=0$ at gear shifts and target posture.
+5. **Visual Trajectory Rendering & BEV Overlays (`src/nearfield360/planning/viz.py`):**
+   - BEV PNG rendering overlaying planned trajectory paths colored by gear (`FORWARD` vs `REVERSE`), key vehicle footprint bounding boxes along maneuver stages, slot polygons, and occupancy background.
+6. **CLI Command Group & Four-Camera Pipeline Integration:**
+   - Dedicated CLI command group: `nearfield360 plan parking` with JSON reporting, slot selection, custom start poses, and `--png` visualization.
+   - Surround pipeline integration: `nearfield360 pipeline run --plan-parking` generating an automated parking trajectory plan for the top vacant slot and embedding it in pipeline report and visual artifacts.
+7. **Verification & Quality Gates:**
+   - Unit tests covering domain models, kinematics, collision checking, parallel/perpendicular/slanted maneuver planners, speed profilers, CLI commands, and pipeline integration.
+   - Strict typing under `mypy --strict`, clean `ruff` linter/formatter, passing release audit, and >85% test coverage.
+
+### 2. Planned Components
+
+| Component | Location |
+| --- | --- |
+| Parking motion planner configuration (`ParkingPlannerConfig`) | `src/nearfield360/config.py`, `configs/default.yaml` |
+| Trajectory planning domain models (`ParkingTrajectoryPlan`, `TrajectoryWaypoint`) | `src/nearfield360/planning/models.py` |
+| Ackermann kinematics & footprint geometry (`AckermannVehicle`, Reeds-Shepp primitives) | `src/nearfield360/planning/kinematics.py` |
+| Swept volume collision & clearance evaluator (`SweptFootprintEvaluator`) | `src/nearfield360/planning/collision.py` |
+| Multi-stage parking maneuver planner (`ParkingTrajectoryPlanner`) | `src/nearfield360/planning/planner.py` |
+| Trajectory BEV visualization (`render_parking_plan_bev_overlay`) | `src/nearfield360/planning/viz.py` |
+| Planning package exports | `src/nearfield360/planning/__init__.py` |
+| CLI command group (`nearfield360 plan parking`) | `src/nearfield360/cli/plan.py` |
+| Surround pipeline integration (`pipeline run --plan-parking`) | `src/nearfield360/cli/pipeline.py` |
+| Release audit CLI consistency | `src/nearfield360/cli/release.py` |
+| Domain model unit tests | `tests/unit/planning/test_planning_models.py` |
+| Kinematics & footprint unit tests | `tests/unit/planning/test_planning_kinematics.py` |
+| Collision & swept volume unit tests | `tests/unit/planning/test_planning_collision.py` |
+| Maneuver planner unit tests | `tests/unit/planning/test_planning_planner.py` |
+| Trajectory CLI integration tests | `tests/unit/test_plan_cli.py` |
+| Pipeline CLI planning integration tests | `tests/unit/test_pipeline_plan.py` |
+
