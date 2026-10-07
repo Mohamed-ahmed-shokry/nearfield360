@@ -1286,3 +1286,47 @@ Phase 21 introduces an autonomous parking motion planning engine to transform de
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
 
+---
+
+## Phase 22: Closed-Loop Parking Trajectory Tracking Control, Maneuver Execution Simulation, and Dynamic Safety Monitoring
+
+**Status:** In Progress
+**Repository Branch:** `main`
+**Test Suite:** Baseline: 975 passed, 5 skipped (0 failures)
+**Type Checking:** Baseline: `mypy --strict` clean (93 source files)
+**Linting & Style:** Baseline: `ruff check` and `ruff format` clean (172 files)
+**Test Coverage:** Baseline: 89.34% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 22 closes the autonomous parking loop by executing planned multi-stage trajectories through feedback control, dynamic vehicle simulation, and real-time safety monitoring:
+
+1. **Closed-Loop Control Configuration & Domain Models (`src/nearfield360/config.py`, `src/nearfield360/control/models.py`):**
+   - Configurable `ParkingControlConfig` specifying control sample interval ($\Delta t$), lookahead distance, Stanley cross-track and velocity softening gains, longitudinal PI tracking gains, steering actuator rate limits and time-constant lag, error abort thresholds, and emergency deceleration.
+   - Pydantic models for control commands (`ControlCommand`), tracking error states (`TrackingErrorState`), vehicle simulation state (`VehicleSimState`), execution steps (`ManeuverExecutionStep`), control KPIs (`ControlPerformanceKPIs`), and execution reports (`ManeuverExecutionReport`).
+2. **Nonlinear Path Tracking Controller (`src/nearfield360/control/controller.py`):**
+   - Forward and reverse Stanley steering controller adapted for Ackermann geometry and multi-stage parking maneuvers.
+   - Longitudinal velocity tracking controller combining feedforward reference acceleration and PI feedback.
+   - Steering rate and angle limits enforcing physical actuator constraints.
+3. **Actuator & Kinematic Vehicle Simulator (`src/nearfield360/control/simulator.py`):**
+   - Discrete-time kinematic bicycle model integrating vehicle pose $(x, y, \theta)$, velocity $v$, and steering angle $\delta$.
+   - First-order steering actuator lag model $\dot{\delta} = \frac{1}{\tau} (\delta_{\text{cmd}} - \delta)$ with rate clamping.
+   - Sensor localization noise simulation and gear shift dwell state handling.
+4. **Closed-Loop Maneuver Executor & Dynamic Safety Monitor (`src/nearfield360/control/executor.py`):**
+   - Multi-stage maneuver state machine handling waypoint progress, segment switching, and gear shift transitions.
+   - Real-time swept footprint safety audit checking vehicle envelope against the BEV occupancy grid and active obstacle tracks.
+   - Automatic Emergency Braking (AEB) triggering an emergency stop if obstacles intrude into the vehicle clearance boundary.
+   - Path tracking error watchdog aborting maneuvers if cross-track or heading errors exceed safety limits.
+   - Quantitative evaluation of terminal docking accuracy ($\Delta x, \Delta y, \Delta \theta$) and control KPIs.
+5. **Visual Telemetry & BEV Execution Overlays (`src/nearfield360/control/viz.py`):**
+   - BEV PNG rendering overlaying planned vs. actual trajectories, footprint poses, parking slot boundaries, and collision status.
+   - Time-series telemetry plots of cross-track error, heading error, speed profiles, and steering commands.
+6. **CLI Command Group & Surround Pipeline Integration:**
+   - Dedicated CLI command group: `nearfield360 control execute` (with `--plan-json`, `--output`, `--png`, `--telemetry-png`, `--noise-std`, `--inject-obstacle`).
+   - Surround pipeline integration: `nearfield360 pipeline run --simulate-control` executing closed-loop simulation on planned trajectories.
+7. **Verification & Quality Gates:**
+   - Comprehensive unit and integration test suite maintaining >85% coverage.
+   - Strict typing under `mypy --strict`, clean `ruff` checks, and release audit pass with 14 CLI groups.
+
