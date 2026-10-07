@@ -403,3 +403,44 @@ def test_slots_config_rejects_invalid_length(tmp_path: Path) -> None:
         match=r"min_slot_length .* must be strictly less than max_slot_length",
     ):
         load_config(config_path)
+
+
+def test_planner_config_defaults() -> None:
+    config = load_config()
+
+    assert config.planner.wheelbase == 2.7
+    assert config.planner.front_overhang == 0.9
+    assert config.planner.rear_overhang == 0.9
+    assert config.planner.vehicle_width == 1.8
+    assert config.planner.max_steer_angle_rad == 0.65
+    assert config.planner.max_speed == 1.5
+    assert config.planner.max_acceleration == 0.8
+    assert config.planner.step_size == 0.1
+    assert config.planner.dt == 0.1
+    assert config.planner.collision_margin == 0.15
+    assert config.planner.danger_threshold == 0.50
+    assert config.planner.uncertainty_threshold == 0.20
+    assert abs(config.planner.vehicle_length - 4.5) < 1e-6
+    assert config.planner.min_turn_radius == pytest.approx(3.55, rel=0.05)
+
+
+def test_planner_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("planner:\n  wheelbase: 2.5\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_PLANNER__WHEELBASE", "2.8")
+    monkeypatch.setenv("NEARFIELD360_PLANNER__MAX_SPEED", "2.0")
+
+    config = load_config(config_path)
+
+    assert config.planner.wheelbase == 2.8
+    assert config.planner.max_speed == 2.0
+
+
+def test_planner_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("planner:\n  max_speed: -1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)

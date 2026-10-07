@@ -118,3 +118,17 @@ slots:
   vehicle_width: 1.8
   vehicle_length: 4.5
   safety_margin: 0.25
+planner:
+  wheelbase: 2.7
+  front_overhang: 0.9
+  rear_overhang: 0.9
+  vehicle_width: 1.8
+  max_steer_angle_rad: 0.65
+  max_speed: 1.5
+  max_acceleration: 0.8
+  step_size: 0.1
+  dt: 0.1
+  collision_margin: 0.15
+  danger_threshold: 0.50
+  uncertainty_threshold: 0.20
+

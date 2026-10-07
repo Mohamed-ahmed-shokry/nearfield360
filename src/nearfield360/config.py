@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal, Self
@@ -268,6 +269,35 @@ class ParkingSlotConfig(BaseModel):
         return self
 
 
+class ParkingPlannerConfig(BaseModel):
+    """Parameters for Ackermann kinematics, trajectory generation, and collision checking."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    wheelbase: float = Field(default=2.7, gt=0.0, allow_inf_nan=False)
+    front_overhang: float = Field(default=0.9, ge=0.0, allow_inf_nan=False)
+    rear_overhang: float = Field(default=0.9, ge=0.0, allow_inf_nan=False)
+    vehicle_width: float = Field(default=1.8, gt=0.0, allow_inf_nan=False)
+    max_steer_angle_rad: float = Field(default=0.65, gt=0.0, lt=1.57, allow_inf_nan=False)
+    max_speed: float = Field(default=1.5, gt=0.0, allow_inf_nan=False)
+    max_acceleration: float = Field(default=0.8, gt=0.0, allow_inf_nan=False)
+    step_size: float = Field(default=0.1, gt=0.0, allow_inf_nan=False)
+    dt: float = Field(default=0.1, gt=0.0, allow_inf_nan=False)
+    collision_margin: float = Field(default=0.15, ge=0.0, allow_inf_nan=False)
+    danger_threshold: float = Field(default=0.50, ge=0.0, le=1.0, allow_inf_nan=False)
+    uncertainty_threshold: float = Field(default=0.20, ge=0.0, le=1.0, allow_inf_nan=False)
+
+    @property
+    def min_turn_radius(self) -> float:
+        """Minimum turning radius computed from wheelbase and max steering angle."""
+        return self.wheelbase / math.tan(self.max_steer_angle_rad)
+
+    @property
+    def vehicle_length(self) -> float:
+        """Total vehicle length computed from wheelbase and overhangs."""
+        return self.wheelbase + self.front_overhang + self.rear_overhang
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -297,6 +327,7 @@ class ProjectConfig(BaseSettings):
     inference: InferenceConfig = Field(default_factory=InferenceConfig)
     forecast: OccupancyForecastConfig = Field(default_factory=OccupancyForecastConfig)
     slots: ParkingSlotConfig = Field(default_factory=ParkingSlotConfig)
+    planner: ParkingPlannerConfig = Field(default_factory=ParkingPlannerConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -350,6 +381,7 @@ __all__ = [
     "LoggingConfig",
     "OccupancyConfig",
     "OccupancyForecastConfig",
+    "ParkingPlannerConfig",
     "ParkingSlotConfig",
     "PathsConfig",
     "ProjectConfig",
