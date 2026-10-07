@@ -23,6 +23,11 @@ from nearfield360.cli.occupancy import (
     _render_occupancy_png,
 )
 from nearfield360.cli.state import get_state
+from nearfield360.control import (
+    ManeuverExecutionReport,
+    ManeuverExecutor,
+    render_control_execution_bev_overlay,
+)
 from nearfield360.data.calibration import load_calibration
 from nearfield360.data.detection import DetectionAnnotation, load_detection_annotations
 from nearfield360.data.images import load_rgb_image
@@ -388,6 +393,37 @@ def _render_pipeline_png_with_plan(
     typer.echo(f"Wrote {path}")
 
 
+def _render_pipeline_png_with_control(
+    grid: Any,
+    evidence: OccupancyEvidence,
+    zones: list[RiskZone],
+    slots: Sequence[ParkingSlot],
+    plan: ParkingTrajectoryPlan,
+    report: ManeuverExecutionReport,
+    path: Path,
+) -> None:
+    occupancy = evidence.occupancy()
+    observed = evidence.observed > 0
+    with np.errstate(invalid="ignore", over="ignore"):
+        red = np.asarray(np.where(observed, occupancy * 255.0, 0.0), dtype=np.uint8)
+        green = np.asarray(np.where(observed, (1.0 - occupancy) * 255.0, 0.0), dtype=np.uint8)
+    canvas = np.zeros((*grid.shape, 3), dtype=np.uint8)
+    canvas[observed, 0] = red[observed]
+    canvas[observed, 1] = green[observed]
+    for zone in zones:
+        from nearfield360.cli.occupancy import _ZONE_COLORS, _border
+
+        color = _ZONE_COLORS.get(zone.name, (128, 128, 128))
+        for row, col in np.argwhere(_border(zone.mask)):
+            canvas[row, col] = color
+    canvas = render_control_execution_bev_overlay(
+        grid, plan, report, slots=slots, base_canvas=canvas
+    )
+    if not cv2.imwrite(str(path), canvas):
+        raise ValueError(f"unable to write PNG: {path}")
+    typer.echo(f"Wrote {path}")
+
+
 @pipeline_app.command("run")
 def run_pipeline(
     context: typer.Context,
@@ -441,9 +477,23 @@ def run_pipeline(
             ),
         ),
     ] = False,
+    simulate_control: Annotated[
+        bool,
+        typer.Option(
+            "--simulate-control/--no-simulate-control",
+            help=(
+                "Simulate closed-loop Stanley tracking control for the planned parking trajectory "
+                "and verify docking accuracy."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
+
+    if simulate_control:
+        plan_parking = True
+        slots = True
 
     model_engine: SemanticSegmentationEngine | None = None
     det_engine: ObjectDetectionEngine | None = None
@@ -598,7 +648,7 @@ def run_pipeline(
 
     slots_payload: dict[str, Any] | None = None
     evaluated_slots: list[ParkingSlot] = []
-    if slots or plan_parking:
+    if slots or plan_parking or simulate_control:
         stage_start = time.perf_counter()
         clean_markings: np.ndarray | None = None
         if markings_mask is not None:
@@ -660,7 +710,9 @@ def run_pipeline(
 
     plan_payload: dict[str, Any] | None = None
     evaluated_plan: ParkingTrajectoryPlan | None = None
-    if plan_parking:
+    control_payload: dict[str, Any] | None = None
+    evaluated_control: ManeuverExecutionReport | None = None
+    if plan_parking or simulate_control:
         stage_start = time.perf_counter()
         planner = ParkingTrajectoryPlanner(config.planner)
         plan_report = planner.plan_parking(
@@ -673,6 +725,19 @@ def run_pipeline(
         timings["plan_ms"] = (time.perf_counter() - stage_start) * 1000.0
         plan_payload = plan_report.model_dump(mode="json")
         evaluated_plan = plan_report.plan
+
+        if simulate_control and evaluated_plan is not None:
+            c_stage_start = time.perf_counter()
+            executor = ManeuverExecutor(config.control, config.planner)
+            control_report = executor.execute_plan(
+                plan=evaluated_plan,
+                occupancy=fused.occupancy(),
+                grid=grid,
+                obstacles=active_obstacles,
+            )
+            timings["control_ms"] = (time.perf_counter() - c_stage_start) * 1000.0
+            control_payload = control_report.model_dump(mode="json")
+            evaluated_control = control_report
 
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
@@ -689,6 +754,8 @@ def run_pipeline(
         samples_payload["slots"] = True
     if plan_parking:
         samples_payload["plan_parking"] = True
+    if simulate_control:
+        samples_payload["simulate_control"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -748,6 +815,8 @@ def run_pipeline(
         payload["slots"] = slots_payload
     if plan_payload is not None:
         payload["plan"] = plan_payload
+    if control_payload is not None:
+        payload["control"] = control_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
@@ -785,6 +854,19 @@ def run_pipeline(
             )
         else:
             typer.echo("Plan complete: no executable parking trajectory found.")
+    if simulate_control and control_payload is not None:
+        if evaluated_control is not None:
+            is_dock = evaluated_control.kpis.is_docked_successfully
+            cte_cm = evaluated_control.kpis.max_cross_track_error_m * 100
+            typer.echo(
+                f"Control complete: status={evaluated_control.status.value}, "
+                f"duration={evaluated_control.duration_s:.2f}s, "
+                f"steps={evaluated_control.total_steps}, "
+                f"max_cte={cte_cm:.1f}cm, "
+                f"docked={'YES' if is_dock else 'NO'}."
+            )
+        else:
+            typer.echo("Control complete: no trajectory executed.")
     if summary["intrusions_detected"]:
         typer.secho(
             f"WARNING: {summary['intrusions_detected']} collision intrusions predicted! "
@@ -795,7 +877,11 @@ def run_pipeline(
 
     if png is not None:
         try:
-            if evaluated_plan is not None:
+            if evaluated_control is not None and evaluated_plan is not None:
+                _render_pipeline_png_with_control(
+                    grid, fused, zones, evaluated_slots, evaluated_plan, evaluated_control, png
+                )
+            elif evaluated_plan is not None:
                 _render_pipeline_png_with_plan(
                     grid, fused, zones, evaluated_slots, evaluated_plan, png
                 )

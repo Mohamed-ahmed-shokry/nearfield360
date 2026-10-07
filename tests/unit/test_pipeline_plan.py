@@ -115,3 +115,59 @@ def test_pipeline_run_with_plan_parking_and_png(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert png_path.is_file()
     assert png_path.stat().st_size > 0
+
+
+def test_pipeline_run_with_simulate_control(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    _write_four_camera_frame(dataset, "00001")
+    output = tmp_path / "pipeline_control_report.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "pipeline",
+            "run",
+            "--root",
+            str(dataset),
+            "--output",
+            str(output),
+            "--simulate-control",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Pipeline complete" in result.stdout
+    assert "Plan complete" in result.stdout
+    payload = read_json(output)
+    assert payload["samples"]["simulate_control"] is True
+    assert "plan" in payload
+    # When slots exist or empty slots handled gracefully
+    if "control" in payload:
+        assert "kpis" in payload["control"]
+        assert "status" in payload["control"]
+
+
+def test_pipeline_run_with_simulate_control_and_png(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    _write_four_camera_frame(dataset, "00001")
+    output = tmp_path / "pipeline_control_report.json"
+    png_path = tmp_path / "pipeline_control.png"
+
+    result = runner.invoke(
+        app,
+        [
+            "pipeline",
+            "run",
+            "--root",
+            str(dataset),
+            "--output",
+            str(output),
+            "--simulate-control",
+            "--png",
+            str(png_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert png_path.is_file()
+    assert png_path.stat().st_size > 0
