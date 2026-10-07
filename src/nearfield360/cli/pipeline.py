@@ -42,6 +42,9 @@ from nearfield360.perception.inference import (
     ObjectDetectionEngine,
     SemanticSegmentationEngine,
 )
+from nearfield360.planning.models import ParkingTrajectoryPlan
+from nearfield360.planning.planner import ParkingTrajectoryPlanner
+from nearfield360.planning.viz import render_parking_plan_bev_overlay
 from nearfield360.slots.classifier import SlotOccupancyClassifier
 from nearfield360.slots.corridor import ApproachCorridorEvaluator
 from nearfield360.slots.detector import ParkingSlotDetector
@@ -357,6 +360,34 @@ def _render_pipeline_png_with_slots(
     typer.echo(f"Wrote {path}")
 
 
+def _render_pipeline_png_with_plan(
+    grid: Any,
+    evidence: OccupancyEvidence,
+    zones: list[RiskZone],
+    slots: Sequence[ParkingSlot],
+    plan: ParkingTrajectoryPlan,
+    path: Path,
+) -> None:
+    occupancy = evidence.occupancy()
+    observed = evidence.observed > 0
+    with np.errstate(invalid="ignore", over="ignore"):
+        red = np.asarray(np.where(observed, occupancy * 255.0, 0.0), dtype=np.uint8)
+        green = np.asarray(np.where(observed, (1.0 - occupancy) * 255.0, 0.0), dtype=np.uint8)
+    canvas = np.zeros((*grid.shape, 3), dtype=np.uint8)
+    canvas[observed, 0] = red[observed]
+    canvas[observed, 1] = green[observed]
+    for zone in zones:
+        from nearfield360.cli.occupancy import _ZONE_COLORS, _border
+
+        color = _ZONE_COLORS.get(zone.name, (128, 128, 128))
+        for row, col in np.argwhere(_border(zone.mask)):
+            canvas[row, col] = color
+    canvas = render_parking_plan_bev_overlay(grid, plan, slots=slots, base_canvas=canvas)
+    if not cv2.imwrite(str(path), canvas):
+        raise ValueError(f"unable to write PNG: {path}")
+    typer.echo(f"Wrote {path}")
+
+
 @pipeline_app.command("run")
 def run_pipeline(
     context: typer.Context,
@@ -397,6 +428,16 @@ def run_pipeline(
             help=(
                 "Delineate 3D metric parking slots, evaluate occupancy, "
                 "and check approach corridors."
+            ),
+        ),
+    ] = False,
+    plan_parking: Annotated[
+        bool,
+        typer.Option(
+            "--plan-parking/--no-plan-parking",
+            help=(
+                "Plan an autonomous, collision-free parking trajectory "
+                "into the most feasible vacant slot."
             ),
         ),
     ] = False,
@@ -557,7 +598,7 @@ def run_pipeline(
 
     slots_payload: dict[str, Any] | None = None
     evaluated_slots: list[ParkingSlot] = []
-    if slots:
+    if slots or plan_parking:
         stage_start = time.perf_counter()
         clean_markings: np.ndarray | None = None
         if markings_mask is not None:
@@ -617,6 +658,22 @@ def run_pipeline(
             "slots": [s.model_dump(mode="json") for s in evaluated_slots],
         }
 
+    plan_payload: dict[str, Any] | None = None
+    evaluated_plan: ParkingTrajectoryPlan | None = None
+    if plan_parking:
+        stage_start = time.perf_counter()
+        planner = ParkingTrajectoryPlanner(config.planner)
+        plan_report = planner.plan_parking(
+            slots=evaluated_slots,
+            occupancy=fused.occupancy(),
+            grid=grid,
+            obstacles=active_obstacles,
+            uncertainty=fused.uncertainty(),
+        )
+        timings["plan_ms"] = (time.perf_counter() - stage_start) * 1000.0
+        plan_payload = plan_report.model_dump(mode="json")
+        evaluated_plan = plan_report.plan
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -630,6 +687,8 @@ def run_pipeline(
         samples_payload["temporal_forecast"] = True
     if slots:
         samples_payload["slots"] = True
+    if plan_parking:
+        samples_payload["plan_parking"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -687,6 +746,8 @@ def run_pipeline(
         payload["temporal_forecast_grid"] = temporal_forecast_grid_payload
     if slots_payload is not None:
         payload["slots"] = slots_payload
+    if plan_payload is not None:
+        payload["plan"] = plan_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
@@ -706,13 +767,24 @@ def run_pipeline(
         f"total {timings['total_ms']:.1f} ms ({fps} fps), "
         f"frame p50={latency['p50_ms']} ms p95={latency['p95_ms']} ms."
     )
-    if slots and slots_payload is not None:
+    if (slots or plan_parking) and slots_payload is not None:
         slot_summ = slots_payload["summary"]
         typer.echo(
             f"Slots complete: {slot_summ['total_slots']} detected "
             f"({slot_summ['vacant_slots']} vacant, "
             f"{slot_summ['feasible_approaches']} feasible corridors)."
         )
+    if plan_parking and plan_payload is not None:
+        if evaluated_plan is not None:
+            typer.echo(
+                f"Plan complete: slot '{evaluated_plan.slot_id}' ({evaluated_plan.slot_type}), "
+                f"length {evaluated_plan.total_length_m:.2f}m, "
+                f"duration {evaluated_plan.total_duration_s:.2f}s, "
+                f"gears {evaluated_plan.gear_switches + 1}, "
+                f"clearance {evaluated_plan.min_clearance_m:.2f}m."
+            )
+        else:
+            typer.echo("Plan complete: no executable parking trajectory found.")
     if summary["intrusions_detected"]:
         typer.secho(
             f"WARNING: {summary['intrusions_detected']} collision intrusions predicted! "
@@ -723,7 +795,11 @@ def run_pipeline(
 
     if png is not None:
         try:
-            if slots and evaluated_slots:
+            if evaluated_plan is not None:
+                _render_pipeline_png_with_plan(
+                    grid, fused, zones, evaluated_slots, evaluated_plan, png
+                )
+            elif (slots or plan_parking) and evaluated_slots:
                 _render_pipeline_png_with_slots(grid, fused, zones, evaluated_slots, png)
             else:
                 _render_occupancy_png(grid, fused, zones, png)
