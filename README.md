@@ -35,6 +35,7 @@ the corresponding experiments have run.
 | Camera health monitoring and discounting | Implemented core | Laplacian blur variance, adaptive high-frequency lens soiling detection, blockage/underexposure detection, and health-aware Bayesian evidence discounting (`--health-aware`) |
 | Modular ONNX perception runtime & inference engines | Implemented | OpenCV DNN backend, letterboxing/normalization, semantic segmentation & object detection engines, numerical parity verification, latency benchmarking, and live pipeline integration |
 | 3D metric parking slot and free-space delineation | Implemented | Oriented 4-corner polygon fitting from road markings and obstacle gaps, occupancy/vacancy classification, approach corridor kinematics and collision feasibility, BEV visual overlays, `nearfield360 slots detect`, and surround pipeline integration (`pipeline run --slots`) |
+| Autonomous parking trajectory planning and maneuvers | Implemented | Non-holonomic Ackermann vehicle kinematics, multi-stage maneuvers (parallel reverse S-turn, perpendicular/slanted reverse dock), continuous swept footprint collision validation against BEV occupancy and dynamic obstacles, time-parameterized speed profiling, `nearfield360 plan parking`, and surround pipeline integration (`pipeline run --plan-parking`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -50,6 +51,8 @@ flowchart LR
     TRACK --> BEV
     HEALTH --> BEV
     BEV --> RISK[Explainable near-field risk zones]
+    BEV --> SLOTS[3D metric parking slots]
+    SLOTS --> PLAN[Autonomous trajectory planning & maneuvers]
     PER --> EXPORT[ONNX / TensorRT]
     EXPORT --> CPP[C++ runtime and profiling]
 ```
@@ -500,6 +503,13 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     kinematics and collision feasibility evaluation, CLI command group `nearfield360 slots detect`
     (with `--vacant-only` and `--png` vector overlay), and surround pipeline integration
     (`pipeline run --slots`).
+20. ~~Autonomous parking trajectory planning, Ackermann kinematics, and multi-stage maneuver engine.~~ Done:
+    Non-holonomic Ackermann vehicle kinematics model ($R_{\min} = L / \tan(\delta_{\max})$), vehicle footprint
+    geometry with overhangs, multi-stage maneuver generators (parallel reverse S-turn, perpendicular/slanted reverse
+    docking), continuous swept footprint rasterization and collision clearance evaluation against BEV occupancy grids
+    and dynamic obstacles, smooth time-parameterized trapezoidal speed profiler, CLI command group `nearfield360 plan parking`
+    (with `--slots-json`, custom start pose, and `--png` visualization), and surround pipeline integration
+    (`pipeline run --plan-parking`).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -518,6 +528,9 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --temporal-forecas
 
 # Live surround perception with 3D metric parking slot and approach corridor delineation:
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --slots --output outputs/pipeline/slots.json --png outputs/pipeline/slots.png
+
+# Live surround perception with autonomous parking trajectory planning into the best vacant slot:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --slots --plan-parking --output outputs/pipeline/plan_report.json --png outputs/pipeline/plan_overlay.png
 
 # Live surround perception with multi-camera batched neural network execution:
 uv run nearfield360 pipeline run --root D:\datasets\woodscape --seg-model models/seg.onnx --det-model models/det.onnx --batch-cameras --output outputs/pipeline/report.json
@@ -558,6 +571,26 @@ uv run nearfield360 slots detect --root D:\datasets\woodscape --camera FV --vaca
 ```
 
 The output JSON report documents detected slots (`slot_id`, `slot_type`, `corners`, `center`, `heading_rad`, `width_m`, `length_m`, `status`, `confidence`, and `approach_path` feasibility), along with a summary of total, vacant, occupied, uncertain, and feasible slot counts.
+
+### Autonomous parking trajectory planning and maneuvers
+
+Plan kinematically feasible, multi-stage parking maneuvers into detected vacant parking slots using non-holonomic Ackermann bicycle kinematics ($R_{\min} = L / \tan(\delta_{\max})$), continuous swept footprint rasterization, and trapezoidal speed profiling:
+
+```powershell
+# Plan parking trajectory from an existing slots detection JSON report:
+uv run nearfield360 plan parking --slots-json outputs/slots/report.json --output outputs/plan/trajectory.json --png outputs/plan/bev.png
+
+# Detect slots and plan parking end-to-end from a dataset root:
+uv run nearfield360 plan parking --root D:\datasets\woodscape --output outputs/plan/trajectory.json --png outputs/plan/bev.png
+
+# Specify custom vehicle start pose (x_m, y_m, heading_rad):
+uv run nearfield360 plan parking --root D:\datasets\woodscape --start-pose "3.0,1.5,0.0" --output outputs/plan/trajectory.json
+
+# Integrated surround pipeline perception with live parking trajectory generation:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --slots --plan-parking --output outputs/pipeline/plan_report.json --png outputs/pipeline/plan_bev.png
+```
+
+The output JSON report details the target slot, vehicle kinematic configuration, trajectory feasibility status (`feasible`, `collision_violated`, `kinematically_infeasible`), individual maneuver segments (`REVERSE_ARC`, `FORWARD_ALIGNMENT`, etc.) with gear selections, waypoints `(x, y, heading, curvature, speed, acceleration, timestamp)`, total travel length, and duration.
 
 ### Inference backends and model optimization
 
