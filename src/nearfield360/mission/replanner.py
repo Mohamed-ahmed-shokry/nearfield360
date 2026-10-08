@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 
+import cv2
 import numpy as np
 from numpy.typing import NDArray
 
@@ -66,7 +67,9 @@ class ParkingReplanner:
 
         for wp in waypoints:
             footprint = self.vehicle.compute_footprint_polygon(wp.x, wp.y, wp.heading_rad)
-            dist_to_center = point_to_polygon_distance(ox, oy, footprint)
+            poly_arr = np.array(footprint, dtype=np.float32)
+            is_inside = cv2.pointPolygonTest(poly_arr, (ox, oy), False) >= 0
+            dist_to_center = 0.0 if is_inside else point_to_polygon_distance(ox, oy, footprint)
             clearance = max(0.0, dist_to_center - o_radius)
             min_clearance = min(min_clearance, clearance)
             if clearance < self.planner_config.collision_margin:
@@ -86,9 +89,11 @@ class ParkingReplanner:
         min_clearance = float("inf")
         for wp in waypoints:
             footprint = self.vehicle.compute_footprint_polygon(wp.x, wp.y, wp.heading_rad)
+            poly_arr = np.array(footprint, dtype=np.float32)
             for obs in obstacles:
                 ox, oy = obs.position
-                dist = point_to_polygon_distance(ox, oy, footprint)
+                is_inside = cv2.pointPolygonTest(poly_arr, (ox, oy), False) >= 0
+                dist = 0.0 if is_inside else point_to_polygon_distance(ox, oy, footprint)
                 min_clearance = min(min_clearance, dist)
                 if dist < self.planner_config.collision_margin:
                     return (True, round(dist, 3))
