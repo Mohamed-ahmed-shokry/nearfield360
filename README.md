@@ -37,6 +37,7 @@ the corresponding experiments have run.
 | 3D metric parking slot and free-space delineation | Implemented | Oriented 4-corner polygon fitting from road markings and obstacle gaps, occupancy/vacancy classification, approach corridor kinematics and collision feasibility, BEV visual overlays, `nearfield360 slots detect`, and surround pipeline integration (`pipeline run --slots`) |
 | Autonomous parking trajectory planning and maneuvers | Implemented | Non-holonomic Ackermann vehicle kinematics, multi-stage maneuvers (parallel reverse S-turn, perpendicular/slanted reverse dock), continuous swept footprint collision validation against BEV occupancy and dynamic obstacles, time-parameterized speed profiling, `nearfield360 plan parking`, and surround pipeline integration (`pipeline run --plan-parking`) |
 | Closed-loop trajectory tracking control & execution simulation | Implemented | Forward/reverse Stanley path follower, curvature feedforward, longitudinal PI control, kinematic bicycle simulator with actuator lag, real-time swept footprint safety monitoring and AEB, docking accuracy KPIs, `nearfield360 control execute`, and surround pipeline integration (`pipeline run --simulate-control`) |
+| AVP mission executive & dynamic recovery orchestration | Implemented | Finite state machine lifecycle manager (7 states), multi-frame spatial slot tracking/memory (`SlotTracker`), dynamic obstacle yield holding, recovery re-planning around obstacles (`ParkingReplanner`), terminal docking evaluation, BEV mission dashboard & timeline telemetry charts (`viz.py`), `nearfield360 mission run`, and surround pipeline integration (`pipeline run --mission`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -513,6 +514,8 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     (`pipeline run --plan-parking`).
 21. ~~Closed-loop parking trajectory tracking control, maneuver execution simulation, and dynamic safety monitoring.~~ Done:
     Nonlinear forward and reverse Stanley path tracking controller, feedforward curvature steering and longitudinal PI velocity profiling, kinematic bicycle simulator with first-order actuator lag ($\tau$) and Gaussian localization noise, multi-stage maneuver state machine with gear shift dwell, real-time swept footprint safety monitoring and automated emergency braking (AEB), tracking error watchdog abort protection, terminal docking accuracy KPIs ($\Delta x, \Delta y, \Delta \theta$), CLI command group `nearfield360 control execute` (with `--plan-json`, `--output`, `--png`, `--telemetry-png`, and `--inject-obstacle`), and surround pipeline integration (`pipeline run --simulate-control`).
+22. ~~Autonomous Valet Parking (AVP) mission executive, dynamic replanning, and multi-stage recovery orchestration.~~ Done:
+    Finite state machine lifecycle manager (`MissionExecutive`) governing 7 operational states (`STANDBY`, `SEARCHING`, `SLOT_SELECTED`, `APPROACHING`, `PARKING_MANEUVER`, `OBSTACLE_HOLD`, `REPLANNING`, `FINAL_ALIGNMENT`, `COMPLETED`, `ABORTED`), multi-frame spatial slot tracking with Hungarian/Euclidean association and temporal confidence decay (`SlotTracker`), online dynamic obstacle yield holding and dwell timeout management, multi-stage recovery re-planning around persistent obstructions (`ParkingReplanner`), terminal precision docking evaluation, rich BEV mission dashboard overlay and timeline telemetry charts (`viz.py`), dedicated CLI command group `nearfield360 mission run` (with `--slots-json`, `--plan-json`, `--scenario`, `--png`, `--timeline-png`, `--max-replans`, `--hold-timeout`), release audit verification (15 CLI command groups), and surround pipeline integration (`pipeline run --mission`).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -600,6 +603,29 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --slots --plan-par
 ```
 
 The output JSON report details the target slot, vehicle kinematic configuration, trajectory feasibility status (`feasible`, `collision_violated`, `kinematically_infeasible`), individual maneuver segments (`REVERSE_ARC`, `FORWARD_ALIGNMENT`, etc.) with gear selections, waypoints `(x, y, heading, curvature, speed, acceleration, timestamp)`, total travel length, and duration.
+
+### Autonomous Valet Parking (AVP) mission executive and recovery
+
+Orchestrate the complete end-to-end Autonomous Valet Parking mission lifecycle, coordinating multi-frame spatial slot tracking/memory (`SlotTracker`), closed-loop trajectory tracking, online dynamic obstacle yield holding (`OBSTACLE_HOLD`), multi-stage recovery re-planning around persistent obstructions (`ParkingReplanner`), and terminal precision docking:
+
+```powershell
+# Run nominal AVP mission simulation with BEV dashboard overlay and timeline telemetry charts:
+uv run nearfield360 mission run --output outputs/mission/nominal.json --scenario nominal --png outputs/mission/dashboard.png --timeline-png outputs/mission/timeline.png
+
+# Simulate dynamic obstacle yield and automatic resumption:
+uv run nearfield360 mission run --output outputs/mission/transient.json --scenario transient_obstacle --hold-timeout 10.0
+
+# Simulate recovery re-planning evasion around a persistently blocked slot entrance:
+uv run nearfield360 mission run --output outputs/mission/replan.json --scenario blocked_replan --max-replans 3
+
+# Run AVP mission lifecycle on a custom precomputed trajectory plan or slots report:
+uv run nearfield360 mission run --plan-json outputs/plan/trajectory.json --output outputs/mission/plan_exec.json --png outputs/mission/bev.png
+
+# Integrated surround pipeline perception with end-to-end AVP mission lifecycle execution:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --mission --output outputs/pipeline/mission_report.json --png outputs/pipeline/mission_bev.png
+```
+
+The output JSON report details the mission identifier, terminal state (`COMPLETED`, `ABORTED`), target slot ID, total elapsed duration, total execution steps, replan count, discrete state transition events with timestamps and triggers, and final terminal docking KPIs ($\Delta x, \Delta y, \Delta \theta$).
 
 ### Inference backends and model optimization
 
