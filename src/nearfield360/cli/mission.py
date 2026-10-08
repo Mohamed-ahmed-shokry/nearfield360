@@ -20,7 +20,14 @@ from nearfield360.mission.viz import (
     render_mission_timeline_chart,
 )
 from nearfield360.perception.evaluation import environment_metadata
-from nearfield360.planning.models import ParkingTrajectoryPlan
+from nearfield360.planning.models import (
+    ManeuverGear,
+    ManeuverPhase,
+    ManeuverSegment,
+    ParkingTrajectoryPlan,
+    PlanStatus,
+    TrajectoryWaypoint,
+)
 from nearfield360.slots.models import (
     ParkingSlot,
     ParkingSlotCorner,
@@ -122,6 +129,48 @@ def _create_fallback_slot() -> ParkingSlot:
     )
 
 
+def _create_fallback_plan(slot: ParkingSlot) -> ParkingTrajectoryPlan:
+    start_pose = (4.0, 0.5, 1.5708)
+    target_pose = (4.0, 3.5, 1.5708)
+    waypoints = [
+        TrajectoryWaypoint(
+            x=round(start_pose[0], 4),
+            y=round(start_pose[1] + i * 0.15, 4),
+            heading_rad=1.5708,
+            curvature=0.0,
+            velocity=0.4,
+            acceleration=0.0,
+            gear=ManeuverGear.FORWARD,
+            t=round(i * 0.35, 3),
+            distance_m=round(i * 0.15, 4),
+        )
+        for i in range(21)
+    ]
+    seg = ManeuverSegment(
+        segment_index=0,
+        phase=ManeuverPhase.DOCK,
+        gear=ManeuverGear.FORWARD,
+        length_m=3.0,
+        duration_s=7.0,
+        waypoints=waypoints,
+    )
+    return ParkingTrajectoryPlan(
+        plan_id="demo_fallback_plan",
+        slot_id=slot.slot_id,
+        slot_type=slot.slot_type,
+        status=PlanStatus.SUCCESS,
+        start_pose=start_pose,
+        target_pose=target_pose,
+        total_length_m=3.0,
+        total_duration_s=7.0,
+        gear_switches=0,
+        max_curvature=0.0,
+        min_clearance_m=2.0,
+        is_executable=True,
+        segments=[seg],
+    )
+
+
 def _load_plan_from_json(path: Path) -> tuple[ParkingTrajectoryPlan, list[ParkingSlot]]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if "plan" in data and data["plan"] is not None:
@@ -199,8 +248,10 @@ def run_mission_command(
             )
             raise typer.Exit(1) from exc
     else:
-        # Fallback default slot for quick CLI exploration
-        evaluated_slots = [_create_fallback_slot()]
+        # Fallback default slot and approach plan for quick CLI exploration
+        fallback_slot = _create_fallback_slot()
+        evaluated_slots = [fallback_slot]
+        loaded_plan = _create_fallback_plan(fallback_slot)
 
     # Scenario threat setup
     transient_obs: tuple[float, float, float] | None = None
@@ -210,11 +261,13 @@ def run_mission_command(
 
     norm_scenario = scenario.strip().lower()
     if norm_scenario == "transient_obstacle":
-        transient_obs = (4.0, 1.2, 0.3)
-        transient_window = (15, 30)
+        transient_obs = (4.0, 1.2, 0.4)
+        transient_window = (10, 22)
     elif norm_scenario == "blocked_replan":
         persistent_obs = (4.0, 1.0, 0.25)
-        persistent_step = 12
+        persistent_step = 10
+        if hold_timeout is None:
+            mission_cfg = mission_cfg.model_copy(update={"hold_timeout_s": 0.5})
 
     noise_cfg = (
         SimulatorNoiseConfig(pos_std_m=noise_pos, heading_std_rad=noise_heading)
