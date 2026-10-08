@@ -1368,3 +1368,85 @@ Phase 22 closes the autonomous parking loop by executing planned multi-stage tra
 | Pre-commit Hooks | `uv run pre-commit run --all-files` | Pass |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 23: Autonomous Valet Parking (AVP) Mission Executive, Dynamic Replanning & Multi-Stage Recovery Orchestration
+
+**Status:** Completed
+**Repository Branch:** `phase/avp-mission-executive`
+**Test Suite:** 1045 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (106 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 23 elevates the `nearfield360` stack from single-frame slot detection, open-loop planning, and single-trajectory execution into a fully autonomous, production-grade Autonomous Valet Parking (AVP) Mission Executive capable of multi-frame spatial memory, real-time safety yielding, dynamic evasion replanning, and terminal precision docking:
+
+1. **AVP Mission Lifecycle Configuration & Domain Models (`src/nearfield360/config.py`, `src/nearfield360/mission/models.py`):**
+   - Configurable `MissionConfig` specifying hold dwell timeout (`hold_timeout_s`), maximum replan attempts (`max_replans`), pull-out recovery distance (`replan_pull_out_dist_m`), approach speed, multi-frame slot association gate (`slot_tracking_distance_gate_m`), confirmation frame threshold (`slot_confirm_frames`), miss threshold (`slot_max_miss_frames`), and precision docking tolerances ($\Delta x, \Delta y, \Delta \theta$).
+   - Strict Pydantic domain models: `MissionState` (7 operational states: `STANDBY`, `SEARCHING`, `SLOT_SELECTED`, `APPROACHING`, `PARKING_MANEUVER`, `OBSTACLE_HOLD`, `REPLANNING`, `FINAL_ALIGNMENT`, `COMPLETED`, `ABORTED`), `MissionTrigger`, `MissionEvent`, `TrackedParkingSlot`, `ReplanResult`, and `MissionSummaryReport`.
+2. **Multi-Frame Spatial Slot Tracking & Memory (`src/nearfield360/mission/slot_tracker.py`):**
+   - Temporal association of parking slot detections across successive frames using Euclidean distance gating and oriented polygon overlap.
+   - Temporal stability scoring and confirmation filtering rejecting transient single-frame false positives while maintaining persistent slot identity.
+   - Target slot selection ranking confirmed vacant candidate slots by distance and approach feasibility.
+3. **Dynamic Recovery Re-Planning Engine (`src/nearfield360/mission/replanner.py`):**
+   - Online recovery trajectory generator for vehicles blocked by obstacles during parking maneuvers.
+   - Synthesizes reverse-to-forward pull-out realignment maneuvers followed by clean reverse docking trajectories.
+   - Swept-volume footprint collision evaluation verifying clearance against BEV occupancy grids and active obstacle tracks.
+4. **Autonomous Mission Executive (`src/nearfield360/mission/executive.py`):**
+   - Finite state machine coordinating slot tracking, trajectory planning, closed-loop execution, dynamic safety monitoring, and recovery.
+   - Real-time transient obstacle yield holding (`OBSTACLE_HOLD`): vehicle stops safely, monitors hazard clearance, and resumes execution if obstacle departs.
+   - Dwell timeout fallback (`REPLANNING`): vehicle transitions to replanning or safe abort if the obstacle remains persistently stationary.
+   - Terminal alignment and docking validation evaluating position errors ($\Delta x, \Delta y$) and heading error ($\Delta \theta$).
+5. **BEV Mission Dashboard Overlay & Timeline Telemetry (`src/nearfield360/mission/viz.py`):**
+   - Metric BEV PNG visualization displaying vehicle path, footprint envelope, tracked slot status, obstacle safety buffers, and mission telemetry overlay HUD.
+   - Time-series mission state transition and velocity telemetry timeline charts.
+6. **CLI Command Group & Four-Camera Pipeline Integration:**
+   - Dedicated CLI command group: `nearfield360 mission run` (with `--slots-json`, `--plan-json`, `--scenario`, `--png`, `--timeline-png`, `--max-replans`, `--hold-timeout`).
+   - Four-camera surround pipeline integration: `nearfield360 pipeline run --mission` orchestrating end-to-end AVP lifecycle execution on surround frames.
+   - Release audit updated and verified for 15 CLI command groups.
+
+---
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Mission configuration (`MissionConfig`) | `src/nearfield360/config.py`, `configs/default.yaml` |
+| Mission domain models (`MissionState`, `MissionEvent`, `TrackedParkingSlot`, `MissionSummaryReport`) | `src/nearfield360/mission/models.py` |
+| Multi-frame spatial slot tracker (`SlotTracker`) | `src/nearfield360/mission/slot_tracker.py` |
+| Dynamic recovery replanner (`ParkingReplanner`) | `src/nearfield360/mission/replanner.py` |
+| AVP Mission Executive (`MissionExecutive`) | `src/nearfield360/mission/executive.py` |
+| BEV mission dashboard & timeline telemetry renderer (`viz.py`) | `src/nearfield360/mission/viz.py` |
+| Mission package API exports | `src/nearfield360/mission/__init__.py` |
+| CLI command group (`nearfield360 mission run`) | `src/nearfield360/cli/mission.py` |
+| CLI application registration & release audit (`expected_groups` updated to 15) | `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py` |
+| Surround pipeline integration (`pipeline run --mission`) | `src/nearfield360/cli/pipeline.py` |
+| Mission domain models unit tests | `tests/unit/mission/test_mission_models.py` (5 tests) |
+| Slot tracker unit tests | `tests/unit/mission/test_slot_tracker.py` (6 tests) |
+| Replanner unit tests | `tests/unit/mission/test_replanner.py` (4 tests) |
+| Mission executive unit tests | `tests/unit/mission/test_executive.py` (5 tests) |
+| Mission visualization unit tests | `tests/unit/mission/test_mission_viz.py` (3 tests) |
+| Mission package exports test | `tests/unit/mission/test_mission_init.py` (1 test) |
+| Mission CLI integration tests | `tests/unit/test_mission_cli.py` (7 tests) |
+| Pipeline CLI mission integration tests | `tests/unit/test_pipeline_mission.py` (3 tests) |
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1045 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 106 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (15 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
