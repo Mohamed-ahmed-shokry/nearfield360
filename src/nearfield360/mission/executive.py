@@ -67,7 +67,9 @@ class DynamicSafetyMonitor:
         if injected_obstacle is not None:
             ox, oy, o_radius = injected_obstacle
             is_inside = cv2.pointPolygonTest(poly_arr, (ox, oy), False) >= 0
-            dist_to_center = 0.0 if is_inside else point_to_polygon_distance(ox, oy, footprint_corners)
+            dist_to_center = (
+                0.0 if is_inside else point_to_polygon_distance(ox, oy, footprint_corners)
+            )
             clearance = max(0.0, dist_to_center - o_radius)
             min_clearance = min(min_clearance, clearance)
             if clearance < self.collision_margin:
