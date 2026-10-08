@@ -68,34 +68,34 @@ Deliver an end-to-end Autonomous Valet Parking (AVP) Mission Executive and lifec
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Config Foundation**
-   - 1.1 `docs: establish Phase 23 AVP mission executive roadmap`
-   - 1.2 `feat(config): add MissionConfig and update default yaml configuration`
-   - 1.3 `test(config): add unit tests for MissionConfig validation`
+   - [x] 1.1 `docs: establish Phase 23 AVP mission executive roadmap`
+   - [x] 1.2 `feat(config): add MissionConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for MissionConfig validation`
 2. **Task 2: Mission Domain Models**
-   - 2.1 `feat(mission): implement lifecycle states, triggers, events, and tracked slot models`
-   - 2.2 `test(mission): verify domain models serialization, hashing, and constraints`
+   - [x] 2.1 `feat(mission): implement lifecycle states, triggers, events, and tracked slot models`
+   - [x] 2.2 `test(mission): verify domain models serialization, hashing, and constraints`
 3. **Task 3: Spatial Slot Tracker**
-   - 3.1 `feat(mission): implement multi-frame SlotTracker with spatial gating and confidence decay`
-   - 3.2 `test(mission): verify SlotTracker multi-frame association, noise rejection, and confirmation`
+   - [x] 3.1 `feat(mission): implement multi-frame SlotTracker with spatial gating and confidence decay`
+   - [x] 3.2 `test(mission): verify SlotTracker multi-frame association, noise rejection, and confirmation`
 4. **Task 4: Dynamic Re-planner & Maneuver Recovery**
-   - 4.1 `feat(mission): implement ParkingReplanner for obstacle evasion and alignment recovery`
-   - 4.2 `test(mission): verify replanning generation, swept clearance checks, and failure handling`
+   - [x] 4.1 `feat(mission): implement ParkingReplanner for obstacle evasion and alignment recovery`
+   - [x] 4.2 `test(mission): verify replanning generation, swept clearance checks, and failure handling`
 5. **Task 5: AVP Mission Executive & State Machine**
-   - 5.1 `feat(mission): implement MissionExecutive state machine and lifecycle orchestration`
-   - 5.2 `feat(mission): implement simulation stepping with obstacle yielding and replanning loops`
-   - 5.3 `test(mission): verify executive nominal flow, transient obstacle hold, and recovery replan`
+   - [x] 5.1 `feat(mission): implement MissionExecutive state machine and lifecycle orchestration`
+   - [x] 5.2 `feat(mission): implement simulation stepping with obstacle yielding and replanning loops`
+   - [x] 5.3 `test(mission): verify executive nominal flow, transient obstacle hold, and recovery replan`
 6. **Task 6: Visual Mission Dashboard & Telemetry Charts**
-   - 6.1 `feat(mission): implement BEV mission execution dashboard overlay`
-   - 6.2 `feat(mission): implement mission state timeline and clearance profile chart`
-   - 6.3 `test(mission): verify mission visualization rendering to valid PNG artifacts`
+   - [x] 6.1 `feat(mission): implement BEV mission execution dashboard overlay`
+   - [x] 6.2 `feat(mission): implement mission state timeline and clearance profile chart`
+   - [x] 6.3 `test(mission): verify mission visualization rendering to valid PNG artifacts`
 7. **Task 7: Package Exports & CLI Integration**
-   - 7.1 `feat(mission): export public mission API from package init`
-   - 7.2 `feat(cli): implement nearfield360 mission command group`
-   - 7.3 `feat(cli): register mission CLI group and update release audit expected count to 15`
-   - 7.4 `feat(pipeline): integrate --mission flag into four-camera pipeline runner`
-   - 7.5 `test(cli): verify mission CLI command options, scenarios, and artifact generation`
-   - 7.6 `test(pipeline): verify pipeline --mission execution flow`
+   - [x] 7.1 `feat(mission): export public mission API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 mission command group`
+   - [x] 7.3 `feat(cli): register mission CLI group and update release audit expected count to 15`
+   - [x] 7.4 `feat(pipeline): integrate --mission flag into four-camera pipeline runner`
+   - [x] 7.5 `test(cli): verify mission CLI command options, scenarios, and artifact generation`
+   - [x] 7.6 `test(pipeline): verify pipeline --mission execution flow`
 8. **Task 8: End-to-End Documentation & Verification Gates**
-   - 8.1 `docs: update README with Phase 23 roadmap entry and mission CLI usage examples`
-   - 8.2 `docs(progress): document completed Phase 23 milestone and verification gates in PROGRESS.md`
-   - 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [x] 8.1 `docs: update README with Phase 23 roadmap entry and mission CLI usage examples`
+   - [x] 8.2 `docs(progress): document completed Phase 23 milestone and verification gates in PROGRESS.md`
+   - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
