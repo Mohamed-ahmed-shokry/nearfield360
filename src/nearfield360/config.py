@@ -319,6 +319,24 @@ class ParkingControlConfig(BaseModel):
     terminal_dock_tol_heading: float = Field(default=0.10, gt=0.0, allow_inf_nan=False)
 
 
+class MissionConfig(BaseModel):
+    """Parameters for Autonomous Valet Parking (AVP) mission lifecycle and dynamic replanning."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    hold_timeout_s: float = Field(default=5.0, gt=0.0, allow_inf_nan=False)
+    max_replans: int = Field(default=3, ge=0)
+    replan_pull_out_dist_m: float = Field(default=1.5, gt=0.0, allow_inf_nan=False)
+    approach_speed_m_s: float = Field(default=1.0, gt=0.0, allow_inf_nan=False)
+    slot_tracking_distance_gate_m: float = Field(default=2.0, gt=0.0, allow_inf_nan=False)
+    slot_confirm_frames: int = Field(default=2, ge=1)
+    slot_max_miss_frames: int = Field(default=5, ge=1)
+    docking_tolerance_x_m: float = Field(default=0.20, gt=0.0, allow_inf_nan=False)
+    docking_tolerance_y_m: float = Field(default=0.15, gt=0.0, allow_inf_nan=False)
+    docking_tolerance_heading_rad: float = Field(default=0.08, gt=0.0, allow_inf_nan=False)
+    safety_dwell_steps: int = Field(default=10, ge=1)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -350,6 +368,7 @@ class ProjectConfig(BaseSettings):
     slots: ParkingSlotConfig = Field(default_factory=ParkingSlotConfig)
     planner: ParkingPlannerConfig = Field(default_factory=ParkingPlannerConfig)
     control: ParkingControlConfig = Field(default_factory=ParkingControlConfig)
+    mission: MissionConfig = Field(default_factory=MissionConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -401,6 +420,7 @@ __all__ = [
     "GeometryConfig",
     "InferenceConfig",
     "LoggingConfig",
+    "MissionConfig",
     "OccupancyConfig",
     "OccupancyForecastConfig",
     "ParkingControlConfig",

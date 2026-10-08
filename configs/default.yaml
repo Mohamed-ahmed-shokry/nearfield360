@@ -146,3 +146,16 @@ control:
   collision_check_interval: 2
   terminal_dock_tol_xy: 0.15
   terminal_dock_tol_heading: 0.10
+mission:
+  hold_timeout_s: 5.0
+  max_replans: 3
+  replan_pull_out_dist_m: 1.5
+  approach_speed_m_s: 1.0
+  slot_tracking_distance_gate_m: 2.0
+  slot_confirm_frames: 2
+  slot_max_miss_frames: 5
+  docking_tolerance_x_m: 0.20
+  docking_tolerance_y_m: 0.15
+  docking_tolerance_heading_rad: 0.08
+  safety_dwell_steps: 10
+

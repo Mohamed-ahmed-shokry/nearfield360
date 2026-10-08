@@ -25,6 +25,7 @@ from nearfield360.cli.occupancy import (
 from nearfield360.cli.state import get_state
 from nearfield360.control import (
     ManeuverExecutionReport,
+    ManeuverExecutionStep,
     ManeuverExecutor,
     render_control_execution_bev_overlay,
 )
@@ -34,6 +35,11 @@ from nearfield360.data.images import load_rgb_image
 from nearfield360.data.woodscape import CameraId, WoodScapeSample
 from nearfield360.geometry.camera import CalibratedCamera
 from nearfield360.health import CameraHealthReport
+from nearfield360.mission import (
+    MissionExecutive,
+    MissionSummaryReport,
+    render_mission_dashboard_overlay,
+)
 from nearfield360.occupancy import (
     OccupancyEvidence,
     OccupancyPolicy,
@@ -424,6 +430,38 @@ def _render_pipeline_png_with_control(
     typer.echo(f"Wrote {path}")
 
 
+def _render_pipeline_png_with_mission(
+    grid: Any,
+    evidence: OccupancyEvidence,
+    zones: list[RiskZone],
+    slots: Sequence[ParkingSlot],
+    plan: ParkingTrajectoryPlan | None,
+    report: MissionSummaryReport,
+    steps: Sequence[ManeuverExecutionStep],
+    path: Path,
+) -> None:
+    occupancy = evidence.occupancy()
+    observed = evidence.observed > 0
+    with np.errstate(invalid="ignore", over="ignore"):
+        red = np.asarray(np.where(observed, occupancy * 255.0, 0.0), dtype=np.uint8)
+        green = np.asarray(np.where(observed, (1.0 - occupancy) * 255.0, 0.0), dtype=np.uint8)
+    canvas = np.zeros((*grid.shape, 3), dtype=np.uint8)
+    canvas[observed, 0] = red[observed]
+    canvas[observed, 1] = green[observed]
+    for zone in zones:
+        from nearfield360.cli.occupancy import _ZONE_COLORS, _border
+
+        color = _ZONE_COLORS.get(zone.name, (128, 128, 128))
+        for row, col in np.argwhere(_border(zone.mask)):
+            canvas[row, col] = color
+    canvas = render_mission_dashboard_overlay(
+        grid, report, steps, slots=slots, plan=plan, base_canvas=canvas
+    )
+    if not cv2.imwrite(str(path), canvas):
+        raise ValueError(f"unable to write PNG: {path}")
+    typer.echo(f"Wrote {path}")
+
+
 @pipeline_app.command("run")
 def run_pipeline(
     context: typer.Context,
@@ -487,11 +525,25 @@ def run_pipeline(
             ),
         ),
     ] = False,
+    mission: Annotated[
+        bool,
+        typer.Option(
+            "--mission/--no-mission",
+            help=(
+                "Orchestrate end-to-end Autonomous Valet Parking (AVP) mission lifecycle, "
+                "dynamic replanning, and slot memory."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
 
-    if simulate_control:
+    if mission:
+        simulate_control = True
+        plan_parking = True
+        slots = True
+    elif simulate_control:
         plan_parking = True
         slots = True
 
@@ -712,6 +764,9 @@ def run_pipeline(
     evaluated_plan: ParkingTrajectoryPlan | None = None
     control_payload: dict[str, Any] | None = None
     evaluated_control: ManeuverExecutionReport | None = None
+    mission_payload: dict[str, Any] | None = None
+    evaluated_mission: MissionSummaryReport | None = None
+    mission_steps: list[ManeuverExecutionStep] = []
     if plan_parking or simulate_control:
         stage_start = time.perf_counter()
         planner = ParkingTrajectoryPlanner(config.planner)
@@ -739,6 +794,25 @@ def run_pipeline(
             control_payload = control_report.model_dump(mode="json")
             evaluated_control = control_report
 
+        if mission and evaluated_slots:
+            m_stage_start = time.perf_counter()
+            executive = MissionExecutive(
+                mission_config=config.mission,
+                planner_config=config.planner,
+                control_config=config.control,
+            )
+            mission_report, mission_steps = executive.execute_mission(
+                slots=evaluated_slots,
+                initial_plan=evaluated_plan,
+                occupancy=fused.occupancy(),
+                grid=grid,
+                obstacles=active_obstacles,
+                mission_id=f"mission_{frames[-1][0]}",
+            )
+            timings["mission_ms"] = (time.perf_counter() - m_stage_start) * 1000.0
+            mission_payload = mission_report.model_dump(mode="json")
+            evaluated_mission = mission_report
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -756,6 +830,8 @@ def run_pipeline(
         samples_payload["plan_parking"] = True
     if simulate_control:
         samples_payload["simulate_control"] = True
+    if mission:
+        samples_payload["mission"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -817,6 +893,8 @@ def run_pipeline(
         payload["plan"] = plan_payload
     if control_payload is not None:
         payload["control"] = control_payload
+    if mission_payload is not None:
+        payload["mission"] = mission_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
@@ -867,6 +945,14 @@ def run_pipeline(
             )
         else:
             typer.echo("Control complete: no trajectory executed.")
+    if mission and evaluated_mission is not None:
+        typer.echo(
+            f"Mission complete: status={evaluated_mission.final_state.value}, "
+            f"duration={evaluated_mission.total_duration_s:.2f}s, "
+            f"steps={evaluated_mission.total_steps}, "
+            f"replans={evaluated_mission.replan_count}, "
+            f"docked={'YES' if evaluated_mission.is_success else 'NO'}."
+        )
     if summary["intrusions_detected"]:
         typer.secho(
             f"WARNING: {summary['intrusions_detected']} collision intrusions predicted! "
@@ -877,7 +963,18 @@ def run_pipeline(
 
     if png is not None:
         try:
-            if evaluated_control is not None and evaluated_plan is not None:
+            if evaluated_mission is not None:
+                _render_pipeline_png_with_mission(
+                    grid,
+                    fused,
+                    zones,
+                    evaluated_slots,
+                    evaluated_plan,
+                    evaluated_mission,
+                    mission_steps,
+                    png,
+                )
+            elif evaluated_control is not None and evaluated_plan is not None:
                 _render_pipeline_png_with_control(
                     grid, fused, zones, evaluated_slots, evaluated_plan, evaluated_control, png
                 )

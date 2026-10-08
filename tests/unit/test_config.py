@@ -486,3 +486,42 @@ def test_control_config_rejects_invalid_values(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="greater than 0"):
         load_config(config_path)
+
+
+def test_mission_config_defaults() -> None:
+    config = load_config()
+
+    assert config.mission.hold_timeout_s == 5.0
+    assert config.mission.max_replans == 3
+    assert config.mission.replan_pull_out_dist_m == 1.5
+    assert config.mission.approach_speed_m_s == 1.0
+    assert config.mission.slot_tracking_distance_gate_m == 2.0
+    assert config.mission.slot_confirm_frames == 2
+    assert config.mission.slot_max_miss_frames == 5
+    assert config.mission.docking_tolerance_x_m == 0.20
+    assert config.mission.docking_tolerance_y_m == 0.15
+    assert config.mission.docking_tolerance_heading_rad == 0.08
+    assert config.mission.safety_dwell_steps == 10
+
+
+def test_mission_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("mission:\n  hold_timeout_s: 3.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_MISSION__MAX_REPLANS", "5")
+    monkeypatch.setenv("NEARFIELD360_MISSION__APPROACH_SPEED_M_S", "0.8")
+
+    config = load_config(config_path)
+
+    assert config.mission.hold_timeout_s == 3.0
+    assert config.mission.max_replans == 5
+    assert config.mission.approach_speed_m_s == 0.8
+
+
+def test_mission_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("mission:\n  hold_timeout_s: -1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
