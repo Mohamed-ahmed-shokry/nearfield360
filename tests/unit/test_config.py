@@ -525,3 +525,41 @@ def test_mission_config_rejects_invalid_values(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="greater than 0"):
         load_config(config_path)
+
+
+def test_mapping_config_defaults() -> None:
+    config = load_config()
+
+    assert config.mapping.default_lane_width_m == 3.5
+    assert config.mapping.default_speed_limit_mps == 2.5
+    assert config.mapping.turn_penalty_weight == 1.5
+    assert config.mapping.odometry_noise_dist == 0.05
+    assert config.mapping.odometry_noise_yaw == 0.02
+    assert config.mapping.slot_association_gate_m == 2.5
+    assert config.mapping.slot_observation_noise_pos == 0.20
+    assert config.mapping.slot_observation_noise_yaw == 0.05
+    assert config.mapping.max_localization_uncertainty_m == 1.5
+    assert config.mapping.replan_reroute_on_blocked_lane is True
+
+
+def test_mapping_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("mapping:\n  default_lane_width_m: 4.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_MAPPING__DEFAULT_SPEED_LIMIT_MPS", "3.0")
+    monkeypatch.setenv("NEARFIELD360_MAPPING__SLOT_ASSOCIATION_GATE_M", "3.0")
+
+    config = load_config(config_path)
+
+    assert config.mapping.default_lane_width_m == 4.0
+    assert config.mapping.default_speed_limit_mps == 3.0
+    assert config.mapping.slot_association_gate_m == 3.0
+
+
+def test_mapping_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("mapping:\n  default_lane_width_m: -2.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
