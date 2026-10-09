@@ -627,6 +627,35 @@ uv run nearfield360 pipeline run --root D:\datasets\woodscape --mission --output
 
 The output JSON report details the mission identifier, terminal state (`COMPLETED`, `ABORTED`), target slot ID, total elapsed duration, total execution steps, replan count, discrete state transition events with timestamps and triggers, and final terminal docking KPIs ($\Delta x, \Delta y, \Delta \theta$).
 
+### Parking facility HD vector mapping, routing, and localization
+
+Build structured high-definition vector facility maps for multi-aisle garages and surface parking lots, compute kinematically-feasible global topological routes with turn penalties and corridor boundaries, and perform multi-sensor EKF pose graph localization fusing kinematic odometry with landmark parking slot observations:
+
+```powershell
+# 1. Inspect facility map geometry, lane topology, and slot capacities:
+uv run nearfield360 map info --map maps/garage.json --json
+
+# 2. Synthesize benchmark parking facility maps (garage or surface lot) with BEV rendering:
+uv run nearfield360 map build --type garage --aisles 3 --slots-per-aisle 8 --output outputs/map/garage.json --png outputs/map/garage_bev.png
+uv run nearfield360 map build --type lot --aisles 4 --slots-per-aisle 10 --output outputs/map/lot.json --png outputs/map/lot_bev.png
+
+# 3. Plan optimal global topological routes from facility entrance to a target slot:
+uv run nearfield360 map route --map outputs/map/garage.json --target-slot SLOT_A1_02 --output outputs/map/route.json --png outputs/map/route_bev.png
+
+# 4. Run closed-loop multi-sensor EKF localization fusing odometry and slot landmark updates:
+uv run nearfield360 map localize --map outputs/map/garage.json --route outputs/map/route.json --steps 40 --output outputs/map/slam.json --png outputs/map/telemetry.png
+
+# 5. Integrate facility vector mapping directly into the surround camera pipeline:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --map outputs/map/garage.json --target-slot SLOT_A1_02 --output outputs/pipeline/map_pipeline.json
+```
+
+Key capabilities:
+- **HD Vector Map Specification:** Pydantic v2 domain models for `FacilityMap`, `FacilityLane`, `FacilitySlot`, `FacilityObstacle`, `FacilityWaypoint`, and `GlobalRoute` with complete JSON schema validation and topological integrity verification.
+- **Topological A\* Router:** Graph search enforcing lane one-way traversal, geometry turn penalties, smooth Bezier corridor waypoint densification, and slot access point snapping.
+- **Multi-Sensor Pose Estimator (EKF):** Non-linear kinematic bicycle prediction fused with range/bearing observations of marked slot corners and entrance landmarks, complete with $3\sigma$ covariance uncertainty estimation and noise rejection.
+- **Dual-Panel Telemetry Dashboard:** Bird's-eye-view vector facility rendering paired with real-time localization tracking error ($\Delta x, \Delta y, \Delta \theta$) and covariance determinant convergence plots.
+
+
 ### Inference backends and model optimization
 
 Live perception commands (`infer`, `occupancy layer`, `track run`, `pipeline run`) accept
