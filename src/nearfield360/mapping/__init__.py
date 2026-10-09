@@ -12,10 +12,6 @@ from nearfield360.mapping.localization import (
     LocalizationStepRecord,
     PoseEstimator,
 )
-from nearfield360.mapping.viz import (
-    render_facility_bev,
-    render_localization_dashboard,
-)
 from nearfield360.mapping.models import (
     FacilityBounds,
     FacilityLane,
@@ -38,6 +34,10 @@ from nearfield360.mapping.router import (
     RoutingError,
     RoutingGraph,
     find_nearest_waypoint,
+)
+from nearfield360.mapping.viz import (
+    render_facility_bev,
+    render_localization_dashboard,
 )
 
 __all__ = [
