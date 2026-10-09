@@ -89,9 +89,9 @@ Deliver an end-to-end Parking Facility HD Vector Mapping, Topological Route Plan
    - [x] 4.2 `feat(mapping): implement A* global route planner with turn penalties and corridor bounds`
    - [x] 4.3 `test(mapping): verify global route planner optimality, one-way enforcement, and infeasible targets`
 5. **Task 5: Multi-Sensor Pose Estimation & Landmark Localization**
-   - [ ] 5.1 `feat(mapping): implement kinematic bicycle odometry dead-reckoning engine`
-   - [ ] 5.2 `feat(mapping): implement slot landmark association and EKF pose estimator`
-   - [ ] 5.3 `test(mapping): verify localization accuracy, covariance convergence, and noise rejection`
+   - [x] 5.1 `feat(mapping): implement kinematic bicycle odometry dead-reckoning engine`
+   - [x] 5.2 `feat(mapping): implement slot landmark association and EKF pose estimator`
+   - [x] 5.3 `test(mapping): verify localization accuracy, covariance convergence, and noise rejection`
 6. **Task 6: Facility Map & Localization Visualizer**
    - [ ] 6.1 `feat(mapping): implement BEV facility map and global route rendering`
    - [ ] 6.2 `feat(mapping): implement localization covariance ellipse and telemetry dashboard rendering`
