@@ -126,6 +126,7 @@ def _run_checks() -> list[dict[str, Any]]:
         "geometry",
         "health",
         "infer",
+        "map",
         "mission",
         "occupancy",
         "pipeline",
