@@ -7,6 +7,11 @@ from nearfield360.mapping.builder import (
     build_benchmark_garage,
     build_surface_lot,
 )
+from nearfield360.mapping.localization import (
+    LocalizationSimulator,
+    LocalizationStepRecord,
+    PoseEstimator,
+)
 from nearfield360.mapping.models import (
     FacilityBounds,
     FacilityLane,
@@ -44,7 +49,10 @@ __all__ = [
     "LandmarkObservation",
     "LaneDirection",
     "LocalizationReport",
+    "LocalizationSimulator",
+    "LocalizationStepRecord",
     "PoseEstimate",
+    "PoseEstimator",
     "RouteWaypoint",
     "RoutingError",
     "RoutingGraph",
