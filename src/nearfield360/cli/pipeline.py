@@ -35,6 +35,10 @@ from nearfield360.data.images import load_rgb_image
 from nearfield360.data.woodscape import CameraId, WoodScapeSample
 from nearfield360.geometry.camera import CalibratedCamera
 from nearfield360.health import CameraHealthReport
+from nearfield360.mapping.builder import build_benchmark_garage
+from nearfield360.mapping.localization import LocalizationSimulator
+from nearfield360.mapping.models import FacilityMap
+from nearfield360.mapping.router import GlobalRouter
 from nearfield360.mission import (
     MissionExecutive,
     MissionSummaryReport,
@@ -75,7 +79,7 @@ from nearfield360.tracking.models import (
 from nearfield360.tracking.projection import project_detections
 from nearfield360.tracking.risk import forecast_all_trajectories
 from nearfield360.tracking.tracker import MultiObjectTracker
-from nearfield360.utils.artifacts import ArtifactError, write_json
+from nearfield360.utils.artifacts import ArtifactError, read_json, write_json
 
 pipeline_app = typer.Typer(
     help="Run the integrated four-camera surround perception pipeline with a timed report.",
@@ -535,6 +539,25 @@ def run_pipeline(
             ),
         ),
     ] = False,
+    map_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--map",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="Path to facility HD vector map JSON for global routing and localization.",
+        ),
+    ] = None,
+    target_slot: Annotated[
+        str | None,
+        typer.Option(
+            "--target-slot",
+            help="Target parking bay ID in the facility map.",
+        ),
+    ] = None,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -813,6 +836,36 @@ def run_pipeline(
             mission_payload = mission_report.model_dump(mode="json")
             evaluated_mission = mission_report
 
+    map_payload: dict[str, Any] | None = None
+    if map_file is not None or target_slot is not None:
+        map_stage_start = time.perf_counter()
+        if map_file is not None:
+            map_data = read_json(map_file)
+            facility_map = FacilityMap.model_validate(map_data)
+        else:
+            facility_map = build_benchmark_garage()
+
+        router = GlobalRouter(facility_map, turn_penalty_weight=config.mapping.turn_penalty_weight)
+        eff_target = target_slot or (facility_map.slots[0].slot_id if facility_map.slots else None)
+        if eff_target:
+            global_route = router.plan(start_pose=(0.0, 0.0, 0.0), target_slot_id=eff_target)
+            sim = LocalizationSimulator(facility_map, config=config.mapping)
+            wp_coords = [(w.x, w.y, w.heading_rad) for w in global_route.waypoints]
+            loc_report, _ = sim.simulate(wp_coords)
+            map_payload = {
+                "map_id": facility_map.map_id,
+                "name": facility_map.name,
+                "route": global_route.model_dump(mode="json"),
+                "localization": loc_report.model_dump(mode="json"),
+            }
+        else:
+            map_payload = {
+                "map_id": facility_map.map_id,
+                "name": facility_map.name,
+                "slots_count": len(facility_map.slots),
+            }
+        timings["mapping_ms"] = (time.perf_counter() - map_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -832,6 +885,8 @@ def run_pipeline(
         samples_payload["simulate_control"] = True
     if mission:
         samples_payload["mission"] = True
+    if map_file is not None or target_slot is not None:
+        samples_payload["map"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -895,6 +950,8 @@ def run_pipeline(
         payload["control"] = control_payload
     if mission_payload is not None:
         payload["mission"] = mission_payload
+    if map_payload is not None:
+        payload["map"] = map_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
