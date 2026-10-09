@@ -19,6 +19,7 @@ from nearfield360.cli.eval import eval_app
 from nearfield360.cli.geometry import geometry_app
 from nearfield360.cli.health import health_app
 from nearfield360.cli.infer import infer_app
+from nearfield360.cli.map import map_app
 from nearfield360.cli.mission import mission_app
 from nearfield360.cli.occupancy import occupancy_app
 from nearfield360.cli.pipeline import pipeline_app
@@ -56,6 +57,7 @@ app.add_typer(eval_app, name="eval")
 app.add_typer(geometry_app, name="geometry")
 app.add_typer(health_app, name="health")
 app.add_typer(infer_app, name="infer")
+app.add_typer(map_app, name="map")
 app.add_typer(mission_app, name="mission")
 app.add_typer(occupancy_app, name="occupancy")
 app.add_typer(pipeline_app, name="pipeline")
