@@ -97,12 +97,12 @@ Deliver an end-to-end Parking Facility HD Vector Mapping, Topological Route Plan
    - [x] 6.2 `feat(mapping): implement localization covariance ellipse and telemetry dashboard rendering`
    - [x] 6.3 `test(mapping): verify mapping and localization visualization rendering to valid PNG artifacts`
 7. **Task 7: Package Exports & CLI Command Group**
-   - [ ] 7.1 `feat(mapping): export public mapping API from package init`
-   - [ ] 7.2 `feat(cli): implement nearfield360 map command group (info, build, route, localize)`
-   - [ ] 7.3 `feat(cli): register map CLI group and update release audit expected count to 16`
-   - [ ] 7.4 `feat(pipeline): integrate --map and --target-slot flags into pipeline runner`
-   - [ ] 7.5 `test(cli): verify map CLI command options, outputs, and JSON/PNG artifacts`
-   - [ ] 7.6 `test(pipeline): verify pipeline map integration and routing workflow`
+   - [x] 7.1 `feat(mapping): export public mapping API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 map command group (info, build, route, localize)`
+   - [x] 7.3 `feat(cli): register map CLI group and update release audit expected count to 16`
+   - [x] 7.4 `feat(pipeline): integrate --map and --target-slot flags into pipeline runner`
+   - [x] 7.5 `test(cli): verify map CLI command options, outputs, and JSON/PNG artifacts`
+   - [x] 7.6 `test(pipeline): verify pipeline map integration and routing workflow`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 8.1 `docs: update README with Phase 24 mapping capabilities and CLI usage examples`
    - [ ] 8.2 `docs(progress): document completed Phase 24 milestone, Decision Log, and verification gates`
