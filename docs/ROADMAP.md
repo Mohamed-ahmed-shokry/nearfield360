@@ -74,9 +74,9 @@ Deliver an end-to-end Parking Facility HD Vector Mapping, Topological Route Plan
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Config Foundation**
-   - [ ] 1.1 `docs: establish Phase 24 parking facility mapping and localization roadmap`
-   - [ ] 1.2 `feat(config): add MappingConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for MappingConfig validation`
+   - [x] 1.1 `docs: establish Phase 24 parking facility mapping and localization roadmap`
+   - [x] 1.2 `feat(config): add MappingConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for MappingConfig validation`
 2. **Task 2: Facility Map Domain Models & Validation**
    - [ ] 2.1 `feat(mapping): implement facility map domain models (lanes, slots, obstacles, waypoints)`
    - [ ] 2.2 `feat(mapping): implement JSON serialization and spatial bounds verification`
