@@ -93,9 +93,9 @@ Deliver an end-to-end Parking Facility HD Vector Mapping, Topological Route Plan
    - [x] 5.2 `feat(mapping): implement slot landmark association and EKF pose estimator`
    - [x] 5.3 `test(mapping): verify localization accuracy, covariance convergence, and noise rejection`
 6. **Task 6: Facility Map & Localization Visualizer**
-   - [ ] 6.1 `feat(mapping): implement BEV facility map and global route rendering`
-   - [ ] 6.2 `feat(mapping): implement localization covariance ellipse and telemetry dashboard rendering`
-   - [ ] 6.3 `test(mapping): verify mapping and localization visualization rendering to valid PNG artifacts`
+   - [x] 6.1 `feat(mapping): implement BEV facility map and global route rendering`
+   - [x] 6.2 `feat(mapping): implement localization covariance ellipse and telemetry dashboard rendering`
+   - [x] 6.3 `test(mapping): verify mapping and localization visualization rendering to valid PNG artifacts`
 7. **Task 7: Package Exports & CLI Command Group**
    - [ ] 7.1 `feat(mapping): export public mapping API from package init`
    - [ ] 7.2 `feat(cli): implement nearfield360 map command group (info, build, route, localize)`
