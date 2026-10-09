@@ -1,101 +1,109 @@
 # Autonomous Valet Parking (AVP) Development Roadmap
 
-## Phase 23: Autonomous Valet Parking (AVP) Mission Executive, Dynamic Replanning & Multi-Stage Recovery Orchestration
+## Phase 24: Parking Facility HD Vector Mapping, Global Topological Route Planning & Multi-Sensor Pose Graph Localization
 
 ### 1. Objective & Expected Outcome
 
-Deliver an end-to-end Autonomous Valet Parking (AVP) Mission Executive and lifecycle state machine that elevates NearField360 from isolated perception, slot detection, planning, and control steps into a fully orchestrated, resilient autonomous parking system. The system autonomously manages the complete parking lifecycle: cruising and multi-frame slot discovery, optimal slot selection, approach navigation, closed-loop maneuver tracking, obstacle intrusion holding and yielding, online dynamic replanning around obstacles, and terminal precision alignment.
+Deliver an end-to-end Parking Facility HD Vector Mapping, Topological Route Planning, and Multi-Sensor Pose Graph Localization engine that elevates NearField360 from local, vehicle-relative maneuvering into globally aware, facility-wide autonomous valet parking. The system models structured parking garages and surface lots (driving lanes, one-way corridors, parking bays, structural boundaries, and navigation waypoints), plans kinematically admissible global routes from entrance drop-off zones to target bays, and estimates vehicle metric poses by fusing kinematic bicycle odometry with perceived 3D parking slot landmark associations.
 
 ### 2. Scope
 
 - **Configuration (`src/nearfield360/config.py`, `configs/default.yaml`)**:
-  - `MissionConfig` specifying hold timeout, maximum replan attempts, docking tolerances, approach velocity, slot tracking distance gate, and confirmation thresholds.
-- **Domain Models (`src/nearfield360/mission/models.py`)**:
-  - `MissionState` lifecycle enum: `STANDBY`, `SEARCHING`, `SLOT_SELECTED`, `APPROACH`, `PARKING_MANEUVER`, `OBSTACLE_HOLD`, `REPLANNING`, `FINAL_ALIGNMENT`, `COMPLETED`, `ABORTED`.
-  - `MissionTrigger` event transition triggers.
-  - `MissionEvent` transition event logging with timestamps and reasons.
-  - `TrackedParkingSlot` multi-frame persistent spatial slot representation with Bayesian confidence tracking.
-  - `RecoveryManeuver` and `MissionSummaryReport` schemas.
-- **Spatial Slot Tracker (`src/nearfield360/mission/slot_tracker.py`)**:
-  - Multi-frame temporal slot association using metric centroid gating and heading orientation matching.
-  - Running pose filter and observation confidence scoring.
-  - Pruning stale or transient false-positive slot detections.
-- **Dynamic Replanner & Maneuver Recovery (`src/nearfield360/mission/replanner.py`)**:
-  - Online recovery trajectory generator for blocked or deviated maneuvers: forward pull-out realignment, multi-point adjustments, and collision clearance audits.
-- **AVP Mission Executive & State Machine (`src/nearfield360/mission/executive.py`)**:
-  - Orchestrates sensor inputs, slot tracking, trajectory planning, closed-loop tracking control, dynamic safety monitoring, obstacle hold timers, and online replanning.
-  - Handles nominal execution, transient yielding, persistent obstacle replanning, and safe abort fallbacks.
-- **Visual Mission Dashboard & Telemetry Charts (`src/nearfield360/mission/viz.py`)**:
-  - Multi-panel BEV execution overlay showing planned vs actual trajectory, replanned recovery paths, slot boundaries, and mission status badges.
-  - Time-series mission state progression timeline chart and obstacle clearance profiles.
-- **CLI Command Group & Pipeline Integration (`src/nearfield360/cli/mission.py`, `src/nearfield360/cli/pipeline.py`)**:
-  - Dedicated CLI command group: `nearfield360 mission run` with scenario simulation flags (`nominal`, `transient_obstacle`, `blocked_replan`).
-  - Surround pipeline integration: `nearfield360 pipeline run --mission`.
-  - CLI registration and release audit update (15 expected command groups).
+  - `MappingConfig` specifying default lane width, facility speed limits, odometry process noise, landmark association distance gates, slot observation noise, and localization uncertainty thresholds.
+- **Domain Models (`src/nearfield360/mapping/models.py`)**:
+  - `FacilityMap` representing complete facility metadata, spatial bounds `[x_min, x_max, y_min, y_max]`, lanes, parking bays, structural obstacles, and topological waypoints.
+  - `FacilityLane` driving corridor polylines with lane width, speed limit, directionality (`ONE_WAY`, `TWO_WAY`), and connectivity.
+  - `FacilitySlot` pre-mapped parking bays with metric 4-corner polygons, slot types (`PARALLEL`, `PERPENDICULAR`, `SLANTED`), access lane IDs, and reservation/vacancy status.
+  - `FacilityObstacle` structural boundaries, pillars, curbs, and perimeter walls.
+  - `FacilityWaypoint` topological navigation nodes (entrances, exits, intersections, slot access points).
+  - `GlobalRoute` and `RouteWaypoint` schemas with curvature, speed targets, corridor bounds, and turn annotations.
+  - `LocalizationState` and `PoseEstimate` with mean pose $(x, y, \theta)$ and covariance $\Sigma \in \mathbb{R}^{3 \times 3}$.
+- **Facility Map Builder & Synthesizer (`src/nearfield360/mapping/builder.py`)**:
+  - Programmatic synthesis of standardized multi-aisle indoor parking garages and multi-bay outdoor parking facilities.
+  - Topology connectivity verification, slot accessibility verification, and boundary integrity checks.
+- **Topological Graph & Global Route Planner (`src/nearfield360/mapping/router.py`)**:
+  - Directed topological navigation graph built from lanes, intersections, and slot connectors.
+  - A* / Dijkstra optimal route planner respecting one-way constraints, turn angle penalties, and distance weights.
+  - Generates smooth discretized global routes with corridor bounds and speed profiling.
+- **Multi-Sensor Pose Estimation & Localization (`src/nearfield360/mapping/localization.py`)**:
+  - Dead-reckoning kinematic bicycle odometry propagation.
+  - Nearest-neighbor / Mahalanobis gating associating perceived 3D parking slots with mapped facility bays.
+  - Extended Kalman Filter (EKF) / Pose Graph state estimator updating vehicle pose and covariance.
+  - Position uncertainty tracking ($\sqrt{\sigma_x^2 + \sigma_y^2}$), heading uncertainty ($\sigma_\theta$), and innovation residuals.
+- **Visual Facility Map & Localization Dashboard (`src/nearfield360/mapping/viz.py`)**:
+  - BEV facility map rendering: lanes, direction arrows, slot bays, structural boundaries, and global routes.
+  - Localization overlay: ground truth vs estimated trajectory, covariance error ellipses ($2\sigma$), and landmark association vectors.
+  - Multi-panel telemetry dashboard: localization error profiles and uncertainty convergence.
+- **CLI Command Group & Pipeline Integration (`src/nearfield360/cli/map.py`, `src/nearfield360/cli/pipeline.py`)**:
+  - Dedicated CLI command group: `nearfield360 map` with `info`, `build`, `route`, and `localize` subcommands.
+  - Release readiness audit updated and verified for 16 CLI command groups.
+  - Four-camera pipeline integration: `nearfield360 pipeline run --map <path> --target-slot <id>`.
 - **Comprehensive Verification Suite**:
-  - Extensive unit and integration tests across all components.
+  - Unit and integration tests covering configuration, domain models, builder, router, localization, visualization, CLI, and pipeline integration.
 
 ### 3. Acceptance Criteria
 
 | ID | Criterion | Verification Method |
 |---|---|---|
-| AC-1 | `MissionConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
-| AC-2 | Pydantic domain models for mission lifecycle states, triggers, events, and tracked slots | `uv run pytest tests/unit/mission/test_mission_models.py` |
-| AC-3 | `SlotTracker` associates multi-frame slot detections, filters noise, and manages lifecycle | `uv run pytest tests/unit/mission/test_slot_tracker.py` |
-| AC-4 | `ParkingReplanner` generates feasible, collision-free recovery trajectories upon blockage | `uv run pytest tests/unit/mission/test_replanner.py` |
-| AC-5 | `MissionExecutive` coordinates AVP state transitions, obstacle holds, and replanning end to end | `uv run pytest tests/unit/mission/test_executive.py` |
-| AC-6 | Visualization renders BEV mission dashboard overlays and state timeline charts | `uv run pytest tests/unit/mission/test_mission_viz.py` |
-| AC-7 | Dedicated CLI command group `nearfield360 mission run` executes simulated scenarios | `uv run pytest tests/unit/test_mission_cli.py` |
-| AC-8 | Root CLI registers `mission` command group, passing release audit with 15 groups | `uv run nearfield360 release audit` |
-| AC-9 | Surround pipeline `--mission` flag executes full perception-to-mission orchestration | `uv run pytest tests/unit/test_pipeline_mission.py` |
+| AC-1 | `MappingConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for facility maps, lanes, slots, obstacles, waypoints, routes, and pose estimates | `uv run pytest tests/unit/mapping/test_mapping_models.py` |
+| AC-3 | `FacilityBuilder` synthesizes valid benchmark indoor garages and outdoor lots with accessibility checks | `uv run pytest tests/unit/mapping/test_builder.py` |
+| AC-4 | `GlobalRouter` constructs directed graph, enforces one-way constraints, and computes optimal A* routes | `uv run pytest tests/unit/mapping/test_router.py` |
+| AC-5 | `PoseEstimator` fuses dead-reckoning odometry and slot landmark associations with covariance bounds | `uv run pytest tests/unit/mapping/test_localization.py` |
+| AC-6 | Visualization renders BEV facility map overlays, route paths, and localization telemetry dashboards | `uv run pytest tests/unit/mapping/test_mapping_viz.py` |
+| AC-7 | Dedicated CLI command group `nearfield360 map` executes `info`, `build`, `route`, and `localize` | `uv run pytest tests/unit/test_map_cli.py` |
+| AC-8 | Root CLI registers `map` command group, passing release audit with 16 groups | `uv run nearfield360 release audit` |
+| AC-9 | Surround pipeline integrates `--map` and `--target-slot` routing and localization | `uv run pytest tests/unit/test_pipeline_map.py` |
 | AC-10 | Full test suite passes with zero failures, >85% coverage, clean `mypy`, and clean `ruff` | `uv run pytest`, `uv run mypy`, `uv run ruff check .` |
 
 ### 4. Validation Plan
 
-1. Unit tests covering config validation, domain models, slot tracking, replanning, executive state machine, and visual rendering.
-2. CLI integration tests verifying `nearfield360 mission run` across nominal, transient obstacle, and blocked replan scenarios.
-3. Pipeline integration tests verifying `nearfield360 pipeline run --mission` with simulated four-camera input.
-4. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy --strict`.
+1. Unit tests covering config validation, domain models, builder, router, localization EKF, visual rendering, and CLI commands.
+2. CLI integration tests verifying `nearfield360 map info`, `map build`, `map route`, and `map localize` with valid JSON/PNG artifact generation.
+3. Pipeline integration tests verifying `nearfield360 pipeline run --map <map.json> --target-slot <id>`.
+4. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
 5. Release audit: `uv run nearfield360 release audit`.
 6. Full test suite with coverage: `uv run pytest --cov=nearfield360`.
 
 ### 5. Exclusions
 
-- Cloud-based multi-vehicle fleet coordination (AVP Level 5 infrastructure-managed dispatch).
-- High-definition (HD) vector map graph SLAM across multi-story parking garages.
-- Hardware-in-the-loop (HIL) CAN bus transceivers (simulated discrete-time vehicle state interface used).
+- Multi-floor elevator/ramp transition kinematics and 3D multi-level point cloud registration.
+- V2X cellular infrastructure protocols and automated parking fee payment gateways.
+- Physical CAN bus transceiver decoding (simulated discrete-time vehicle state interface used).
 
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Config Foundation**
-   - [x] 1.1 `docs: establish Phase 23 AVP mission executive roadmap`
-   - [x] 1.2 `feat(config): add MissionConfig and update default yaml configuration`
-   - [x] 1.3 `test(config): add unit tests for MissionConfig validation`
-2. **Task 2: Mission Domain Models**
-   - [x] 2.1 `feat(mission): implement lifecycle states, triggers, events, and tracked slot models`
-   - [x] 2.2 `test(mission): verify domain models serialization, hashing, and constraints`
-3. **Task 3: Spatial Slot Tracker**
-   - [x] 3.1 `feat(mission): implement multi-frame SlotTracker with spatial gating and confidence decay`
-   - [x] 3.2 `test(mission): verify SlotTracker multi-frame association, noise rejection, and confirmation`
-4. **Task 4: Dynamic Re-planner & Maneuver Recovery**
-   - [x] 4.1 `feat(mission): implement ParkingReplanner for obstacle evasion and alignment recovery`
-   - [x] 4.2 `test(mission): verify replanning generation, swept clearance checks, and failure handling`
-5. **Task 5: AVP Mission Executive & State Machine**
-   - [x] 5.1 `feat(mission): implement MissionExecutive state machine and lifecycle orchestration`
-   - [x] 5.2 `feat(mission): implement simulation stepping with obstacle yielding and replanning loops`
-   - [x] 5.3 `test(mission): verify executive nominal flow, transient obstacle hold, and recovery replan`
-6. **Task 6: Visual Mission Dashboard & Telemetry Charts**
-   - [x] 6.1 `feat(mission): implement BEV mission execution dashboard overlay`
-   - [x] 6.2 `feat(mission): implement mission state timeline and clearance profile chart`
-   - [x] 6.3 `test(mission): verify mission visualization rendering to valid PNG artifacts`
-7. **Task 7: Package Exports & CLI Integration**
-   - [x] 7.1 `feat(mission): export public mission API from package init`
-   - [x] 7.2 `feat(cli): implement nearfield360 mission command group`
-   - [x] 7.3 `feat(cli): register mission CLI group and update release audit expected count to 15`
-   - [x] 7.4 `feat(pipeline): integrate --mission flag into four-camera pipeline runner`
-   - [x] 7.5 `test(cli): verify mission CLI command options, scenarios, and artifact generation`
-   - [x] 7.6 `test(pipeline): verify pipeline --mission execution flow`
-8. **Task 8: End-to-End Documentation & Verification Gates**
-   - [x] 8.1 `docs: update README with Phase 23 roadmap entry and mission CLI usage examples`
-   - [x] 8.2 `docs(progress): document completed Phase 23 milestone and verification gates in PROGRESS.md`
-   - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [ ] 1.1 `docs: establish Phase 24 parking facility mapping and localization roadmap`
+   - [ ] 1.2 `feat(config): add MappingConfig and update default yaml configuration`
+   - [ ] 1.3 `test(config): add unit tests for MappingConfig validation`
+2. **Task 2: Facility Map Domain Models & Validation**
+   - [ ] 2.1 `feat(mapping): implement facility map domain models (lanes, slots, obstacles, waypoints)`
+   - [ ] 2.2 `feat(mapping): implement JSON serialization and spatial bounds verification`
+   - [ ] 2.3 `test(mapping): verify facility map domain models, serialization, and geometry checks`
+3. **Task 3: Facility Map Builder & Benchmark Synthesizer**
+   - [ ] 3.1 `feat(mapping): implement facility map builder for multi-aisle garages and parking lots`
+   - [ ] 3.2 `test(mapping): verify facility map builder topology, slot accessibility, and layout generation`
+4. **Task 4: Topological Graph & Global Route Planner**
+   - [ ] 4.1 `feat(mapping): implement topological routing graph from lanes and waypoints`
+   - [ ] 4.2 `feat(mapping): implement A* global route planner with turn penalties and corridor bounds`
+   - [ ] 4.3 `test(mapping): verify global route planner optimality, one-way enforcement, and infeasible targets`
+5. **Task 5: Multi-Sensor Pose Estimation & Landmark Localization**
+   - [ ] 5.1 `feat(mapping): implement kinematic bicycle odometry dead-reckoning engine`
+   - [ ] 5.2 `feat(mapping): implement slot landmark association and EKF pose estimator`
+   - [ ] 5.3 `test(mapping): verify localization accuracy, covariance convergence, and noise rejection`
+6. **Task 6: Facility Map & Localization Visualizer**
+   - [ ] 6.1 `feat(mapping): implement BEV facility map and global route rendering`
+   - [ ] 6.2 `feat(mapping): implement localization covariance ellipse and telemetry dashboard rendering`
+   - [ ] 6.3 `test(mapping): verify mapping and localization visualization rendering to valid PNG artifacts`
+7. **Task 7: Package Exports & CLI Command Group**
+   - [ ] 7.1 `feat(mapping): export public mapping API from package init`
+   - [ ] 7.2 `feat(cli): implement nearfield360 map command group (info, build, route, localize)`
+   - [ ] 7.3 `feat(cli): register map CLI group and update release audit expected count to 16`
+   - [ ] 7.4 `feat(pipeline): integrate --map and --target-slot flags into pipeline runner`
+   - [ ] 7.5 `test(cli): verify map CLI command options, outputs, and JSON/PNG artifacts`
+   - [ ] 7.6 `test(pipeline): verify pipeline map integration and routing workflow`
+8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
+   - [ ] 8.1 `docs: update README with Phase 24 mapping capabilities and CLI usage examples`
+   - [ ] 8.2 `docs(progress): document completed Phase 24 milestone, Decision Log, and verification gates`
+   - [ ] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
