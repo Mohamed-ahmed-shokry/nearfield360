@@ -337,6 +337,23 @@ class MissionConfig(BaseModel):
     safety_dwell_steps: int = Field(default=10, ge=1)
 
 
+class MappingConfig(BaseModel):
+    """Parameters for parking facility HD vector mapping, routing, and pose estimation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    default_lane_width_m: float = Field(default=3.5, gt=0.0, allow_inf_nan=False)
+    default_speed_limit_mps: float = Field(default=2.5, gt=0.0, allow_inf_nan=False)
+    turn_penalty_weight: float = Field(default=1.5, ge=0.0, allow_inf_nan=False)
+    odometry_noise_dist: float = Field(default=0.05, ge=0.0, allow_inf_nan=False)
+    odometry_noise_yaw: float = Field(default=0.02, ge=0.0, allow_inf_nan=False)
+    slot_association_gate_m: float = Field(default=2.5, gt=0.0, allow_inf_nan=False)
+    slot_observation_noise_pos: float = Field(default=0.20, gt=0.0, allow_inf_nan=False)
+    slot_observation_noise_yaw: float = Field(default=0.05, gt=0.0, allow_inf_nan=False)
+    max_localization_uncertainty_m: float = Field(default=1.5, gt=0.0, allow_inf_nan=False)
+    replan_reroute_on_blocked_lane: bool = Field(default=True)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -369,6 +386,7 @@ class ProjectConfig(BaseSettings):
     planner: ParkingPlannerConfig = Field(default_factory=ParkingPlannerConfig)
     control: ParkingControlConfig = Field(default_factory=ParkingControlConfig)
     mission: MissionConfig = Field(default_factory=MissionConfig)
+    mapping: MappingConfig = Field(default_factory=MappingConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -420,6 +438,7 @@ __all__ = [
     "GeometryConfig",
     "InferenceConfig",
     "LoggingConfig",
+    "MappingConfig",
     "MissionConfig",
     "OccupancyConfig",
     "OccupancyForecastConfig",
