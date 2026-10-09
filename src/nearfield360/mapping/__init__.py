@@ -24,6 +24,12 @@ from nearfield360.mapping.models import (
     SlotReservationStatus,
     WaypointType,
 )
+from nearfield360.mapping.router import (
+    GlobalRouter,
+    RoutingError,
+    RoutingGraph,
+    find_nearest_waypoint,
+)
 
 __all__ = [
     "FacilityBounds",
@@ -34,14 +40,18 @@ __all__ = [
     "FacilitySlot",
     "FacilityWaypoint",
     "GlobalRoute",
+    "GlobalRouter",
     "LandmarkObservation",
     "LaneDirection",
     "LocalizationReport",
     "PoseEstimate",
     "RouteWaypoint",
+    "RoutingError",
+    "RoutingGraph",
     "SlotBayType",
     "SlotReservationStatus",
     "WaypointType",
     "build_benchmark_garage",
     "build_surface_lot",
+    "find_nearest_waypoint",
 ]
