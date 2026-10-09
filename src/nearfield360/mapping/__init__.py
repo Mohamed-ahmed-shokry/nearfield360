@@ -12,6 +12,10 @@ from nearfield360.mapping.localization import (
     LocalizationStepRecord,
     PoseEstimator,
 )
+from nearfield360.mapping.viz import (
+    render_facility_bev,
+    render_localization_dashboard,
+)
 from nearfield360.mapping.models import (
     FacilityBounds,
     FacilityLane,
@@ -62,4 +66,6 @@ __all__ = [
     "build_benchmark_garage",
     "build_surface_lot",
     "find_nearest_waypoint",
+    "render_facility_bev",
+    "render_localization_dashboard",
 ]
