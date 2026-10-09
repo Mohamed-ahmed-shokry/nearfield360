@@ -85,9 +85,9 @@ Deliver an end-to-end Parking Facility HD Vector Mapping, Topological Route Plan
    - [x] 3.1 `feat(mapping): implement facility map builder for multi-aisle garages and parking lots`
    - [x] 3.2 `test(mapping): verify facility map builder topology, slot accessibility, and layout generation`
 4. **Task 4: Topological Graph & Global Route Planner**
-   - [ ] 4.1 `feat(mapping): implement topological routing graph from lanes and waypoints`
-   - [ ] 4.2 `feat(mapping): implement A* global route planner with turn penalties and corridor bounds`
-   - [ ] 4.3 `test(mapping): verify global route planner optimality, one-way enforcement, and infeasible targets`
+   - [x] 4.1 `feat(mapping): implement topological routing graph from lanes and waypoints`
+   - [x] 4.2 `feat(mapping): implement A* global route planner with turn penalties and corridor bounds`
+   - [x] 4.3 `test(mapping): verify global route planner optimality, one-way enforcement, and infeasible targets`
 5. **Task 5: Multi-Sensor Pose Estimation & Landmark Localization**
    - [ ] 5.1 `feat(mapping): implement kinematic bicycle odometry dead-reckoning engine`
    - [ ] 5.2 `feat(mapping): implement slot landmark association and EKF pose estimator`
