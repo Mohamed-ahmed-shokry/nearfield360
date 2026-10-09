@@ -82,8 +82,8 @@ Deliver an end-to-end Parking Facility HD Vector Mapping, Topological Route Plan
    - [x] 2.2 `feat(mapping): implement JSON serialization and spatial bounds verification`
    - [x] 2.3 `test(mapping): verify facility map domain models, serialization, and geometry checks`
 3. **Task 3: Facility Map Builder & Benchmark Synthesizer**
-   - [ ] 3.1 `feat(mapping): implement facility map builder for multi-aisle garages and parking lots`
-   - [ ] 3.2 `test(mapping): verify facility map builder topology, slot accessibility, and layout generation`
+   - [x] 3.1 `feat(mapping): implement facility map builder for multi-aisle garages and parking lots`
+   - [x] 3.2 `test(mapping): verify facility map builder topology, slot accessibility, and layout generation`
 4. **Task 4: Topological Graph & Global Route Planner**
    - [ ] 4.1 `feat(mapping): implement topological routing graph from lanes and waypoints`
    - [ ] 4.2 `feat(mapping): implement A* global route planner with turn penalties and corridor bounds`
