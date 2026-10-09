@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from nearfield360.mapping.builder import (
+    FacilityBuilder,
+    build_benchmark_garage,
+    build_surface_lot,
+)
 from nearfield360.mapping.models import (
     FacilityBounds,
     FacilityLane,
@@ -22,6 +27,7 @@ from nearfield360.mapping.models import (
 
 __all__ = [
     "FacilityBounds",
+    "FacilityBuilder",
     "FacilityLane",
     "FacilityMap",
     "FacilityObstacle",
@@ -36,4 +42,6 @@ __all__ = [
     "SlotBayType",
     "SlotReservationStatus",
     "WaypointType",
+    "build_benchmark_garage",
+    "build_surface_lot",
 ]
