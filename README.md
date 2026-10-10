@@ -629,8 +629,6 @@ The output JSON report details the mission identifier, terminal state (`COMPLETE
 
 ### Parking facility HD vector mapping, routing, and localization
 
-Build structured high-definition vector facility maps for multi-aisle garages and surface parking lots, compute kinematically-feasible global topological routes with turn penalties and corridor boundaries, and perform multi-sensor EKF pose graph localization fusing kinematic odometry with landmark parking slot observations:
-
 ```powershell
 # 1. Inspect facility map geometry, lane topology, and slot capacities:
 uv run nearfield360 map info --map maps/garage.json --json
