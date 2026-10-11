@@ -124,7 +124,7 @@ class TrajectoryProfile(BaseModel):
 class ConflictPoint(BaseModel):
     """Detected spatiotemporal intersection between two or more vehicle trajectories."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=False)
 
     conflict_id: str
     primary_vehicle_id: str
