@@ -558,6 +558,21 @@ def run_pipeline(
             help="Target parking bay ID in the facility map.",
         ),
     ] = None,
+    fleet: Annotated[
+        bool,
+        typer.Option(
+            "--fleet/--no-fleet",
+            help="Simulate multi-vehicle V2X cloud dispatch and conflict deconfliction.",
+        ),
+    ] = False,
+    fleet_vehicles: Annotated[
+        int,
+        typer.Option(
+            "--fleet-vehicles",
+            min=1,
+            help="Number of simulated fleet vehicles under coordination when --fleet is enabled.",
+        ),
+    ] = 2,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -866,6 +881,30 @@ def run_pipeline(
             }
         timings["mapping_ms"] = (time.perf_counter() - map_stage_start) * 1000.0
 
+    fleet_payload: dict[str, Any] | None = None
+    if fleet:
+        fleet_stage_start = time.perf_counter()
+        from nearfield360.fleet.coordinator import FleetCoordinator
+
+        if map_file is not None:
+            f_map_data = read_json(map_file)
+            f_map = FacilityMap.model_validate(f_map_data)
+        else:
+            f_map = build_benchmark_garage()
+
+        fleet_coord = FleetCoordinator(f_map, config=config.fleet)
+        for fi in range(fleet_vehicles):
+            f_vid = f"veh_{fi + 1:02d}"
+            fleet_coord.register_vehicle(f_vid, initial_pose=(float(fi * 3.0), 0.0, 0.0))
+            fleet_coord.dispatch_vehicle(f_vid)
+
+        for _ in range(30):
+            fleet_coord.step(dt_s=0.5)
+
+        flt_report = fleet_coord.generate_report()
+        fleet_payload = flt_report.model_dump(mode="json")
+        timings["fleet_ms"] = (time.perf_counter() - fleet_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -952,6 +991,8 @@ def run_pipeline(
         payload["mission"] = mission_payload
     if map_payload is not None:
         payload["map"] = map_payload
+    if fleet_payload is not None:
+        payload["fleet"] = fleet_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
