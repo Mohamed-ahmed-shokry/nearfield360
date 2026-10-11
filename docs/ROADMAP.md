@@ -81,9 +81,9 @@ Deliver an end-to-end Cloud Fleet Coordination, V2X Facility Dispatch, and Multi
    - [x] 2.2 `feat(fleet): implement spatiotemporal waypoints and conflict point models`
    - [x] 2.3 `test(fleet): verify fleet domain models, serialization, and validation`
 3. **Task 3: Dynamic Slot Dispatcher & Reservation Manager**
-   - [ ] 3.1 `feat(fleet): implement dynamic slot dispatcher with distance/congestion scoring`
-   - [ ] 3.2 `feat(fleet): implement bay reservation lock and lease expiry engine`
-   - [ ] 3.3 `test(fleet): verify dispatcher allocation fairness, collision avoidance, and slot release`
+   - [x] 3.1 `feat(fleet): implement dynamic slot dispatcher with distance/congestion scoring`
+   - [x] 3.2 `feat(fleet): implement bay reservation lock and lease expiry engine`
+   - [x] 3.3 `test(fleet): verify dispatcher allocation fairness, collision avoidance, and slot release`
 4. **Task 4: Multi-Agent Spatiotemporal Deconfliction Engine**
    - [ ] 4.1 `feat(fleet): implement trajectory swept-volume intersection and headway analysis`
    - [ ] 4.2 `feat(fleet): implement virtual token priority scheduling and yield velocity profiling`
