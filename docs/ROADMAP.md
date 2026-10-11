@@ -93,9 +93,9 @@ Deliver an end-to-end Cloud Fleet Coordination, V2X Facility Dispatch, and Multi
    - [x] 5.2 `feat(fleet): implement V2I communication channel simulation with latency and packet drop`
    - [x] 5.3 `test(fleet): verify multi-vehicle simulation throughput, collision-free execution, and KPIs`
 6. **Task 6: Multi-Vehicle BEV Layout & Coordination Visualizer**
-   - [ ] 6.1 `feat(fleet): implement multi-vehicle BEV layout and route conflict rendering`
-   - [ ] 6.2 `feat(fleet): implement fleet telemetry dashboard with throughput and utilization charts`
-   - [ ] 6.3 `test(fleet): verify fleet visualizer exports valid PNG artifacts`
+   - [x] 6.1 `feat(fleet): implement multi-vehicle BEV layout and route conflict rendering`
+   - [x] 6.2 `feat(fleet): implement fleet telemetry dashboard with throughput and utilization charts`
+   - [x] 6.3 `test(fleet): verify fleet visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports & CLI Command Group**
    - [ ] 7.1 `feat(fleet): export public fleet API from package init`
    - [ ] 7.2 `feat(cli): implement nearfield360 fleet command group (info, dispatch, simulate, deconflict)`
