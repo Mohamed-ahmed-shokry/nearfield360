@@ -1450,3 +1450,79 @@ Phase 23 elevates the `nearfield360` stack from single-frame slot detection, ope
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (15 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
+
+---
+
+## Phase 24: Parking Facility HD Vector Mapping, Global Topological Route Planning & Multi-Sensor Pose Graph Localization
+
+**Status:** Completed
+**Repository Branch:** `phase/parking-facility-mapping-slam` (merged into `main` via PR #2)
+**Test Suite:** 1089 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (114 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 24 establishes an end-to-end Parking Facility HD Vector Mapping, Topological Route Planning, and Multi-Sensor Pose Graph Localization engine elevating NearField360 from local vehicle-relative maneuvering into globally aware, facility-wide autonomous valet parking:
+
+1. **Configuration (`MappingConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Default lane width, facility speed limits, odometry process noise, landmark association distance gates, slot observation noise, and localization uncertainty thresholds.
+2. **HD Vector Map Domain Models (`src/nearfield360/mapping/models.py`):**
+   - Strict Pydantic v2 models: `FacilityBounds`, `FacilityLane`, `FacilitySlot`, `FacilityObstacle`, `FacilityWaypoint`, `GlobalRoute`, `RouteWaypoint`, `PoseEstimate`, `LandmarkObservation`, and `LocalizationReport`.
+3. **Facility Map Builder & Synthesizer (`src/nearfield360/mapping/builder.py`):**
+   - Programmatic synthesis of benchmark multi-aisle garages and surface parking lots with topological connectivity, boundary integrity, and slot accessibility checks.
+4. **Topological Graph & A\* Router (`src/nearfield360/mapping/router.py`):**
+   - Directed topological graph enforcing one-way rules, geometric turn penalties, corridor boundary generation, and Bezier waypoint densification.
+5. **Multi-Sensor Pose Estimation (EKF) (`src/nearfield360/mapping/localization.py`):**
+   - Kinematic bicycle dead-reckoning odometry fused with range/bearing observations of slot corner landmarks, $3\sigma$ covariance tracking, and innovation gating.
+6. **BEV Facility Map & Telemetry Dashboard (`src/nearfield360/mapping/viz.py`):**
+   - Bird's-eye-view facility rendering and dual-panel tracking error and covariance convergence plots.
+7. **CLI Command Group & Four-Camera Pipeline Integration:**
+   - Dedicated CLI command group: `nearfield360 map` (`info`, `build`, `route`, `localize`).
+   - Release audit updated and verified for 16 CLI command groups.
+   - Four-camera surround pipeline integration: `nearfield360 pipeline run --map <path> --target-slot <id>`.
+
+---
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Mapping configuration (`MappingConfig`) | `src/nearfield360/config.py`, `configs/default.yaml` |
+| Mapping domain models (`FacilityMap`, `FacilityLane`, `FacilitySlot`, etc.) | `src/nearfield360/mapping/models.py` |
+| Facility map synthesizer (`FacilityBuilder`, `build_benchmark_garage`) | `src/nearfield360/mapping/builder.py` |
+| Topological router (`GlobalRouter`, `RoutingGraph`) | `src/nearfield360/mapping/router.py` |
+| EKF Pose estimator & simulator (`PoseEstimator`, `LocalizationSimulator`) | `src/nearfield360/mapping/localization.py` |
+| BEV facility renderer & telemetry dashboard (`viz.py`) | `src/nearfield360/mapping/viz.py` |
+| Mapping package API exports | `src/nearfield360/mapping/__init__.py` |
+| CLI command group (`nearfield360 map`) | `src/nearfield360/cli/map.py` |
+| CLI app registration & release audit (`expected_groups` updated to 16) | `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py` |
+| Surround pipeline integration (`pipeline run --map ... --target-slot ...`) | `src/nearfield360/cli/pipeline.py` |
+| Mapping domain models unit tests | `tests/unit/mapping/test_mapping_models.py` (7 tests) |
+| Facility builder unit tests | `tests/unit/mapping/test_builder.py` (4 tests) |
+| Topological router unit tests | `tests/unit/mapping/test_router.py` (7 tests) |
+| Localization unit tests | `tests/unit/mapping/test_localization.py` (7 tests) |
+| Visualization unit tests | `tests/unit/mapping/test_mapping_viz.py` (4 tests) |
+| Config unit tests | `tests/unit/test_config.py` (4 tests for mapping) |
+| Map CLI integration tests | `tests/unit/test_map_cli.py` (6 tests) |
+| Pipeline map integration tests | `tests/unit/test_pipeline_map.py` (2 tests) |
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1089 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors in 216 files |
+| Strict Typing | `uv run mypy` | 0 errors in 114 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (16 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
+| Metadata Validation | `uv run twine check dist/*` | Pass |
+
