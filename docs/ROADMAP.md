@@ -89,9 +89,9 @@ Deliver an end-to-end Cloud Fleet Coordination, V2X Facility Dispatch, and Multi
    - [x] 4.2 `feat(fleet): implement virtual token priority scheduling and yield velocity profiling`
    - [x] 4.3 `test(fleet): verify conflict detection, headway compliance, and deadlock prevention`
 5. **Task 5: Fleet Coordinator & Multi-Vehicle Simulation**
-   - [ ] 5.1 `feat(fleet): implement centralized fleet coordinator and discrete-time simulation step`
-   - [ ] 5.2 `feat(fleet): implement V2I communication channel simulation with latency and packet drop`
-   - [ ] 5.3 `test(fleet): verify multi-vehicle simulation throughput, collision-free execution, and KPIs`
+   - [x] 5.1 `feat(fleet): implement centralized fleet coordinator and discrete-time simulation step`
+   - [x] 5.2 `feat(fleet): implement V2I communication channel simulation with latency and packet drop`
+   - [x] 5.3 `test(fleet): verify multi-vehicle simulation throughput, collision-free execution, and KPIs`
 6. **Task 6: Multi-Vehicle BEV Layout & Coordination Visualizer**
    - [ ] 6.1 `feat(fleet): implement multi-vehicle BEV layout and route conflict rendering`
    - [ ] 6.2 `feat(fleet): implement fleet telemetry dashboard with throughput and utilization charts`
