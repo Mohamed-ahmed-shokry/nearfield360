@@ -73,9 +73,9 @@ Deliver an end-to-end Cloud Fleet Coordination, V2X Facility Dispatch, and Multi
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Fleet Config Foundation**
-   - [ ] 1.1 `docs: establish Phase 25 fleet coordination and V2X dispatch roadmap`
-   - [ ] 1.2 `feat(config): add FleetConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for FleetConfig validation`
+   - [x] 1.1 `docs: establish Phase 25 fleet coordination and V2X dispatch roadmap`
+   - [x] 1.2 `feat(config): add FleetConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for FleetConfig validation`
 2. **Task 2: V2X Protocols & Fleet Domain Models**
    - [ ] 2.1 `feat(fleet): implement V2X message schemas, heartbeats, and dispatch models`
    - [ ] 2.2 `feat(fleet): implement spatiotemporal waypoints and conflict point models`
