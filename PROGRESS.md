@@ -1526,3 +1526,79 @@ Phase 24 establishes an end-to-end Parking Facility HD Vector Mapping, Topologic
 | Package Build | `uv build` | Success (sdist + wheel) |
 | Metadata Validation | `uv run twine check dist/*` | Pass |
 
+---
+
+## Phase 25: Cloud Fleet Coordination, V2X Facility Dispatch & Multi-Agent Conflict Deconfliction
+
+**Status:** Completed  
+**Repository Branch:** `phase/v2x-cloud-fleet-coordination`  
+**Test Suite:** 1118 passed, 5 skipped (0 failures)  
+**Type Checking:** `mypy --strict` clean (121 source files)  
+**Linting & Style:** `ruff check` and `ruff format` clean (230 files)  
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
+**Release Audit:** Passed (17 registered CLI command groups)  
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 25 establishes a comprehensive cloud-edge fleet coordination, V2X facility dispatch, and multi-agent spatiotemporal conflict deconfliction subsystem, taking NearField360 from single-vehicle autonomous valet parking to cooperative multi-agent smart parking facility operations:
+
+1. **Configuration (`FleetConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - V2X protocol version, heartbeat timeout, reservation lease duration, arrival buffer window, swept-volume collision radius, headway time, velocity dampening factor, max iterations, packet drop rate, and communication latency.
+2. **V2X & Fleet Domain Models (`src/nearfield360/fleet/models.py`):**
+   - Pydantic v2 schemas: `V2XMessage`, `VehicleHeartbeat`, `DispatchAssignment`, `SpatiotemporalWaypoint`, `TrajectoryProfile`, `ConflictPoint`, `FacilityOccupancySummary`, and `FleetDispatchReport`.
+3. **Dynamic Slot Dispatcher (`SlotDispatcher` in `src/nearfield360/fleet/dispatcher.py`):**
+   - Distance- and aisle congestion-weighted bay selection, reservation locks, lease renewals and expirations, and double-booking avoidance.
+4. **4D Spatiotemporal Deconfliction Engine (`DeconflictionEngine` in `src/nearfield360/fleet/deconfliction.py`):**
+   - Swept-volume boundary intersection detection, headway time violation checks, virtual token priority scheduling, and yield velocity profiling.
+5. **Discrete-Time Centralized Fleet Coordinator (`FleetCoordinator` in `src/nearfield360/fleet/coordinator.py`):**
+   - Multi-vehicle concurrent simulation, stochastic V2I wireless packet drop and latency simulation, collision-free waypoint progression, and fleet throughput KPIs.
+6. **BEV Fleet Coordination Dashboard (`viz.py` in `src/nearfield360/fleet/viz.py`):**
+   - Facility layout rendering with vehicle footprints, planned trajectory paths, conflict hotspot badges, and facility occupancy gauges.
+7. **CLI Command Group & Surround Pipeline Integration:**
+   - Dedicated CLI command group: `nearfield360 fleet` (`info`, `dispatch`, `simulate`, `deconflict`).
+   - Release audit updated and verified for 17 CLI command groups.
+   - Four-camera surround pipeline runner integration via `--fleet` and `--fleet-vehicles`.
+
+---
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Fleet configuration (`FleetConfig`) | `src/nearfield360/config.py`, `configs/default.yaml` |
+| Fleet domain models (`V2XMessage`, `VehicleHeartbeat`, etc.) | `src/nearfield360/fleet/models.py` |
+| Dynamic slot dispatcher (`SlotDispatcher`) | `src/nearfield360/fleet/dispatcher.py` |
+| 4D deconfliction engine (`DeconflictionEngine`) | `src/nearfield360/fleet/deconfliction.py` |
+| Fleet coordinator & simulator (`FleetCoordinator`) | `src/nearfield360/fleet/coordinator.py` |
+| BEV fleet visualizer & dashboard (`viz.py`) | `src/nearfield360/fleet/viz.py` |
+| Fleet package API exports | `src/nearfield360/fleet/__init__.py` |
+| CLI command group (`nearfield360 fleet`) | `src/nearfield360/cli/fleet.py` |
+| CLI app registration & release audit (`expected_groups` updated to 17) | `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py` |
+| Surround pipeline integration (`pipeline run --fleet ...`) | `src/nearfield360/cli/pipeline.py` |
+| Fleet config unit tests | `tests/unit/test_config.py` (2 tests for fleet) |
+| Fleet models unit tests | `tests/unit/fleet/test_fleet_models.py` (6 tests) |
+| Slot dispatcher unit tests | `tests/unit/fleet/test_dispatcher.py` (5 tests) |
+| Deconfliction engine unit tests | `tests/unit/fleet/test_deconfliction.py` (5 tests) |
+| Fleet coordinator unit tests | `tests/unit/fleet/test_coordinator.py` (5 tests) |
+| Fleet visualizer unit tests | `tests/unit/fleet/test_fleet_viz.py` (3 tests) |
+| Fleet CLI integration tests | `tests/unit/test_fleet_cli.py` (5 tests) |
+| Pipeline fleet integration tests | `tests/unit/test_pipeline_fleet.py` (1 test) |
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1118 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors in 230 files |
+| Strict Typing | `uv run mypy` | 0 errors in 121 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (17 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
+
+
