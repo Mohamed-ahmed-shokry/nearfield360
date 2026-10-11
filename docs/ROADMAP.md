@@ -77,9 +77,9 @@ Deliver an end-to-end Cloud Fleet Coordination, V2X Facility Dispatch, and Multi
    - [x] 1.2 `feat(config): add FleetConfig and update default yaml configuration`
    - [x] 1.3 `test(config): add unit tests for FleetConfig validation`
 2. **Task 2: V2X Protocols & Fleet Domain Models**
-   - [ ] 2.1 `feat(fleet): implement V2X message schemas, heartbeats, and dispatch models`
-   - [ ] 2.2 `feat(fleet): implement spatiotemporal waypoints and conflict point models`
-   - [ ] 2.3 `test(fleet): verify fleet domain models, serialization, and validation`
+   - [x] 2.1 `feat(fleet): implement V2X message schemas, heartbeats, and dispatch models`
+   - [x] 2.2 `feat(fleet): implement spatiotemporal waypoints and conflict point models`
+   - [x] 2.3 `test(fleet): verify fleet domain models, serialization, and validation`
 3. **Task 3: Dynamic Slot Dispatcher & Reservation Manager**
    - [ ] 3.1 `feat(fleet): implement dynamic slot dispatcher with distance/congestion scoring`
    - [ ] 3.2 `feat(fleet): implement bay reservation lock and lease expiry engine`
