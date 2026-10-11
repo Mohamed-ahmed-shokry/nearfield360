@@ -123,6 +123,7 @@ def _run_checks() -> list[dict[str, Any]]:
         "control",
         "data",
         "eval",
+        "fleet",
         "geometry",
         "health",
         "infer",
