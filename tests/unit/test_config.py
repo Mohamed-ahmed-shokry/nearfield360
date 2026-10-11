@@ -563,3 +563,48 @@ def test_mapping_config_rejects_invalid_values(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="greater than 0"):
         load_config(config_path)
+
+
+def test_fleet_config_defaults() -> None:
+    config = load_config()
+
+    assert config.fleet.heartbeat_interval_s == 0.5
+    assert config.fleet.telematics_timeout_s == 3.0
+    assert config.fleet.conflict_radius_m == 2.5
+    assert config.fleet.temporal_headway_s == 2.0
+    assert config.fleet.max_conflict_speed_mps == 1.5
+    assert config.fleet.priority_policy == "first_come_first_served"
+    assert config.fleet.reservation_lease_duration_s == 60.0
+    assert config.fleet.communication_latency_s == 0.05
+    assert config.fleet.packet_loss_rate == 0.02
+
+
+def test_fleet_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("fleet:\n  conflict_radius_m: 3.5\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_FLEET__PRIORITY_POLICY", "distance_to_conflict")
+    monkeypatch.setenv("NEARFIELD360_FLEET__TEMPORAL_HEADWAY_S", "4.0")
+
+    config = load_config(config_path)
+
+    assert config.fleet.conflict_radius_m == 3.5
+    assert config.fleet.priority_policy == "distance_to_conflict"
+    assert config.fleet.temporal_headway_s == 4.0
+
+
+def test_fleet_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("fleet:\n  conflict_radius_m: -1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
+
+
+def test_fleet_config_rejects_invalid_policy(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("fleet:\n  priority_policy: invalid_mode\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="Input should be"):
+        load_config(config_path)

@@ -169,4 +169,15 @@ mapping:
   slot_observation_noise_yaw: 0.05
   max_localization_uncertainty_m: 1.5
   replan_reroute_on_blocked_lane: true
+fleet:
+  heartbeat_interval_s: 0.5
+  telematics_timeout_s: 3.0
+  conflict_radius_m: 2.5
+  temporal_headway_s: 2.0
+  max_conflict_speed_mps: 1.5
+  priority_policy: first_come_first_served
+  reservation_lease_duration_s: 60.0
+  communication_latency_s: 0.05
+  packet_loss_rate: 0.02
+
 
