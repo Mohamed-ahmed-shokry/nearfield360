@@ -354,6 +354,24 @@ class MappingConfig(BaseModel):
     replan_reroute_on_blocked_lane: bool = Field(default=True)
 
 
+class FleetConfig(BaseModel):
+    """Parameters for cloud fleet coordination, V2X dispatch, and conflict deconfliction."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    heartbeat_interval_s: float = Field(default=0.5, gt=0.0, allow_inf_nan=False)
+    telematics_timeout_s: float = Field(default=3.0, gt=0.0, allow_inf_nan=False)
+    conflict_radius_m: float = Field(default=2.5, gt=0.0, allow_inf_nan=False)
+    temporal_headway_s: float = Field(default=2.0, gt=0.0, allow_inf_nan=False)
+    max_conflict_speed_mps: float = Field(default=1.5, gt=0.0, allow_inf_nan=False)
+    priority_policy: Literal[
+        "first_come_first_served", "distance_to_conflict", "mission_priority"
+    ] = "first_come_first_served"
+    reservation_lease_duration_s: float = Field(default=60.0, gt=0.0, allow_inf_nan=False)
+    communication_latency_s: float = Field(default=0.05, ge=0.0, allow_inf_nan=False)
+    packet_loss_rate: float = Field(default=0.02, ge=0.0, le=1.0, allow_inf_nan=False)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -387,6 +405,7 @@ class ProjectConfig(BaseSettings):
     control: ParkingControlConfig = Field(default_factory=ParkingControlConfig)
     mission: MissionConfig = Field(default_factory=MissionConfig)
     mapping: MappingConfig = Field(default_factory=MappingConfig)
+    fleet: FleetConfig = Field(default_factory=FleetConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -435,6 +454,7 @@ __all__ = [
     "BevConfig",
     "CameraHealthConfig",
     "ConfigurationError",
+    "FleetConfig",
     "GeometryConfig",
     "InferenceConfig",
     "LoggingConfig",
