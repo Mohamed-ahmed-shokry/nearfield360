@@ -85,9 +85,9 @@ Deliver an end-to-end Cloud Fleet Coordination, V2X Facility Dispatch, and Multi
    - [x] 3.2 `feat(fleet): implement bay reservation lock and lease expiry engine`
    - [x] 3.3 `test(fleet): verify dispatcher allocation fairness, collision avoidance, and slot release`
 4. **Task 4: Multi-Agent Spatiotemporal Deconfliction Engine**
-   - [ ] 4.1 `feat(fleet): implement trajectory swept-volume intersection and headway analysis`
-   - [ ] 4.2 `feat(fleet): implement virtual token priority scheduling and yield velocity profiling`
-   - [ ] 4.3 `test(fleet): verify conflict detection, headway compliance, and deadlock prevention`
+   - [x] 4.1 `feat(fleet): implement trajectory swept-volume intersection and headway analysis`
+   - [x] 4.2 `feat(fleet): implement virtual token priority scheduling and yield velocity profiling`
+   - [x] 4.3 `test(fleet): verify conflict detection, headway compliance, and deadlock prevention`
 5. **Task 5: Fleet Coordinator & Multi-Vehicle Simulation**
    - [ ] 5.1 `feat(fleet): implement centralized fleet coordinator and discrete-time simulation step`
    - [ ] 5.2 `feat(fleet): implement V2I communication channel simulation with latency and packet drop`
