@@ -516,6 +516,12 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     Nonlinear forward and reverse Stanley path tracking controller, feedforward curvature steering and longitudinal PI velocity profiling, kinematic bicycle simulator with first-order actuator lag ($\tau$) and Gaussian localization noise, multi-stage maneuver state machine with gear shift dwell, real-time swept footprint safety monitoring and automated emergency braking (AEB), tracking error watchdog abort protection, terminal docking accuracy KPIs ($\Delta x, \Delta y, \Delta \theta$), CLI command group `nearfield360 control execute` (with `--plan-json`, `--output`, `--png`, `--telemetry-png`, and `--inject-obstacle`), and surround pipeline integration (`pipeline run --simulate-control`).
 22. ~~Autonomous Valet Parking (AVP) mission executive, dynamic replanning, and multi-stage recovery orchestration.~~ Done:
     Finite state machine lifecycle manager (`MissionExecutive`) governing 7 operational states (`STANDBY`, `SEARCHING`, `SLOT_SELECTED`, `APPROACHING`, `PARKING_MANEUVER`, `OBSTACLE_HOLD`, `REPLANNING`, `FINAL_ALIGNMENT`, `COMPLETED`, `ABORTED`), multi-frame spatial slot tracking with Hungarian/Euclidean association and temporal confidence decay (`SlotTracker`), online dynamic obstacle yield holding and dwell timeout management, multi-stage recovery re-planning around persistent obstructions (`ParkingReplanner`), terminal precision docking evaluation, rich BEV mission dashboard overlay and timeline telemetry charts (`viz.py`), dedicated CLI command group `nearfield360 mission run` (with `--slots-json`, `--plan-json`, `--scenario`, `--png`, `--timeline-png`, `--max-replans`, `--hold-timeout`), release audit verification (15 CLI command groups), and surround pipeline integration (`pipeline run --mission`).
+23. ~~Production-grade test coverage, performance benchmarking, and packaging hardening.~~ Done:
+    End-to-end regression hardening across all modules, automated packaging verification, coverage audit (>88%), and release integrity gating.
+24. ~~Parking facility HD vector mapping, topological route planning, and multi-sensor pose graph localization.~~ Done:
+    Pydantic v2 HD vector mapping models (`FacilityMap`, `FacilityLane`, `FacilitySlot`), synthetic benchmark garage/lot builder (`build_benchmark_garage`), topological A* global router (`GlobalRouter`), multi-sensor EKF pose estimator (`PoseEstimator`), BEV facility and telemetry dashboard renderer, CLI command group `nearfield360 map`, and surround pipeline integration (`pipeline run --map ... --target-slot ...`).
+25. ~~Cloud fleet coordination, V2X facility dispatch & multi-agent conflict deconfliction.~~ Done:
+    V2X/V2I message schemas (`V2XMessage`, `VehicleHeartbeat`, `DispatchAssignment`), dynamic slot reservation dispatcher (`SlotDispatcher`) with distance/congestion scoring and lease expirations, 4D spatiotemporal deconfliction engine (`DeconflictionEngine`) detecting swept-volume overlaps and computing priority yield actions, centralized fleet coordinator & discrete-time simulator (`FleetCoordinator`) with stochastic packet loss modeling, multi-vehicle BEV coordination dashboard (`viz.py`), dedicated CLI command group `nearfield360 fleet` (`info`, `dispatch`, `simulate`, `deconflict`), release audit verification (17 CLI command groups), and surround pipeline integration (`pipeline run --fleet`).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -653,6 +659,33 @@ Key capabilities:
 - **Multi-Sensor Pose Estimator (EKF):** Non-linear kinematic bicycle prediction fused with range/bearing observations of marked slot corners and entrance landmarks, complete with $3\sigma$ covariance uncertainty estimation and noise rejection.
 - **Dual-Panel Telemetry Dashboard:** Bird's-eye-view vector facility rendering paired with real-time localization tracking error ($\Delta x, \Delta y, \Delta \theta$) and covariance determinant convergence plots.
 
+### Cloud fleet coordination, V2X facility dispatch & conflict deconfliction
+
+Coordinate multi-agent connected autonomous vehicle fleets operating in smart parking facilities using V2X communication, dynamic slot reservation leases, and 4D spatiotemporal trajectory deconfliction:
+
+```powershell
+# 1. Inspect facility fleet status, bay capacities, and occupancy:
+uv run nearfield360 fleet info --map maps/garage.json --json
+
+# 2. Allocate an optimal parking bay lease for a vehicle:
+uv run nearfield360 fleet dispatch --map outputs/map/garage.json --vehicle-id VEH_01 --output outputs/fleet/dispatch.json
+
+# 3. Detect 4D spatiotemporal swept-volume trajectory conflicts between multiple vehicles:
+uv run nearfield360 fleet deconflict --trajectories-json outputs/fleet/trajectories.json --output outputs/fleet/deconflict.json
+
+# 4. Run discrete-time multi-vehicle fleet coordination simulation with BEV dashboard:
+uv run nearfield360 fleet simulate --map outputs/map/garage.json --vehicles 4 --steps 50 --output outputs/fleet/sim_report.json --png outputs/fleet/coordination_bev.png
+
+# 5. Integrated surround perception pipeline with multi-vehicle fleet coordination:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --map outputs/map/garage.json --fleet --fleet-vehicles 3 --output outputs/pipeline/fleet_pipeline.json
+```
+
+Key capabilities:
+- **V2X & Fleet Domain Models:** Pydantic v2 schemas for `V2XMessage`, `VehicleHeartbeat`, `DispatchAssignment`, `SpatiotemporalWaypoint`, `TrajectoryProfile`, `ConflictPoint`, `FacilityOccupancySummary`, and `FleetDispatchReport`.
+- **Dynamic Slot Dispatcher (`SlotDispatcher`):** Distance- and congestion-weighted bay selection, reservation locks, lease expiration management, and double-booking prevention.
+- **Spatiotemporal Deconfliction Engine (`DeconflictionEngine`):** 4D swept-volume intersection detection, safety headway enforcement, virtual token priority scheduling, and yield velocity adjustments.
+- **Discrete-Time Fleet Simulator (`FleetCoordinator`):** Multi-vehicle concurrent navigation, stochastic V2I packet drop and latency simulation, collision-free waypoint tracking, and throughput KPI reporting.
+- **Coordination BEV Dashboard (`viz.py`):** Facility vector rendering with active vehicle footprints, color-coded waypoints, conflict hotspot badges, and facility utilization gauges.
 
 ### Inference backends and model optimization
 
