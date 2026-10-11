@@ -97,12 +97,12 @@ Deliver an end-to-end Cloud Fleet Coordination, V2X Facility Dispatch, and Multi
    - [x] 6.2 `feat(fleet): implement fleet telemetry dashboard with throughput and utilization charts`
    - [x] 6.3 `test(fleet): verify fleet visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports & CLI Command Group**
-   - [ ] 7.1 `feat(fleet): export public fleet API from package init`
-   - [ ] 7.2 `feat(cli): implement nearfield360 fleet command group (info, dispatch, simulate, deconflict)`
-   - [ ] 7.3 `feat(cli): register fleet CLI group and update release audit expected count to 17`
-   - [ ] 7.4 `feat(pipeline): integrate --fleet options into surround pipeline runner`
-   - [ ] 7.5 `test(cli): verify fleet CLI commands, JSON payloads, and visual outputs`
-   - [ ] 7.6 `test(pipeline): verify pipeline fleet integration workflow`
+   - [x] 7.1 `feat(fleet): export public fleet API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 fleet command group (info, dispatch, simulate, deconflict)`
+   - [x] 7.3 `feat(cli): register fleet CLI group and update release audit expected count to 17`
+   - [x] 7.4 `feat(pipeline): integrate --fleet options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify fleet CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline fleet integration workflow`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 8.1 `docs: update README with Phase 25 fleet coordination capabilities and CLI usage`
    - [ ] 8.2 `docs(progress): document completed Phase 25 milestone, Decision Log, and verification gates`
