@@ -19,7 +19,7 @@ class ChargingHardwareSimulator:
     In lithium-ion battery charging:
     - Constant Current (CC) Phase (0% to ~80% SoC): Battery accepts full allocated power.
     - Constant Voltage (CV) Phase (80% to 100% SoC): Acceptance power tapers exponentially:
-      $P(SoC) = P_{\max} \cdot \exp(-k \cdot (SoC - 0.80))$ to avoid cell over-voltage.
+      ``P(SoC) = P_max * exp(-k * (SoC - 0.80))`` to avoid cell over-voltage.
     """
 
     def __init__(self, taper_factor: float = 6.0) -> None:

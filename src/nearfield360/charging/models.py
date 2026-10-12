@@ -112,7 +112,7 @@ class ChargingSession(BaseModel):
     allocated_power_kw: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
     energy_delivered_kwh: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
     peak_power_kw: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
-    status: ChargingSessionStatus = ChargingSessionStatus.PENDING_DOCKING
+    status: ChargingSessionStatus = Field(default=ChargingSessionStatus.PENDING_DOCKING)
     estimated_time_to_target_s: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
     idle_dwell_s: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
 
