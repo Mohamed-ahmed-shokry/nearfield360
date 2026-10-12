@@ -192,8 +192,8 @@ Deliver an end-to-end Autonomous EV Charging Dispatch, Facility Grid Power Manag
    - [x] 4.2 `feat(charging): implement charge completion monitoring and relocation queue generation`
    - [x] 4.3 `test(charging): verify scheduling fairness, bay assignments, and relocation triggers`
 5. **Task 5: Charging Hardware & Non-Linear CC/CV Battery Simulation**
-   - [ ] 5.1 `feat(charging): implement non-linear CC/CV battery curve and robotic docking simulation`
-   - [ ] 5.2 `test(charging): verify battery charging curves, docking dwell, and energy calculations`
+   - [x] 5.1 `feat(charging): implement non-linear CC/CV battery curve and robotic docking simulation`
+   - [x] 5.2 `test(charging): verify battery charging curves, docking dwell, and energy calculations`
 6. **Task 6: BEV Charging Visualizer & Telemetry Dashboard**
    - [ ] 6.1 `feat(charging): implement BEV charging layout rendering with SoC badges and cable connections`
    - [ ] 6.2 `feat(charging): implement grid power curve and vehicle SoC progress telemetry charts`
