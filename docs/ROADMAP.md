@@ -177,9 +177,9 @@ Deliver an end-to-end Autonomous EV Charging Dispatch, Facility Grid Power Manag
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Charging Config Foundation**
-   - [ ] 1.1 `docs: establish Phase 26 EV charging dispatch and power management roadmap`
-   - [ ] 1.2 `feat(config): add ChargingConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for ChargingConfig validation and environment overrides`
+   - [x] 1.1 `docs: establish Phase 26 EV charging dispatch and power management roadmap`
+   - [x] 1.2 `feat(config): add ChargingConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for ChargingConfig validation and environment overrides`
 2. **Task 2: Charging Domain Models & Session Protocols**
    - [ ] 2.1 `feat(charging): implement charger bays, battery state, and charging session models`
    - [ ] 2.2 `feat(charging): implement facility power summary and dispatch report models`
