@@ -206,7 +206,8 @@ Deliver an end-to-end Autonomous EV Charging Dispatch, Facility Grid Power Manag
    - [x] 7.5 `test(cli): verify charging CLI commands, JSON payloads, and visual outputs`
    - [x] 7.6 `test(pipeline): verify pipeline charging integration workflow`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
-   - [ ] 8.1 `docs: update README with Phase 26 EV charging dispatch capabilities and CLI usage`
-   - [ ] 8.2 `docs(progress): document completed Phase 26 milestone, Decision Log, and verification gates`
-   - [ ] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [x] 8.1 `docs: update README with Phase 26 EV charging dispatch capabilities and CLI usage`
+   - [x] 8.2 `docs(progress): document completed Phase 26 milestone, Decision Log, and verification gates`
+   - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+
 
