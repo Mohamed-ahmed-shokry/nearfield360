@@ -195,9 +195,9 @@ Deliver an end-to-end Autonomous EV Charging Dispatch, Facility Grid Power Manag
    - [x] 5.1 `feat(charging): implement non-linear CC/CV battery curve and robotic docking simulation`
    - [x] 5.2 `test(charging): verify battery charging curves, docking dwell, and energy calculations`
 6. **Task 6: BEV Charging Visualizer & Telemetry Dashboard**
-   - [ ] 6.1 `feat(charging): implement BEV charging layout rendering with SoC badges and cable connections`
-   - [ ] 6.2 `feat(charging): implement grid power curve and vehicle SoC progress telemetry charts`
-   - [ ] 6.3 `test(charging): verify charging visualizer exports valid PNG artifacts`
+   - [x] 6.1 `feat(charging): implement BEV charging layout rendering with SoC badges and cable connections`
+   - [x] 6.2 `feat(charging): implement grid power curve and vehicle SoC progress telemetry charts`
+   - [x] 6.3 `test(charging): verify charging visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
    - [ ] 7.1 `feat(charging): export public charging API from package init`
    - [ ] 7.2 `feat(cli): implement nearfield360 charging command group (info, schedule, simulate, grid)`
