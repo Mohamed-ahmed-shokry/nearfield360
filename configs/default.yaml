@@ -179,5 +179,15 @@ fleet:
   reservation_lease_duration_s: 60.0
   communication_latency_s: 0.05
   packet_loss_rate: 0.02
+charging:
+  facility_grid_power_kw: 250.0
+  peak_shaving_threshold_ratio: 0.90
+  default_target_soc: 0.80
+  critical_soc_threshold: 0.20
+  idle_penalty_per_min: 0.50
+  plug_dock_dwell_s: 15.0
+  default_charger_power_kw: 50.0
+  min_power_allocation_kw: 7.0
+
 
 
