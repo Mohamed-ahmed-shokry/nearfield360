@@ -188,9 +188,9 @@ Deliver an end-to-end Autonomous EV Charging Dispatch, Facility Grid Power Manag
    - [x] 3.1 `feat(charging): implement grid power manager with dynamic load balancing and peak shaving`
    - [x] 3.2 `test(charging): verify power curtailment, priority allocation, and grid limit compliance`
 4. **Task 4: EV Charging Scheduler & Relocation Queue Manager**
-   - [ ] 4.1 `feat(charging): implement charging queue scheduler with priority scoring and bay allocation`
-   - [ ] 4.2 `feat(charging): implement charge completion monitoring and relocation queue generation`
-   - [ ] 4.3 `test(charging): verify scheduling fairness, bay assignments, and relocation triggers`
+   - [x] 4.1 `feat(charging): implement charging queue scheduler with priority scoring and bay allocation`
+   - [x] 4.2 `feat(charging): implement charge completion monitoring and relocation queue generation`
+   - [x] 4.3 `test(charging): verify scheduling fairness, bay assignments, and relocation triggers`
 5. **Task 5: Charging Hardware & Non-Linear CC/CV Battery Simulation**
    - [ ] 5.1 `feat(charging): implement non-linear CC/CV battery curve and robotic docking simulation`
    - [ ] 5.2 `test(charging): verify battery charging curves, docking dwell, and energy calculations`
