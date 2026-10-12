@@ -522,6 +522,8 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     Pydantic v2 HD vector mapping models (`FacilityMap`, `FacilityLane`, `FacilitySlot`), synthetic benchmark garage/lot builder (`build_benchmark_garage`), topological A* global router (`GlobalRouter`), multi-sensor EKF pose estimator (`PoseEstimator`), BEV facility and telemetry dashboard renderer, CLI command group `nearfield360 map`, and surround pipeline integration (`pipeline run --map ... --target-slot ...`).
 25. ~~Cloud fleet coordination, V2X facility dispatch & multi-agent conflict deconfliction.~~ Done:
     V2X/V2I message schemas (`V2XMessage`, `VehicleHeartbeat`, `DispatchAssignment`), dynamic slot reservation dispatcher (`SlotDispatcher`) with distance/congestion scoring and lease expirations, 4D spatiotemporal deconfliction engine (`DeconflictionEngine`) detecting swept-volume overlaps and computing priority yield actions, centralized fleet coordinator & discrete-time simulator (`FleetCoordinator`) with stochastic packet loss modeling, multi-vehicle BEV coordination dashboard (`viz.py`), dedicated CLI command group `nearfield360 fleet` (`info`, `dispatch`, `simulate`, `deconflict`), release audit verification (17 CLI command groups), and surround pipeline integration (`pipeline run --fleet`).
+26. ~~Autonomous EV charging dispatch, power grid management & automated bay scheduling.~~ Done:
+    EV charging domain models (`ChargerBay`, `EVBatteryState`, `ChargingSession`, `FacilityPowerSummary`, `RelocationOrder`, `ChargingDispatchReport`), dynamic power balancer and peak-shaving engine (`GridPowerManager`), urgency-weighted charging scheduler and staging relocation queue manager (`ChargingScheduler`), non-linear CC/CV battery charging curve and robotic docking dwell simulator (`ChargingHardwareSimulator`), dual-panel BEV charging dashboard (`viz.py`), dedicated CLI command group `nearfield360 charging` (`info`, `grid`, `schedule`, `simulate`), release audit verification (18 CLI command groups), and surround pipeline integration (`pipeline run --charging`).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -686,6 +688,34 @@ Key capabilities:
 - **Spatiotemporal Deconfliction Engine (`DeconflictionEngine`):** 4D swept-volume intersection detection, safety headway enforcement, virtual token priority scheduling, and yield velocity adjustments.
 - **Discrete-Time Fleet Simulator (`FleetCoordinator`):** Multi-vehicle concurrent navigation, stochastic V2I packet drop and latency simulation, collision-free waypoint tracking, and throughput KPI reporting.
 - **Coordination BEV Dashboard (`viz.py`):** Facility vector rendering with active vehicle footprints, color-coded waypoints, conflict hotspot badges, and facility utilization gauges.
+
+### Autonomous EV charging dispatch, power grid management & bay scheduling
+
+Orchestrate electric vehicle charging sessions, facility transformer power load balancing, non-linear CC/CV battery curves, and post-charge relocation dispatches:
+
+```powershell
+# 1. Inspect facility charging stations, connector ratings, and grid capacity:
+uv run nearfield360 charging info --map-path outputs/map/garage.json --json
+
+# 2. Check real-time facility grid balance and peak-shaving curtailment status:
+uv run nearfield360 charging grid --active-power 180.0 --output outputs/charging/grid.json
+
+# 3. Schedule incoming EVs to available charging bays with priority queueing:
+uv run nearfield360 charging schedule --map-path outputs/map/garage.json --vehicles 3 --output outputs/charging/schedule.json --png outputs/charging/schedule_bev.png
+
+# 4. Run discrete-time multi-vehicle charging simulation with CC/CV curves and relocations:
+uv run nearfield360 charging simulate --vehicles 4 --steps 30 --dt 60.0 --output outputs/charging/sim_report.json --png outputs/charging/sim_bev.png
+
+# 5. Integrated surround perception pipeline with EV charging coordination:
+uv run nearfield360 pipeline run --root D:\datasets\woodscape --map outputs/map/garage.json --charging --output outputs/pipeline/charging_pipeline.json
+```
+
+Key capabilities:
+- **EV Charging Domain Models:** Validated Pydantic v2 schemas for `ChargerBay`, `EVBatteryState`, `ChargingSession`, `RelocationOrder`, `FacilityPowerSummary`, and `ChargingDispatchReport`.
+- **Dynamic Power Grid Manager (`GridPowerManager`):** Active load balancing and peak shaving ensuring aggregate power draw stays within transformer capacity while prioritizing critically low-SoC vehicles.
+- **Charging Queue Scheduler (`ChargingScheduler`):** Urgency-weighted queue ordering, bay assignments, target SoC completion detection, and automated staging bay relocation dispatches.
+- **Hardware & CC/CV Simulator (`ChargingHardwareSimulator`):** Models Constant Current / Constant Voltage (CC/CV) exponential power tapering above 80% SoC and robotic plug docking dwell times.
+- **BEV Charging Dashboard (`viz.py`):** Renders color-coded charging bays, vehicle SoC badges, grid utilization progress bars, and session telemetry.
 
 ### Inference backends and model optimization
 
