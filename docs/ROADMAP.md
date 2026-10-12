@@ -199,12 +199,12 @@ Deliver an end-to-end Autonomous EV Charging Dispatch, Facility Grid Power Manag
    - [x] 6.2 `feat(charging): implement grid power curve and vehicle SoC progress telemetry charts`
    - [x] 6.3 `test(charging): verify charging visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 7.1 `feat(charging): export public charging API from package init`
-   - [ ] 7.2 `feat(cli): implement nearfield360 charging command group (info, schedule, simulate, grid)`
-   - [ ] 7.3 `feat(cli): register charging CLI group and update release audit expected count to 18`
-   - [ ] 7.4 `feat(pipeline): integrate --charging options into surround pipeline runner`
-   - [ ] 7.5 `test(cli): verify charging CLI commands, JSON payloads, and visual outputs`
-   - [ ] 7.6 `test(pipeline): verify pipeline charging integration workflow`
+   - [x] 7.1 `feat(charging): export public charging API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 charging command group (info, schedule, simulate, grid)`
+   - [x] 7.3 `feat(cli): register charging CLI group and update release audit expected count to 18`
+   - [x] 7.4 `feat(pipeline): integrate --charging options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify charging CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline charging integration workflow`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 8.1 `docs: update README with Phase 26 EV charging dispatch capabilities and CLI usage`
    - [ ] 8.2 `docs(progress): document completed Phase 26 milestone, Decision Log, and verification gates`
