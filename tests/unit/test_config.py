@@ -608,3 +608,47 @@ def test_fleet_config_rejects_invalid_policy(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="Input should be"):
         load_config(config_path)
+
+
+def test_charging_config_defaults() -> None:
+    config = load_config()
+
+    assert config.charging.facility_grid_power_kw == 250.0
+    assert config.charging.peak_shaving_threshold_ratio == 0.90
+    assert config.charging.default_target_soc == 0.80
+    assert config.charging.critical_soc_threshold == 0.20
+    assert config.charging.idle_penalty_per_min == 0.50
+    assert config.charging.plug_dock_dwell_s == 15.0
+    assert config.charging.default_charger_power_kw == 50.0
+    assert config.charging.min_power_allocation_kw == 7.0
+
+
+def test_charging_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("charging:\n  facility_grid_power_kw: 350.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_CHARGING__DEFAULT_TARGET_SOC", "0.95")
+    monkeypatch.setenv("NEARFIELD360_CHARGING__PEAK_SHAVING_THRESHOLD_RATIO", "0.85")
+
+    config = load_config(config_path)
+
+    assert config.charging.facility_grid_power_kw == 350.0
+    assert config.charging.default_target_soc == 0.95
+    assert config.charging.peak_shaving_threshold_ratio == 0.85
+
+
+def test_charging_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("charging:\n  facility_grid_power_kw: -10.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
+
+
+def test_charging_config_rejects_invalid_soc(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("charging:\n  default_target_soc: 1.5\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 1"):
+        load_config(config_path)
