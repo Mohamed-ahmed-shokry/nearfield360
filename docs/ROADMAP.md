@@ -295,8 +295,8 @@ Deliver an end-to-end Autonomous Valet Parking Smart Billing, Dynamic Tariffs, a
    - [x] 4.2 `feat(billing): implement cryptographic SHA-256 HMAC receipt signing and verification`
    - [x] 4.3 `test(billing): verify billing calculation accuracy, HMAC signature generation, and tamper detection`
 5. **Task 5: Financial Settlement Aggregator**
-   - [ ] 5.1 `feat(billing): implement financial settlement aggregator and revenue metrics calculator`
-   - [ ] 5.2 `test(billing): verify settlement aggregation, revenue categorization, and KPIs`
+   - [x] 5.1 `feat(billing): implement financial settlement aggregator and revenue metrics calculator`
+   - [x] 5.2 `test(billing): verify settlement aggregation, revenue categorization, and KPIs`
 6. **Task 6: BEV Billing Visualizer & Telemetry Dashboard**
    - [ ] 6.1 `feat(billing): implement BEV revenue map and bay billing badge visualizer`
    - [ ] 6.2 `feat(billing): implement financial breakdown telemetry charts and KPI rendering`
