@@ -291,9 +291,9 @@ Deliver an end-to-end Autonomous Valet Parking Smart Billing, Dynamic Tariffs, a
    - [x] 3.1 `feat(billing): implement dynamic tariff engine with occupancy load multipliers and grace period`
    - [x] 3.2 `test(billing): verify dynamic pricing tiers, peak multipliers, and grace period deduction`
 4. **Task 4: Billing Calculator & Cryptographic Receipt Signing**
-   - [ ] 4.1 `feat(billing): implement itemized billing calculator for dwell, energy, and overstay fines`
-   - [ ] 4.2 `feat(billing): implement cryptographic SHA-256 HMAC receipt signing and verification`
-   - [ ] 4.3 `test(billing): verify billing calculation accuracy, HMAC signature generation, and tamper detection`
+   - [x] 4.1 `feat(billing): implement itemized billing calculator for dwell, energy, and overstay fines`
+   - [x] 4.2 `feat(billing): implement cryptographic SHA-256 HMAC receipt signing and verification`
+   - [x] 4.3 `test(billing): verify billing calculation accuracy, HMAC signature generation, and tamper detection`
 5. **Task 5: Financial Settlement Aggregator**
    - [ ] 5.1 `feat(billing): implement financial settlement aggregator and revenue metrics calculator`
    - [ ] 5.2 `test(billing): verify settlement aggregation, revenue categorization, and KPIs`
