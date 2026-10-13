@@ -1782,6 +1782,95 @@ Phase 27 delivers an end-to-end Autonomous Valet Parking Smart Billing, Dynamic 
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (19 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
+
+---
+
+## Phase 28: Multi-Tenant Facility Partitioning, Fleet Operator SLA Management & Reserved VIP Corridor Access
+
+**Status:** Completed  
+**Repository Branch:** `phase/multi-tenant-facility-sla-corridors`  
+**Test Suite:** 1187 passed, 5 skipped (0 failures)  
+**Type Checking:** `mypy` clean (140 source files)  
+**Linting & Style:** `ruff check` and `ruff format` clean  
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
+**Release Audit:** Passed (20 registered CLI command groups)  
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 28 delivers an end-to-end Multi-Tenant Facility Partitioning, Fleet Operator SLA Management, and Reserved VIP Express Corridor Access subsystem for NearField360. Building on Phase 24's HD Vector Mapping, Phase 25's Cloud Fleet Coordination, Phase 26's EV Charging Dispatch, and Phase 27's Smart Billing, Phase 28 enables autonomous valet parking garages to partition facilities into dedicated tenant zones, enforce operator quota allocations, monitor Service Level Agreements (SLAs: wait times, turnaround guarantees, breach penalties), and schedule exclusive VIP express corridors to grant prioritized vehicles right-of-way through congested facility bottlenecks:
+
+1. **Configuration (`TenantConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Configurable default quota ratio (`default_quota_ratio`), guaranteed dispatch latency (`sla_max_dispatch_wait_s`), breach penalty tariff (`sla_breach_penalty_per_min`), VIP priority multiplier (`vip_priority_multiplier`), preemption temporal buffer (`express_preemption_buffer_s`), and partition count limits (`max_tenant_partitions`).
+2. **Domain Models & Schemas (`src/nearfield360/tenant/models.py`):**
+   - Pydantic v2 schemas: `TenantTier` (`PUBLIC_TRANSIENT`, `COMMERCIAL_FLEET`, `CAR_SHARING`, `VIP_EXECUTIVE`), `AccessPermission` (`STANDARD_ACCESS`, `PRIORITY_ACCESS`, `RESTRICTED_ACCESS`, `EXCLUSIVE_VIP`), `TenantPartition`, `TenantSLAContract`, `VIPExpressCorridor`, and `TenantPartitionReport`.
+3. **Partition & Quota Enforcement Engine (`TenantManager` in `src/nearfield360/tenant/manager.py`):**
+   - Partition creation, dedicated bay quota enforcement, vehicle-to-tenant registration, unauthorized access prevention, and real-time slot occupancy tracking.
+4. **Fleet Operator SLA Monitor & Breach Auditor (`SLAMonitor` in `src/nearfield360/tenant/sla.py`):**
+   - Turnaround dispatch latency measurement, SLA compliance rate evaluation, and automated breach penalty calculations.
+5. **VIP Express Corridor Reservation & Preemption Engine (`VIPCorridorManager` in `src/nearfield360/tenant/corridor.py`):**
+   - Dedicated express corridor reservation across facility lanes, spatiotemporal conflict detection, and right-of-way preemption for high-priority emergency and VIP vehicles.
+6. **BEV Multi-Tenant Partition Visualizer (`render_tenant_dashboard` in `src/nearfield360/tenant/viz.py`):**
+   - Dual-panel BEV layout rendering facility bays color-coded by tenant operator, highlighted VIP express corridor lanes, quota gauge bars, and a live SLA telemetry HUD.
+7. **CLI Command Group & Surround Pipeline Integration:**
+   - Dedicated CLI command group: `nearfield360 tenant` (`info`, `partition`, `corridor`, `audit`).
+   - Release audit updated and verified for 20 CLI command groups.
+   - Four-camera surround pipeline runner integration via `nearfield360 pipeline run --tenant`.
+
+---
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Tenant configuration (`TenantConfig`) | `src/nearfield360/config.py`, `configs/default.yaml` |
+| Tenant domain models (`TenantPartition`, `TenantSLAContract`, `VIPExpressCorridor`, etc.) | `src/nearfield360/tenant/models.py` |
+| Partition & quota manager (`TenantManager`) | `src/nearfield360/tenant/manager.py` |
+| SLA monitor & penalty auditor (`SLAMonitor`) | `src/nearfield360/tenant/sla.py` |
+| VIP express corridor manager (`VIPCorridorManager`) | `src/nearfield360/tenant/corridor.py` |
+| BEV tenant partition visualizer (`render_tenant_dashboard`) | `src/nearfield360/tenant/viz.py` |
+| Tenant package API exports | `src/nearfield360/tenant/__init__.py` |
+| CLI command group (`nearfield360 tenant`) | `src/nearfield360/cli/tenant.py` |
+| CLI app registration & release audit (`expected_groups` updated to 20) | `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py` |
+| Surround pipeline integration (`pipeline run --tenant`) | `src/nearfield360/cli/pipeline.py` |
+| Tenant config unit tests | `tests/unit/test_config.py` |
+| Tenant models unit tests | `tests/unit/tenant/test_tenant_models.py` |
+| Tenant manager unit tests | `tests/unit/tenant/test_manager.py` |
+| SLA monitor unit tests | `tests/unit/tenant/test_sla.py` |
+| VIP corridor unit tests | `tests/unit/tenant/test_corridor.py` |
+| Tenant visualizer unit tests | `tests/unit/tenant/test_tenant_viz.py` |
+| Tenant CLI integration tests | `tests/unit/test_tenant_cli.py` |
+| Pipeline tenant integration tests | `tests/unit/test_pipeline_tenant.py` |
+
+---
+
+### 3. Decision Log
+
+1. **Decision**: Explicit Spatiotemporal Preemption over Deadlock Waiting for VIP Corridors  
+   - *Alternatives Considered*: Queueing lower-priority vehicles until they clear before granting the VIP reservation.  
+   - *Rationale & Evidence*: Commercial and hospital VIP/emergency operations require guaranteed lane clearance. When a higher-priority corridor reservation is activated, conflicting reservations are preempted immediately with an explicit preemption hold token.
+2. **Decision**: Strict Quota and Tier Access Enforcement with Dedicated Exception Types  
+   - *Alternatives Considered*: Generic runtime exceptions or soft warnings.  
+   - *Rationale & Evidence*: Defining `QuotaExceededError` and `UnauthorizedAccessError` ensures explicit, recoverable error handling across the dispatch and billing layers.
+3. **Decision**: Increment Expected CLI Group Count from 19 to 20 in Release Audit  
+   - *Alternatives Considered*: Not including `tenant` in the release audit group list.  
+   - *Rationale & Evidence*: Every functional subsystem CLI command group must be verified by `nearfield360 release audit` to ensure zero command regressions.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1187 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 140 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (20 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
  |
 
 
