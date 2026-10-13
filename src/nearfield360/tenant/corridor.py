@@ -104,9 +104,7 @@ class VIPCorridorManager:
         """Return all corridors with an active reservation at given timestamp."""
         return [c for c in self._corridors.values() if c.is_active_at(current_time_s)]
 
-    def is_lane_reserved(
-        self, lane_id: str, current_time_s: float
-    ) -> tuple[bool, str | None]:
+    def is_lane_reserved(self, lane_id: str, current_time_s: float) -> tuple[bool, str | None]:
         """Check whether a lane is currently reserved by an active express corridor.
 
         Returns:

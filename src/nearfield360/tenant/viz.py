@@ -87,14 +87,10 @@ def render_tenant_dashboard(
             is_preempt = vip_lanes[lane.lane_id]
             col = COLOR_CORRIDOR_PREEMPT if is_preempt else COLOR_CORRIDOR_VIP
             cv2.polylines(canvas, [lane_pts], isClosed=False, color=col, thickness=20)
-            cv2.polylines(
-                canvas, [lane_pts], isClosed=False, color=(255, 255, 255), thickness=2
-            )
+            cv2.polylines(canvas, [lane_pts], isClosed=False, color=(255, 255, 255), thickness=2)
         else:
             cv2.polylines(canvas, [lane_pts], isClosed=False, color=COLOR_LANE, thickness=16)
-            cv2.polylines(
-                canvas, [lane_pts], isClosed=False, color=COLOR_LANE_CENTER, thickness=2
-            )
+            cv2.polylines(canvas, [lane_pts], isClosed=False, color=COLOR_LANE_CENTER, thickness=2)
 
     # Build slot -> partition lookup
     slot_to_part: dict[str, TenantPartition] = {}
@@ -126,9 +122,7 @@ def render_tenant_dashboard(
                 cv2.LINE_AA,
             )
         else:
-            cv2.polylines(
-                canvas, [corners_px], isClosed=True, color=COLOR_SLOT_PUBLIC, thickness=1
-            )
+            cv2.polylines(canvas, [corners_px], isClosed=True, color=COLOR_SLOT_PUBLIC, thickness=1)
 
     # 5. Right HUD Panel
     panel_x = canvas_size

@@ -93,9 +93,7 @@ class VIPExpressCorridor(BaseModel):
         if self.active_vehicle_id is None:
             return False
         return (
-            self.reservation_start_s
-            <= current_time_s
-            < self.reservation_start_s + self.duration_s
+            self.reservation_start_s <= current_time_s < self.reservation_start_s + self.duration_s
         )
 
 

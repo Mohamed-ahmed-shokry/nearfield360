@@ -267,9 +267,7 @@ def tenant_audit(
 
     # Active express corridor
     c_mgr = VIPCorridorManager()
-    lanes = (
-        [lane.lane_id for lane in facility.lanes[:1]] if facility.lanes else ["lane_1"]
-    )
+    lanes = [lane.lane_id for lane in facility.lanes[:1]] if facility.lanes else ["lane_1"]
     c_mgr.register_corridor("corridor-vip-aisle", lanes)
     c1 = c_mgr.reserve_corridor(
         "corridor-vip-aisle",

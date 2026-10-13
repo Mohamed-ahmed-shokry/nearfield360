@@ -1065,9 +1065,7 @@ def run_pipeline(
 
         t_corr_mgr = VIPCorridorManager()
         t_lanes = (
-            [lane.lane_id for lane in t_facility.lanes[:1]]
-            if t_facility.lanes
-            else ["lane_1"]
+            [lane.lane_id for lane in t_facility.lanes[:1]] if t_facility.lanes else ["lane_1"]
         )
         t_corr_mgr.register_corridor("vip-express-1", t_lanes)
         t_c1 = t_corr_mgr.reserve_corridor(

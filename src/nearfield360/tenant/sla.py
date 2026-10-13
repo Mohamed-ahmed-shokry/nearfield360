@@ -48,9 +48,7 @@ class SLAMonitor:
                 update={
                     "recorded_dispatches_count": contract.recorded_dispatches_count + 1,
                     "breach_count": contract.breach_count + 1,
-                    "total_penalty_incurred": round(
-                        contract.total_penalty_incurred + penalty, 2
-                    ),
+                    "total_penalty_incurred": round(contract.total_penalty_incurred + penalty, 2),
                 }
             )
         else:
