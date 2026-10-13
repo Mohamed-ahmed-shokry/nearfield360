@@ -1043,7 +1043,7 @@ def run_pipeline(
         )
         from nearfield360.tenant.sla import SLAMonitor
 
-        t_facility = facility_map or build_benchmark_garage()
+        t_facility = build_benchmark_garage()
         t_mgr = TenantManager(facility_map=t_facility, config=config.tenant)
         t_p1 = t_mgr.create_partition(
             tenant_id="fleet-alpha",
