@@ -394,8 +394,8 @@ Deliver an end-to-end Multi-Tenant Facility Partitioning, Fleet Operator SLA Man
    - [x] 4.1 `feat(tenant): implement SLA monitor with dispatch latency tracking and penalty calculation`
    - [x] 4.2 `test(tenant): verify SLA compliance scoring, latency measurements, and breach penalties`
 5. **Task 5: VIP Express Corridor Reservation & Preemption Engine**
-   - [ ] 5.1 `feat(tenant): implement VIP express corridor reservation and traffic preemption`
-   - [ ] 5.2 `test(tenant): verify corridor reservations, conflict clearance, and preemption holds`
+   - [x] 5.1 `feat(tenant): implement VIP express corridor reservation and traffic preemption`
+   - [x] 5.2 `test(tenant): verify corridor reservations, conflict clearance, and preemption holds`
 6. **Task 6: BEV Multi-Tenant Partition Visualizer**
    - [ ] 6.1 `feat(tenant): implement BEV tenant partition zone map and VIP corridor rendering`
    - [ ] 6.2 `feat(tenant): implement quota utilization gauges and SLA telemetry HUD`
