@@ -397,9 +397,9 @@ Deliver an end-to-end Multi-Tenant Facility Partitioning, Fleet Operator SLA Man
    - [x] 5.1 `feat(tenant): implement VIP express corridor reservation and traffic preemption`
    - [x] 5.2 `test(tenant): verify corridor reservations, conflict clearance, and preemption holds`
 6. **Task 6: BEV Multi-Tenant Partition Visualizer**
-   - [ ] 6.1 `feat(tenant): implement BEV tenant partition zone map and VIP corridor rendering`
-   - [ ] 6.2 `feat(tenant): implement quota utilization gauges and SLA telemetry HUD`
-   - [ ] 6.3 `test(tenant): verify tenant visualizer exports valid PNG artifacts`
+   - [x] 6.1 `feat(tenant): implement BEV tenant partition zone map and VIP corridor rendering`
+   - [x] 6.2 `feat(tenant): implement quota utilization gauges and SLA telemetry HUD`
+   - [x] 6.3 `test(tenant): verify tenant visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
    - [ ] 7.1 `feat(tenant): export public tenant API from package init`
    - [ ] 7.2 `feat(cli): implement nearfield360 tenant command group (info, partition, corridor, audit)`
