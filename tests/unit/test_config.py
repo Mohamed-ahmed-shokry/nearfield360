@@ -652,3 +652,48 @@ def test_charging_config_rejects_invalid_soc(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 1"):
         load_config(config_path)
+
+
+def test_billing_config_defaults() -> None:
+    config = load_config()
+
+    assert config.billing.base_hourly_rate == 5.0
+    assert config.billing.peak_multiplier == 1.5
+    assert config.billing.kwh_tariff == 0.35
+    assert config.billing.idle_overstay_per_min == 0.50
+    assert config.billing.valet_service_fee == 10.0
+    assert config.billing.grace_period_minutes == 15.0
+    assert config.billing.tax_rate == 0.08
+    assert config.billing.receipt_hmac_secret == "nearfield360-facility-hmac-secret-key-2026"
+
+
+def test_billing_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("billing:\n  base_hourly_rate: 8.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_BILLING__PEAK_MULTIPLIER", "2.0")
+    monkeypatch.setenv("NEARFIELD360_BILLING__KWH_TARIFF", "0.45")
+
+    config = load_config(config_path)
+
+    assert config.billing.base_hourly_rate == 8.0
+    assert config.billing.peak_multiplier == 2.0
+    assert config.billing.kwh_tariff == 0.45
+
+
+def test_billing_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("billing:\n  base_hourly_rate: -2.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 0"):
+        load_config(config_path)
+
+
+def test_billing_config_rejects_short_secret(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("billing:\n  receipt_hmac_secret: abc\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="at least 8 characters"):
+        load_config(config_path)
+
