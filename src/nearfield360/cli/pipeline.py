@@ -580,6 +580,13 @@ def run_pipeline(
             help="Simulate autonomous EV charging dispatch, grid power balancing, and sessions.",
         ),
     ] = False,
+    billing: Annotated[
+        bool,
+        typer.Option(
+            "--billing/--no-billing",
+            help="Calculate itemized session billing and generate signed receipts.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -992,6 +999,31 @@ def run_pipeline(
         charging_payload = c_report.model_dump(mode="json")
         timings["charging_ms"] = (time.perf_counter() - charging_stage_start) * 1000.0
 
+    billing_payload: dict[str, Any] | None = None
+    if billing:
+        billing_stage_start = time.perf_counter()
+        from nearfield360.billing.calculator import BillingCalculator
+        from nearfield360.billing.settlement import SettlementAggregator
+
+        b_calc = BillingCalculator(config.billing)
+        b_aggregator = SettlementAggregator("AVP-FACILITY-01")
+        b_receipts = [
+            b_calc.calculate_session_charges(
+                vehicle_id=f"VEH_{bi + 1:02d}",
+                entry_timestamp=float(bi * 3600),
+                exit_timestamp=float(bi * 3600 + (45.0 + bi * 30.0) * 60.0),
+                kwh_consumed=15.0 if bi % 2 == 0 else 0.0,
+                idle_overstay_minutes=5.0 if bi == 1 else 0.0,
+                include_valet_fee=True,
+                occupancy_ratio=0.80,
+                receipt_id=f"RCP-{bi + 1:03d}",
+            )
+            for bi in range(3)
+        ]
+        b_report = b_aggregator.generate_settlement_report(b_receipts)
+        billing_payload = b_report.model_dump(mode="json")
+        timings["billing_ms"] = (time.perf_counter() - billing_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1017,6 +1049,8 @@ def run_pipeline(
         samples_payload["fleet"] = True
     if charging:
         samples_payload["charging"] = True
+    if billing:
+        samples_payload["billing"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1086,6 +1120,8 @@ def run_pipeline(
         payload["fleet"] = fleet_payload
     if charging_payload is not None:
         payload["charging"] = charging_payload
+    if billing_payload is not None:
+        payload["billing"] = billing_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 

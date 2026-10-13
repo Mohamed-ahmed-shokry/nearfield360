@@ -38,6 +38,8 @@ the corresponding experiments have run.
 | Autonomous parking trajectory planning and maneuvers | Implemented | Non-holonomic Ackermann vehicle kinematics, multi-stage maneuvers (parallel reverse S-turn, perpendicular/slanted reverse dock), continuous swept footprint collision validation against BEV occupancy and dynamic obstacles, time-parameterized speed profiling, `nearfield360 plan parking`, and surround pipeline integration (`pipeline run --plan-parking`) |
 | Closed-loop trajectory tracking control & execution simulation | Implemented | Forward/reverse Stanley path follower, curvature feedforward, longitudinal PI control, kinematic bicycle simulator with actuator lag, real-time swept footprint safety monitoring and AEB, docking accuracy KPIs, `nearfield360 control execute`, and surround pipeline integration (`pipeline run --simulate-control`) |
 | AVP mission executive & dynamic recovery orchestration | Implemented | Finite state machine lifecycle manager (7 states), multi-frame spatial slot tracking/memory (`SlotTracker`), dynamic obstacle yield holding, recovery re-planning around obstacles (`ParkingReplanner`), terminal docking evaluation, BEV mission dashboard & timeline telemetry charts (`viz.py`), `nearfield360 mission run`, and surround pipeline integration (`pipeline run --mission`) |
+| Autonomous EV charging dispatch & facility grid balancing | Implemented | Real-time transformer peak shaving, dynamic load balancing, non-linear CC/CV curves, automated relocation queuing, `nearfield360 charging`, and pipeline integration (`pipeline run --charging`) |
+| AVP smart billing, dynamic tariffs & cryptographic receipts | Implemented | Occupancy-based congestion pricing, multi-component itemized billing, grace periods, HMAC-SHA256 receipt signing/verification, `nearfield360 billing`, and pipeline integration (`pipeline run --billing`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -767,6 +769,34 @@ uv run nearfield360 release audit --json --output outputs/release/audit.json
 ```
 
 The audit exits with status 1 if any check fails.
+
+### Smart Billing, Dynamic Tariffs & Cryptographic Receipts
+
+Inspect active tariff policies, dynamic congestion rates, and grace periods:
+
+```powershell
+uv run nearfield360 billing info
+uv run nearfield360 billing info --json
+```
+
+Calculate session charges with itemized breakdown and SHA-256 HMAC cryptographic signing:
+
+```powershell
+uv run nearfield360 billing calculate --vehicle-id VEH_42 --duration-minutes 90.0 --kwh 18.5 --output outputs/receipt.json
+```
+
+Verify cryptographic receipt integrity and authenticity against tampering:
+
+```powershell
+uv run nearfield360 billing receipt outputs/receipt.json
+```
+
+Aggregate sessions into a facility financial settlement report and render BEV revenue telemetry dashboard:
+
+```powershell
+uv run nearfield360 billing settle --sessions-count 6 --output outputs/settlement.json --png outputs/billing_dashboard.png
+```
+
 
 ## License
 

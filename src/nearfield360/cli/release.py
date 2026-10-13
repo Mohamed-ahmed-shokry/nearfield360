@@ -119,6 +119,7 @@ def _run_checks() -> list[dict[str, Any]]:
         checks.append(_check("default_config", False, f"Missing {config_path}"))
 
     expected_groups = {
+        "billing",
         "charging",
         "config",
         "control",

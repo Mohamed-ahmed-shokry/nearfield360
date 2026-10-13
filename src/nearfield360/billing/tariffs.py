@@ -50,11 +50,7 @@ class TariffEngine:
             congestion_multiplier = 1.0
 
         effective_rate = round(base_rate * congestion_multiplier, 2)
-        tier = (
-            TariffTier.PEAK_CONGESTION
-            if congestion_multiplier > 1.0
-            else TariffTier.STANDARD
-        )
+        tier = TariffTier.PEAK_CONGESTION if congestion_multiplier > 1.0 else TariffTier.STANDARD
         return effective_rate, tier
 
     def evaluate_billable_minutes(self, duration_minutes: float) -> float:

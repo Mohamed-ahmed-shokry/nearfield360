@@ -664,7 +664,7 @@ def test_billing_config_defaults() -> None:
     assert config.billing.valet_service_fee == 10.0
     assert config.billing.grace_period_minutes == 15.0
     assert config.billing.tax_rate == 0.08
-    assert config.billing.receipt_hmac_secret == "nearfield360-facility-hmac-secret-key-2026"
+    assert config.billing.receipt_hmac_secret == "nearfield360-facility-hmac-secret-key-2026"  # noqa: S105
 
 
 def test_billing_config_environment_overrides(
@@ -696,4 +696,3 @@ def test_billing_config_rejects_short_secret(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="at least 8 characters"):
         load_config(config_path)
-

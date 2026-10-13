@@ -1693,5 +1693,96 @@ Phase 26 delivers an end-to-end Autonomous EV Charging Dispatch, Power Grid Mana
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (18 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
 
+---
+
+## Phase 27: Autonomous Valet Parking Smart Billing, Dynamic Tariffs & Cryptographic Session Receipts
+
+**Status:** Completed  
+**Repository Branch:** `phase/automated-valet-parking-payment-billing`  
+**Test Suite:** 1157 passed, 5 skipped (0 failures)  
+**Type Checking:** `mypy --strict` clean (134 source files)  
+**Linting & Style:** `ruff check` and `ruff format` clean (254 files)  
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
+**Release Audit:** Passed (19 registered CLI command groups)  
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 27 delivers an end-to-end Autonomous Valet Parking Smart Billing, Dynamic Tariffs, and Cryptographically Signed Session Receipts subsystem for NearField360. Building upon Phase 24's HD Vector Mapping, Phase 25's Cloud Fleet Coordination, and Phase 26's EV Charging Dispatch, Phase 27 equips facilities with dynamic occupancy-based congestion pricing, itemized multi-category charges (parking dwell, EV charging kilowatt-hours, charging bay overstay fines, and valet concierge fees), facility grace periods, and cryptographic SHA-256 HMAC receipt signing and verification:
+
+1. **Configuration (`BillingConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Configurable base parking rate (`base_hourly_rate`), peak congestion multiplier (`peak_multiplier`), EV electricity tariff (`kwh_tariff`), charging overstay penalty rate (`idle_overstay_per_min`), valet service fee (`valet_service_fee`), free grace period (`grace_period_minutes`), sales tax rate (`tax_rate`), and facility HMAC secret key (`receipt_hmac_secret`).
+2. **Domain Models & Verifiable Receipts (`src/nearfield360/billing/models.py`):**
+   - Pydantic v2 schemas: `TariffTier`, `PaymentStatus`, `BillingCategory`, `BillingItem`, `ParkingReceipt`, and `FinancialSettlementReport`.
+   - Canonical deterministic JSON serialization (`to_canonical_json`) excluding the signature digest for tamper-proof hashing.
+3. **Dynamic Tariff Engine & Congestion Pricing (`TariffEngine` in `src/nearfield360/billing/tariffs.py`):**
+   - Computes effective rates based on occupancy load factors (elevated multipliers at >=75% and >=90% occupancy), overnight discounts, and grace period deductions.
+4. **Billing Calculator & Cryptographic Signer (`BillingCalculator` in `src/nearfield360/billing/calculator.py`):**
+   - Computes line items, subtotal, tax, and total charged. Computes and validates SHA-256 HMAC digital signatures, reliably detecting forged or altered receipts.
+5. **Financial Settlement Aggregator (`SettlementAggregator` in `src/nearfield360/billing/settlement.py`):**
+   - Aggregates multi-session receipts into an audited financial report with revenue breakdown across categories, tax collected, and average dwell duration.
+6. **BEV Revenue & Financial Visualizer (`render_billing_dashboard` in `src/nearfield360/billing/viz.py`):**
+   - Dual-panel BEV layout rendering facility bays with payment badges and a side panel with revenue breakdown progress bars and financial KPIs.
+7. **CLI Command Group & Surround Pipeline Integration:**
+   - Dedicated CLI command group: `nearfield360 billing` (`info`, `calculate`, `receipt`, `settle`).
+   - Release audit updated and verified for 19 CLI command groups.
+   - Four-camera surround pipeline runner integration via `nearfield360 pipeline run --billing`.
+
+---
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Billing configuration (`BillingConfig`) | `src/nearfield360/config.py`, `configs/default.yaml` |
+| Billing domain models (`BillingItem`, `ParkingReceipt`, etc.) | `src/nearfield360/billing/models.py` |
+| Dynamic tariff engine (`TariffEngine`) | `src/nearfield360/billing/tariffs.py` |
+| Billing calculator & HMAC signer (`BillingCalculator`) | `src/nearfield360/billing/calculator.py` |
+| Financial settlement aggregator (`SettlementAggregator`) | `src/nearfield360/billing/settlement.py` |
+| BEV revenue visualizer (`render_billing_dashboard`) | `src/nearfield360/billing/viz.py` |
+| Billing package API exports | `src/nearfield360/billing/__init__.py` |
+| CLI command group (`nearfield360 billing`) | `src/nearfield360/cli/billing.py` |
+| CLI app registration & release audit (`expected_groups` updated to 19) | `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py` |
+| Surround pipeline integration (`pipeline run --billing`) | `src/nearfield360/cli/pipeline.py` |
+| Billing config unit tests | `tests/unit/test_config.py` (4 tests) |
+| Billing models unit tests | `tests/unit/billing/test_billing_models.py` (4 tests) |
+| Tariff engine unit tests | `tests/unit/billing/test_tariffs.py` (2 tests) |
+| Billing calculator unit tests | `tests/unit/billing/test_calculator.py` (3 tests) |
+| Financial settlement unit tests | `tests/unit/billing/test_settlement.py` (2 tests) |
+| Billing visualizer unit tests | `tests/unit/billing/test_billing_viz.py` (1 test) |
+| Billing CLI integration tests | `tests/unit/test_billing_cli.py` (4 tests) |
+| Pipeline billing integration tests | `tests/unit/test_pipeline_billing.py` (1 test) |
+
+---
+
+### 3. Decision Log
+
+1. **Decision**: SHA-256 HMAC with Deterministic Canonical JSON over Asymmetric Public Key  
+   - *Alternatives Considered*: RSA or Ed25519 asymmetric signatures.  
+   - *Rationale & Evidence*: Within an AVP facility server ecosystem, HMAC provides symmetric authentication and tampering protection without introducing heavy cryptography dependencies (`cryptography` library), staying lean with Python standard library `hashlib` and `hmac`.
+2. **Decision**: Strict Grace Period Zero-Billing Deduction  
+   - *Alternatives Considered*: Prorating grace period by the minute.  
+   - *Rationale & Evidence*: Standard commercial parking and valet practices provide a 15-minute free drop-off/pick-up window. If duration <= `grace_period_minutes`, zero parking fee is assessed.
+3. **Decision**: Increment Expected CLI Group Count from 18 to 19 in Release Audit  
+   - *Alternatives Considered*: Not testing `billing` in `release.py`.  
+   - *Rationale & Evidence*: `nearfield360 release audit` verifies full CLI subcommand discovery; adding `billing` maintains release integrity.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1157 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 134 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (19 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
+ |
+
 
 
