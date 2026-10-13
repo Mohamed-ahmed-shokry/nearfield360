@@ -40,6 +40,7 @@ the corresponding experiments have run.
 | AVP mission executive & dynamic recovery orchestration | Implemented | Finite state machine lifecycle manager (7 states), multi-frame spatial slot tracking/memory (`SlotTracker`), dynamic obstacle yield holding, recovery re-planning around obstacles (`ParkingReplanner`), terminal docking evaluation, BEV mission dashboard & timeline telemetry charts (`viz.py`), `nearfield360 mission run`, and surround pipeline integration (`pipeline run --mission`) |
 | Autonomous EV charging dispatch & facility grid balancing | Implemented | Real-time transformer peak shaving, dynamic load balancing, non-linear CC/CV curves, automated relocation queuing, `nearfield360 charging`, and pipeline integration (`pipeline run --charging`) |
 | AVP smart billing, dynamic tariffs & cryptographic receipts | Implemented | Occupancy-based congestion pricing, multi-component itemized billing, grace periods, HMAC-SHA256 receipt signing/verification, `nearfield360 billing`, and pipeline integration (`pipeline run --billing`) |
+| Multi-tenant facility partitioning, SLA management & VIP express corridors | Implemented | Dedicated operator bay partitions, quota enforcement, dispatch latency SLA compliance & breach penalty auditing, VIP express corridor reservation & right-of-way preemption, `nearfield360 tenant`, and surround pipeline integration (`pipeline run --tenant`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -795,6 +796,33 @@ Aggregate sessions into a facility financial settlement report and render BEV re
 
 ```powershell
 uv run nearfield360 billing settle --sessions-count 6 --output outputs/settlement.json --png outputs/billing_dashboard.png
+```
+
+### Multi-Tenant Partitioning, Fleet SLA Monitoring & VIP Express Corridors
+
+Inspect active multi-tenant configuration, quotas, and SLA defaults:
+
+```powershell
+uv run nearfield360 tenant info
+uv run nearfield360 tenant info --json
+```
+
+Partition facility bays for a fleet operator with quota allocation:
+
+```powershell
+uv run nearfield360 tenant partition --tenant-id fleet-uber --name "Uber Fleet" --quota 4 --output outputs/partition.json --png outputs/partition_map.png
+```
+
+Reserve a dedicated VIP express corridor with traffic preemption:
+
+```powershell
+uv run nearfield360 tenant corridor --corridor-id vip-corridor-1 --vehicle-id vip-exec-01 --duration 60.0 --priority 2 --output outputs/corridor.json --png outputs/corridor_map.png
+```
+
+Audit facility multi-tenant partitions, evaluate SLA compliance, and export dual-panel BEV telemetry HUD:
+
+```powershell
+uv run nearfield360 tenant audit --output outputs/tenant_audit.json --png outputs/tenant_hud.png
 ```
 
 
