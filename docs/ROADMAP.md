@@ -107,3 +107,211 @@ Deliver an end-to-end Cloud Fleet Coordination, V2X Facility Dispatch, and Multi
    - [x] 8.1 `docs: update README with Phase 25 fleet coordination capabilities and CLI usage`
    - [x] 8.2 `docs(progress): document completed Phase 25 milestone, Decision Log, and verification gates`
    - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+
+---
+
+## Phase 26: Autonomous EV Charging Dispatch, Power Grid Management & Robot/Automated Bay Scheduling
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Autonomous EV Charging Dispatch, Facility Grid Power Management, and Automated Charging Bay Scheduling subsystem for NearField360. Building on Phase 24's HD Vector Mapping and Phase 25's Cloud Fleet Coordination, Phase 26 empowers smart AVP facilities to autonomously schedule electric vehicles (EVs) for charging sessions, model dynamic battery state-of-charge (SoC) profiles, respect facility transformer power limits through peak-shaving and dynamic load balancing, orchestrate multi-phase parking (regular bay → charging bay → relocation to staging bay upon target SoC), and simulate automated robotic arm / conductive underbody charging hardware.
+
+### 2. Scope
+
+- **Configuration (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `ChargingConfig` specifying total facility grid power capacity (`facility_grid_power_kw`), peak-shaving threshold (`peak_shaving_threshold_ratio`), charger station default specs (Level 2 AC vs DC Fast), default target SoC (`default_target_soc`), critical low SoC threshold (`critical_soc_threshold`), idle penalty tariff (`idle_penalty_per_min`), and robotic plug docking dwell time (`plug_dock_dwell_s`).
+- **Domain Models & Charging Protocol (`src/nearfield360/charging/models.py`)**:
+  - `ChargerType` (`AC_LEVEL_2`, `DC_FAST_50KW`, `DC_FAST_150KW`, `ROBOTIC_UNDERBODY_PDU`).
+  - `ChargerPortStatus` (`AVAILABLE`, `OCCUPIED_CHARGING`, `OCCUPIED_COMPLETE_WAITING_RELOCATION`, `OUT_OF_SERVICE`).
+  - `ChargerBay`: ID, slot ID reference, charger type, max power rating (kW), current power deliverable (kW), hardware status, efficiency rating ($0.0 - 1.0$).
+  - `EVBatteryState`: Vehicle ID, battery capacity (kWh), current SoC ($0.0 - 1.0$), max acceptance rate (kW), target SoC, degradation factor.
+  - `ChargingSession`: Session ID, vehicle ID, charger bay ID, start timestamp, completion timestamp, energy delivered (kWh), peak power (kW), status (`PENDING_DOCKING`, `ACTIVE_CHARGING`, `TOPPING_OFF`, `COMPLETED`, `IDLE_OVERSTAY`), estimated time to target SoC (ETA).
+  - `FacilityPowerSummary`: Total capacity, instantaneous draw, available headroom, active sessions count, throttled sessions count, load factor.
+  - `ChargingDispatchReport`: Full telemetry report of all bays, sessions, grid load, and relocation queues.
+- **Dynamic Power Balancer & Peak Shaving Engine (`src/nearfield360/charging/grid.py`)**:
+  - `GridPowerManager`: Real-time allocation of power across active charging sessions ensuring the instantaneous aggregate draw never exceeds `facility_grid_power_kw`. Proportional and priority-weighted curtailment (e.g. low SoC vehicles receive higher power shares during grid peak demand).
+- **EV Charging Scheduler & Relocation Queue Manager (`src/nearfield360/charging/scheduler.py`)**:
+  - `ChargingScheduler`: Prioritizes charging queue based on arrival urgency, current SoC, departure deadlines, and charger hardware compatibility.
+  - Generates multi-phase AVP missions: dispatching vehicle to a charging bay, monitoring charge completion, and triggering automated relocation dispatches to free the charging bay for the next vehicle once target SoC is reached.
+- **Automated Charging Hardware Simulation (`src/nearfield360/charging/hardware.py`)**:
+  - Simulates non-linear CC/CV (Constant Current / Constant Voltage) battery charging curves, robotic plug mating/unmating sequences, connector safety handshakes, and fault protection.
+- **BEV Charging Facility Visualizer & Telemetry Dashboard (`src/nearfield360/charging/viz.py`)**:
+  - Dual-panel BEV layout rendering: left panel shows facility map with highlighted charging bays (color-coded by charger status: green=available, amber=charging, cyan=completed/relocating, red=faulted), active cable/plug lines to vehicle footprints, SoC gauge badges; right panel displays real-time grid power consumption curves, capacity limit line, individual vehicle SoC progress bars, and queue status.
+- **CLI Command Group (`nearfield360 charging`) & Release Audit (`src/nearfield360/cli/charging.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info` (inspect facility charging stations and power capacity), `schedule` (schedule vehicles for charging sessions), `simulate` (step multi-vehicle charging simulation with dynamic power throttling), and `grid` (inspect grid power status).
+  - Register `charging` CLI command group in `app.py` and update release audit expected count from 17 to 18 groups.
+- **Pipeline Runner Integration (`src/nearfield360/cli/pipeline.py`)**:
+  - Support `--charging` flag on `nearfield360 pipeline run` to integrate charging session telemetry into the multi-camera perception pipeline report.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, power balancer, scheduling & relocation queue, hardware simulation, visualization, CLI, and pipeline integration.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `ChargingConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for charger bays, battery states, charging sessions, and grid summaries | `uv run pytest tests/unit/charging/test_charging_models.py` |
+| AC-3 | `GridPowerManager` enforces peak shaving and dynamically balances power across sessions without exceeding grid limit | `uv run pytest tests/unit/charging/test_grid.py` |
+| AC-4 | `ChargingScheduler` prioritizes queue, assigns bays, and issues relocation dispatches upon reaching target SoC | `uv run pytest tests/unit/charging/test_scheduler.py` |
+| AC-5 | Charging hardware simulator models CC/CV charging curves and robotic connector docking dwell | `uv run pytest tests/unit/charging/test_hardware.py` |
+| AC-6 | Dual-panel BEV visualizer renders charging bays, vehicle SoC badges, and grid power telemetry HUD to valid PNG | `uv run pytest tests/unit/charging/test_charging_viz.py` |
+| AC-7 | Dedicated CLI command group `nearfield360 charging` executes `info`, `schedule`, `simulate`, and `grid` | `uv run pytest tests/unit/test_charging_cli.py` |
+| AC-8 | Root CLI registers `charging` command group, passing release audit with 18 groups | `uv run nearfield360 release audit` |
+| AC-9 | Surround pipeline runner integrates `--charging` option and exports charging telemetry in report | `uv run pytest tests/unit/test_pipeline_charging.py` |
+| AC-10 | Full test suite passes with zero failures, clean `mypy`, clean `ruff`, and successful build | `uv run pytest`, `uv run mypy`, `uv run ruff check .`, `uv build` |
+
+### 4. Validation Plan
+
+1. Unit tests covering config, models, grid power manager, scheduler, hardware, viz, CLI, and pipeline.
+2. CLI integration tests verifying `nearfield360 charging schedule`, `charging simulate`, `charging grid` with JSON/PNG outputs.
+3. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit: `uv run nearfield360 release audit`.
+5. Full test suite: `uv run pytest -q`.
+
+### 5. Exclusions
+
+- High-voltage physical electrical wiring diagrams and inverter hardware firmware flashing.
+- ISO 15118 TLS certificate cryptographic chain verification with external cloud payment clearinghouses.
+- Three-phase AC waveform harmonics and reactive power (kVAR) modeling (active power kW modeled).
+
+### 6. Task List & Micro-Commit Plan
+
+1. **Task 1: Roadmap & Charging Config Foundation**
+   - [x] 1.1 `docs: establish Phase 26 EV charging dispatch and power management roadmap`
+   - [x] 1.2 `feat(config): add ChargingConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for ChargingConfig validation and environment overrides`
+2. **Task 2: Charging Domain Models & Session Protocols**
+   - [x] 2.1 `feat(charging): implement charger bays, battery state, and charging session models`
+   - [x] 2.2 `feat(charging): implement facility power summary and dispatch report models`
+   - [x] 2.3 `test(charging): verify charging domain models, serialization, and validation`
+3. **Task 3: Grid Power Manager & Dynamic Load Balancing**
+   - [x] 3.1 `feat(charging): implement grid power manager with dynamic load balancing and peak shaving`
+   - [x] 3.2 `test(charging): verify power curtailment, priority allocation, and grid limit compliance`
+4. **Task 4: EV Charging Scheduler & Relocation Queue Manager**
+   - [x] 4.1 `feat(charging): implement charging queue scheduler with priority scoring and bay allocation`
+   - [x] 4.2 `feat(charging): implement charge completion monitoring and relocation queue generation`
+   - [x] 4.3 `test(charging): verify scheduling fairness, bay assignments, and relocation triggers`
+5. **Task 5: Charging Hardware & Non-Linear CC/CV Battery Simulation**
+   - [x] 5.1 `feat(charging): implement non-linear CC/CV battery curve and robotic docking simulation`
+   - [x] 5.2 `test(charging): verify battery charging curves, docking dwell, and energy calculations`
+6. **Task 6: BEV Charging Visualizer & Telemetry Dashboard**
+   - [x] 6.1 `feat(charging): implement BEV charging layout rendering with SoC badges and cable connections`
+   - [x] 6.2 `feat(charging): implement grid power curve and vehicle SoC progress telemetry charts`
+   - [x] 6.3 `test(charging): verify charging visualizer exports valid PNG artifacts`
+7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
+   - [x] 7.1 `feat(charging): export public charging API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 charging command group (info, schedule, simulate, grid)`
+   - [x] 7.3 `feat(cli): register charging CLI group and update release audit expected count to 18`
+   - [x] 7.4 `feat(pipeline): integrate --charging options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify charging CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline charging integration workflow`
+8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
+   - [x] 8.1 `docs: update README with Phase 26 EV charging dispatch capabilities and CLI usage`
+   - [x] 8.2 `docs(progress): document completed Phase 26 milestone, Decision Log, and verification gates`
+   - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+
+---
+
+## Phase 27: Autonomous Valet Parking Smart Billing, Dynamic Tariffs & Cryptographic Session Receipts
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Autonomous Valet Parking Smart Billing, Dynamic Tariffs, and Cryptographically Signed Session Receipts subsystem for NearField360. Building on Phase 24's HD Vector Mapping, Phase 25's Cloud Fleet Coordination, and Phase 26's EV Charging Dispatch, Phase 27 provides facilities with automated parking fee calculation, dynamic demand tariffs (congestion pricing and peak-hour multipliers), multi-component billing (parking dwell time, EV energy consumed, charging idle overstay fines, and priority valet premium fees), cryptographic SHA-256 HMAC session receipt signing for tamper-evident auditing, and exportable financial settlement reports.
+
+### 2. Scope
+
+- **Configuration (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `BillingConfig` specifying base parking hourly rate (`base_hourly_rate`), peak-hour congestion multiplier (`peak_multiplier`), energy tariff per kWh (`kwh_tariff`), charging idle overstay penalty per minute (`idle_overstay_per_min`), valet service flat fee (`valet_service_fee`), free grace period in minutes (`grace_period_minutes`), and receipt HMAC secret key (`receipt_hmac_secret`).
+- **Domain Models & Billing Protocol (`src/nearfield360/billing/models.py`)**:
+  - `TariffTier` (`STANDARD`, `PEAK_CONGESTION`, `EV_PREMIUM`, `OVERNIGHT_DISCOUNT`).
+  - `PaymentStatus` (`PENDING`, `SETTLED`, `WAIVED`, `DISPUTED`).
+  - `BillingItem`: Line item description, category (`PARKING_TIME`, `EV_ENERGY`, `IDLE_OVERSTAY`, `VALET_SERVICE`), quantity, unit price, total amount.
+  - `ParkingReceipt`: Receipt ID, vehicle ID, entry timestamp, exit timestamp, duration minutes, itemized charges list, subtotal, tax, total charged, tariff tier, payment status, cryptographic HMAC signature, and verification digest.
+  - `FinancialSettlementReport`: Total revenue, parking revenue, energy revenue, penalty revenue, transactions count, average session dwell, and settlement timestamp.
+- **Dynamic Tariff & Pricing Engine (`src/nearfield360/billing/tariffs.py`)**:
+  - `TariffEngine`: Calculates dynamic hourly rate based on facility occupancy load factor (dynamic congestion pricing) and time-of-day multipliers. Applies grace period deductions (sessions shorter than grace period incur zero parking charge).
+- **Billing Calculator & Session Auditor (`src/nearfield360/billing/calculator.py`)**:
+  - `BillingCalculator`: Combines parking dwell durations, EV energy delivered, and charger overstay dwell to compute itemized line items.
+  - Generates verifiable `ParkingReceipt` with cryptographic SHA-256 HMAC signature using facility secret key.
+  - `ReceiptVerifier`: Validates receipt integrity and detects tampering or forged billing amounts.
+- **Financial Settlement & Facility Revenue Reporter (`src/nearfield360/billing/settlement.py`)**:
+  - Aggregates multi-session receipts into `FinancialSettlementReport`.
+  - Calculates occupancy-revenue correlation, average revenue per bay, and EV charging gross profit.
+- **BEV Billing & Revenue Visualizer (`src/nearfield360/billing/viz.py`)**:
+  - Dual-panel BEV layout rendering: left panel shows facility map with bays color-coded by revenue generation status and active billing badges; right panel displays revenue breakdown chart (parking vs energy vs penalty), tariff curve, and financial KPI summary.
+- **CLI Command Group (`nearfield360 billing`) & Release Audit (`src/nearfield360/cli/billing.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info` (inspect active tariff schedule and pricing policies), `calculate` (compute bill for completed session), `receipt` (generate signed receipt and verify cryptographic signature), `settle` (generate facility settlement report).
+  - Register `billing` CLI command group in `app.py` and update release audit expected count from 18 to 19 groups.
+- **Pipeline Runner Integration (`src/nearfield360/cli/pipeline.py`)**:
+  - Support `--billing` flag on `nearfield360 pipeline run` to integrate billing calculations and receipt generation into perception pipeline summary.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, tariff engine, billing calculator, cryptographic receipt verification, settlement aggregator, visualizer, CLI, and pipeline integration.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `BillingConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for billing items, parking receipts, tariff tiers, and settlement reports | `uv run pytest tests/unit/billing/test_billing_models.py` |
+| AC-3 | `TariffEngine` calculates dynamic pricing based on occupancy load and enforces grace period rules | `uv run pytest tests/unit/billing/test_tariffs.py` |
+| AC-4 | `BillingCalculator` computes itemized parking, EV charging, and overstay charges accurately | `uv run pytest tests/unit/billing/test_calculator.py` |
+| AC-5 | Cryptographic SHA-256 HMAC receipt signing and verification detects tampered receipt payloads | `uv run pytest tests/unit/billing/test_receipt_crypto.py` |
+| AC-6 | `SettlementAggregator` generates comprehensive financial reports with revenue breakdown | `uv run pytest tests/unit/billing/test_settlement.py` |
+| AC-7 | Dual-panel BEV visualizer renders facility revenue map and financial telemetry charts to PNG | `uv run pytest tests/unit/billing/test_billing_viz.py` |
+| AC-8 | Dedicated CLI command group `nearfield360 billing` executes `info`, `calculate`, `receipt`, and `settle` | `uv run pytest tests/unit/test_billing_cli.py` |
+| AC-9 | Root CLI registers `billing` command group, passing release audit with 19 groups | `uv run nearfield360 release audit` |
+| AC-10 | Surround pipeline runner integrates `--billing` option and exports billing telemetry in report | `uv run pytest tests/unit/test_pipeline_billing.py` |
+| AC-11 | Full test suite passes with zero failures, clean `mypy`, clean `ruff`, and successful build | `uv run pytest`, `uv run mypy`, `uv run ruff check .`, `uv build` |
+
+### 4. Validation Plan
+
+1. Unit tests covering config, models, tariffs, calculator, crypto verification, settlement, viz, CLI, and pipeline.
+2. CLI integration tests verifying `nearfield360 billing calculate`, `billing receipt`, `billing settle` with JSON/PNG outputs.
+3. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit: `uv run nearfield360 release audit`.
+5. Full test suite: `uv run pytest -q`.
+
+### 5. Exclusions
+
+- Integration with external bank clearinghouses, payment gateways (Stripe/PayPal), or credit card PCI-DSS terminal hardware.
+- Real-time tax authority online fiscal register submission protocols.
+- Cash collection / coin vault mechatronics.
+
+### 6. Task List & Micro-Commit Plan
+
+1. **Task 1: Roadmap & Billing Config Foundation**
+   - [x] 1.1 `docs: establish Phase 27 AVP smart billing and cryptographic receipts roadmap`
+   - [x] 1.2 `feat(config): add BillingConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for BillingConfig validation and environment overrides`
+2. **Task 2: Billing Domain Models & Protocol Schemas**
+   - [x] 2.1 `feat(billing): implement tariff tiers, billing items, and receipt models`
+   - [x] 2.2 `feat(billing): implement financial settlement report models`
+   - [x] 2.3 `test(billing): verify billing domain models, serialization, and validation`
+3. **Task 3: Dynamic Tariff Engine & Congestion Pricing**
+   - [x] 3.1 `feat(billing): implement dynamic tariff engine with occupancy load multipliers and grace period`
+   - [x] 3.2 `test(billing): verify dynamic pricing tiers, peak multipliers, and grace period deduction`
+4. **Task 4: Billing Calculator & Cryptographic Receipt Signing**
+   - [x] 4.1 `feat(billing): implement itemized billing calculator for dwell, energy, and overstay fines`
+   - [x] 4.2 `feat(billing): implement cryptographic SHA-256 HMAC receipt signing and verification`
+   - [x] 4.3 `test(billing): verify billing calculation accuracy, HMAC signature generation, and tamper detection`
+5. **Task 5: Financial Settlement Aggregator**
+   - [x] 5.1 `feat(billing): implement financial settlement aggregator and revenue metrics calculator`
+   - [x] 5.2 `test(billing): verify settlement aggregation, revenue categorization, and KPIs`
+6. **Task 6: BEV Billing Visualizer & Telemetry Dashboard**
+   - [ ] 6.1 `feat(billing): implement BEV revenue map and bay billing badge visualizer`
+   - [ ] 6.2 `feat(billing): implement financial breakdown telemetry charts and KPI rendering`
+   - [ ] 6.3 `test(billing): verify billing visualizer exports valid PNG artifacts`
+7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
+   - [ ] 7.1 `feat(billing): export public billing API from package init`
+   - [ ] 7.2 `feat(cli): implement nearfield360 billing command group (info, calculate, receipt, settle)`
+   - [ ] 7.3 `feat(cli): register billing CLI group and update release audit expected count to 19`
+   - [ ] 7.4 `feat(pipeline): integrate --billing options into surround pipeline runner`
+   - [ ] 7.5 `test(cli): verify billing CLI commands, JSON payloads, and visual outputs`
+   - [ ] 7.6 `test(pipeline): verify pipeline billing integration workflow`
+8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
+   - [ ] 8.1 `docs: update README with Phase 27 smart billing capabilities and CLI usage`
+   - [ ] 8.2 `docs(progress): document completed Phase 27 milestone, Decision Log, and verification gates`
+   - [ ] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+
+
+

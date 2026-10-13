@@ -1601,4 +1601,97 @@ Phase 25 establishes a comprehensive cloud-edge fleet coordination, V2X facility
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (17 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
 
+---
+
+## Phase 26: Autonomous EV Charging Dispatch, Power Grid Management & Robot/Automated Bay Scheduling
+
+**Status:** Completed  
+**Repository Branch:** `phase/ev-charging-dispatch-scheduling`  
+**Test Suite:** 1141 passed, 5 skipped (0 failures)  
+**Type Checking:** `mypy --strict` clean (128 source files)  
+**Linting & Style:** `ruff check` and `ruff format` clean (244 files)  
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
+**Release Audit:** Passed (18 registered CLI command groups)  
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 26 delivers an end-to-end Autonomous EV Charging Dispatch, Power Grid Management, and Automated Bay Scheduling subsystem for NearField360. Building upon Phase 24's HD Vector Mapping and Phase 25's Cloud Fleet Coordination, Phase 26 enables smart AVP facilities to coordinate electric vehicle charging sessions, enforce transformer peak-shaving limits via active load balancing, model non-linear Constant Current / Constant Voltage (CC/CV) lithium-ion charging curves, and orchestrate automated relocation dispatches to free up charging bays once target State-of-Charge (SoC) is reached:
+
+1. **Configuration (`ChargingConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Facility transformer grid capacity (`facility_grid_power_kw`), peak-shaving threshold ratio (`peak_shaving_threshold_ratio`), default target SoC (`default_target_soc`), critical low SoC threshold (`critical_soc_threshold`), idle penalty tariff (`idle_penalty_per_min`), robotic plug docking dwell time (`plug_dock_dwell_s`), default charger power (`default_charger_power_kw`), and minimum curtailment allocation (`min_power_allocation_kw`).
+2. **EV Charging & Grid Domain Models (`src/nearfield360/charging/models.py`):**
+   - Strictly validated Pydantic v2 schemas: `ChargerType`, `ChargerPortStatus`, `ChargingSessionStatus`, `ChargerBay`, `EVBatteryState`, `ChargingSession`, `RelocationOrder`, `FacilityPowerSummary`, and `ChargingDispatchReport`.
+3. **Dynamic Power Balancer & Peak Shaving Engine (`GridPowerManager` in `src/nearfield360/charging/grid.py`):**
+   - Real-time allocation of electrical power across active charging sessions guaranteeing aggregate load stays within `facility_grid_power_kw`, with priority weighting boosting critically depleted batteries during curtailment.
+4. **EV Charging Queue Scheduler & Relocation Manager (`ChargingScheduler` in `src/nearfield360/charging/scheduler.py`):**
+   - Priority scoring based on critical battery depletion, SoC deficit, and waiting time; bay assignment; completion monitoring; and automated generation of `RelocationOrder` dispatches to staging bays.
+5. **Charging Hardware & Non-Linear CC/CV Simulator (`ChargingHardwareSimulator` in `src/nearfield360/charging/hardware.py`):**
+   - Models robotic connector docking dwell delays, charger efficiency losses, Constant Current (CC) full power acceptance below 80% SoC, and Constant Voltage (CV) exponential tapering above 80% SoC.
+6. **BEV Charging Dashboard (`render_charging_dashboard` in `src/nearfield360/charging/viz.py`):**
+   - Dual-panel BEV facility visualization highlighting color-coded charging bays, vehicle SoC badges, grid utilization progress bars, and active session telemetry.
+7. **CLI Command Group & Surround Pipeline Integration:**
+   - Dedicated CLI command group: `nearfield360 charging` (`info`, `grid`, `schedule`, `simulate`).
+   - Release audit updated and verified for 18 CLI command groups.
+   - Four-camera surround pipeline runner integration via `nearfield360 pipeline run --charging`.
+
+---
+
+### 2. Delivered Components
+
+| Component | Location |
+| --- | --- |
+| Charging configuration (`ChargingConfig`) | `src/nearfield360/config.py`, `configs/default.yaml` |
+| Charging domain models (`ChargerBay`, `EVBatteryState`, `ChargingSession`, etc.) | `src/nearfield360/charging/models.py` |
+| Grid power manager (`GridPowerManager`) | `src/nearfield360/charging/grid.py` |
+| EV charging scheduler (`ChargingScheduler`, `ChargingRequest`) | `src/nearfield360/charging/scheduler.py` |
+| Hardware & CC/CV simulator (`ChargingHardwareSimulator`) | `src/nearfield360/charging/hardware.py` |
+| BEV charging visualizer (`render_charging_dashboard`) | `src/nearfield360/charging/viz.py` |
+| Charging package API exports | `src/nearfield360/charging/__init__.py` |
+| CLI command group (`nearfield360 charging`) | `src/nearfield360/cli/charging.py` |
+| CLI app registration & release audit (`expected_groups` updated to 18) | `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py` |
+| Surround pipeline integration (`pipeline run --charging`) | `src/nearfield360/cli/pipeline.py` |
+| Charging config unit tests | `tests/unit/test_config.py` (4 tests for charging) |
+| Charging models unit tests | `tests/unit/charging/test_charging_models.py` (5 tests) |
+| Grid power manager unit tests | `tests/unit/charging/test_grid.py` (3 tests) |
+| Charging scheduler unit tests | `tests/unit/charging/test_scheduler.py` (2 tests) |
+| Hardware & CC/CV unit tests | `tests/unit/charging/test_hardware.py` (3 tests) |
+| Charging visualizer unit tests | `tests/unit/charging/test_charging_viz.py` (1 test) |
+| Charging CLI integration tests | `tests/unit/test_charging_cli.py` (4 tests) |
+| Pipeline charging integration tests | `tests/unit/test_pipeline_charging.py` (1 test) |
+
+---
+
+### 3. Decision Log
+
+1. **Decision**: Mutable `ChargingSession` (`frozen=False`) vs. Frozen `ChargerBay` & `EVBatteryState`  
+   - *Alternatives Considered*: Making `ChargingSession` immutable and returning new session instances at every simulation step.  
+   - *Rationale & Evidence*: In line with `ConflictPoint` in `nearfield360.fleet.models`, discrete-time simulation steps update `current_soc`, `energy_delivered_kwh`, `allocated_power_kw`, and `status` in place across active sessions while keeping static facility specifications immutable.
+2. **Decision**: Non-Linear Exponential CC/CV Tapering Above 80% SoC  
+   - *Alternatives Considered*: Linear constant-power charging from 0% to 100% SoC.  
+   - *Rationale & Evidence*: Real-world lithium-ion EV batteries transition from Constant Current (CC) to Constant Voltage (CV) around 80% SoC to prevent cell plating and over-voltage. Modeling exponential decay $P(\text{SoC}) = P_{\max}\exp(-k(\text{SoC}-0.80))$ accurately reflects topping-off behavior and grid load release.
+3. **Decision**: Priority-Weighted Power Curtailment in `GridPowerManager`  
+   - *Alternatives Considered*: Equal flat division of grid power across all active chargers during peak demand.  
+   - *Rationale & Evidence*: Vehicles below `critical_soc_threshold` (20%) require urgent energy replenishment. Weighting power shares by $(1 - \text{SoC})$ plus a critical boost ensures depleted vehicles charge faster while still strictly respecting `facility_grid_power_kw`.
+4. **Decision**: Increment Expected CLI Group Count from 17 to 18 in Release Audit  
+   - *Alternatives Considered*: Exempting new command groups from `release.py`.  
+   - *Rationale & Evidence*: `nearfield360 release audit` enforces strict surface verification across all registered Typer subcommands.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1141 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors in 244 files |
+| Strict Typing | `uv run mypy` | 0 errors in 128 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (18 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
+
+
 

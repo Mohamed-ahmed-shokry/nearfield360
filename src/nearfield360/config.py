@@ -372,6 +372,36 @@ class FleetConfig(BaseModel):
     packet_loss_rate: float = Field(default=0.02, ge=0.0, le=1.0, allow_inf_nan=False)
 
 
+class ChargingConfig(BaseModel):
+    """Parameters for autonomous EV charging dispatch, power grid balancing, and scheduling."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    facility_grid_power_kw: float = Field(default=250.0, gt=0.0, allow_inf_nan=False)
+    peak_shaving_threshold_ratio: float = Field(default=0.90, gt=0.0, le=1.0, allow_inf_nan=False)
+    default_target_soc: float = Field(default=0.80, gt=0.0, le=1.0, allow_inf_nan=False)
+    critical_soc_threshold: float = Field(default=0.20, ge=0.0, le=1.0, allow_inf_nan=False)
+    idle_penalty_per_min: float = Field(default=0.50, ge=0.0, allow_inf_nan=False)
+    plug_dock_dwell_s: float = Field(default=15.0, gt=0.0, allow_inf_nan=False)
+    default_charger_power_kw: float = Field(default=50.0, gt=0.0, allow_inf_nan=False)
+    min_power_allocation_kw: float = Field(default=7.0, gt=0.0, allow_inf_nan=False)
+
+
+class BillingConfig(BaseModel):
+    """Parameters for autonomous valet parking billing, dynamic tariffs, and receipt signing."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    base_hourly_rate: float = Field(default=5.0, ge=0.0, allow_inf_nan=False)
+    peak_multiplier: float = Field(default=1.5, ge=1.0, allow_inf_nan=False)
+    kwh_tariff: float = Field(default=0.35, ge=0.0, allow_inf_nan=False)
+    idle_overstay_per_min: float = Field(default=0.50, ge=0.0, allow_inf_nan=False)
+    valet_service_fee: float = Field(default=10.0, ge=0.0, allow_inf_nan=False)
+    grace_period_minutes: float = Field(default=15.0, ge=0.0, allow_inf_nan=False)
+    tax_rate: float = Field(default=0.08, ge=0.0, le=1.0, allow_inf_nan=False)
+    receipt_hmac_secret: str = Field(default="nearfield360-facility-hmac-secret-key-2026", min_length=8)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -406,6 +436,8 @@ class ProjectConfig(BaseSettings):
     mission: MissionConfig = Field(default_factory=MissionConfig)
     mapping: MappingConfig = Field(default_factory=MappingConfig)
     fleet: FleetConfig = Field(default_factory=FleetConfig)
+    charging: ChargingConfig = Field(default_factory=ChargingConfig)
+    billing: BillingConfig = Field(default_factory=BillingConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -452,7 +484,9 @@ def load_config(path: Path | None = None) -> ProjectConfig:
 __all__ = [
     "MAX_CONFIG_BYTES",
     "BevConfig",
+    "BillingConfig",
     "CameraHealthConfig",
+    "ChargingConfig",
     "ConfigurationError",
     "FleetConfig",
     "GeometryConfig",

@@ -573,6 +573,13 @@ def run_pipeline(
             help="Number of simulated fleet vehicles under coordination when --fleet is enabled.",
         ),
     ] = 2,
+    charging: Annotated[
+        bool,
+        typer.Option(
+            "--charging/--no-charging",
+            help="Simulate autonomous EV charging dispatch, grid power balancing, and sessions.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -905,6 +912,86 @@ def run_pipeline(
         fleet_payload = flt_report.model_dump(mode="json")
         timings["fleet_ms"] = (time.perf_counter() - fleet_stage_start) * 1000.0
 
+    charging_payload: dict[str, Any] | None = None
+    if charging:
+        charging_stage_start = time.perf_counter()
+        from nearfield360.charging.grid import GridPowerManager
+        from nearfield360.charging.hardware import ChargingHardwareSimulator
+        from nearfield360.charging.models import (
+            ChargerBay,
+            ChargerPortStatus,
+            ChargerType,
+            ChargingDispatchReport,
+            EVBatteryState,
+        )
+        from nearfield360.charging.scheduler import ChargingRequest, ChargingScheduler
+
+        if map_file is not None:
+            c_map_data = read_json(map_file)
+            c_map = FacilityMap.model_validate(c_map_data)
+        else:
+            c_map = build_benchmark_garage()
+
+        c_bays = [
+            ChargerBay(
+                bay_id=f"BAY_{idx + 1:02d}",
+                slot_id=slot.slot_id,
+                charger_type=ChargerType.DC_FAST_150KW if idx == 0 else ChargerType.DC_FAST_50KW,
+                max_power_rating_kw=150.0 if idx == 0 else 50.0,
+                status=ChargerPortStatus.AVAILABLE,
+            )
+            for idx, slot in enumerate(c_map.slots[:2])
+        ]
+        c_scheduler = ChargingScheduler(config=config.charging, facility_map=c_map)
+        c_scheduler.register_charger_bays(c_bays)
+        c_grid = GridPowerManager(config=config.charging, facility_id=c_map.map_id)
+        c_hw = ChargingHardwareSimulator()
+
+        c_bats: dict[str, EVBatteryState] = {}
+        for ci in range(2):
+            c_vid = f"EV_{ci + 1:02d}"
+            c_soc = 0.20 + (ci * 0.25)
+            c_bats[c_vid] = EVBatteryState(
+                vehicle_id=c_vid,
+                current_soc=c_soc,
+                target_soc=config.charging.default_target_soc,
+            )
+            c_scheduler.enqueue_request(
+                ChargingRequest(
+                    vehicle_id=c_vid,
+                    arrival_time_s=0.0,
+                    current_soc=c_soc,
+                    target_soc=config.charging.default_target_soc,
+                )
+            )
+
+        c_scheduler.schedule_assignments(current_time_s=0.0)
+        for _ in range(10):
+            act_s = c_scheduler.active_sessions
+            act_b = [c_bats[s.vehicle_id] for s in act_s if s.vehicle_id in c_bats]
+            c_grid.balance_power(act_s, c_bays, act_b)
+            c_hw.step_facility(act_s, act_b, c_bays, dt_s=60.0)
+
+        c_final_s = c_scheduler.active_sessions
+        c_final_b = [c_bats[s.vehicle_id] for s in c_final_s if s.vehicle_id in c_bats]
+        c_power = c_grid.balance_power(c_final_s, c_bays, c_final_b)
+
+        c_report = ChargingDispatchReport(
+            facility_id=c_map.map_id,
+            timestamp_s=600.0,
+            power_summary=c_power,
+            total_bays=len(c_bays),
+            available_bays=sum(1 for b in c_bays if b.status == ChargerPortStatus.AVAILABLE),
+            occupied_charging_bays=sum(
+                1 for b in c_bays if b.status == ChargerPortStatus.OCCUPIED_CHARGING
+            ),
+            waiting_relocation_bays=0,
+            active_sessions=c_final_s,
+            pending_queue_count=len(c_scheduler.queue),
+        )
+        charging_payload = c_report.model_dump(mode="json")
+        timings["charging_ms"] = (time.perf_counter() - charging_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -926,6 +1013,10 @@ def run_pipeline(
         samples_payload["mission"] = True
     if map_file is not None or target_slot is not None:
         samples_payload["map"] = True
+    if fleet:
+        samples_payload["fleet"] = True
+    if charging:
+        samples_payload["charging"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -993,6 +1084,8 @@ def run_pipeline(
         payload["map"] = map_payload
     if fleet_payload is not None:
         payload["fleet"] = fleet_payload
+    if charging_payload is not None:
+        payload["charging"] = charging_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
