@@ -401,12 +401,12 @@ Deliver an end-to-end Multi-Tenant Facility Partitioning, Fleet Operator SLA Man
    - [x] 6.2 `feat(tenant): implement quota utilization gauges and SLA telemetry HUD`
    - [x] 6.3 `test(tenant): verify tenant visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 7.1 `feat(tenant): export public tenant API from package init`
-   - [ ] 7.2 `feat(cli): implement nearfield360 tenant command group (info, partition, corridor, audit)`
-   - [ ] 7.3 `feat(cli): register tenant CLI group and update release audit expected count to 20`
-   - [ ] 7.4 `feat(pipeline): integrate --tenant options into surround pipeline runner`
-   - [ ] 7.5 `test(cli): verify tenant CLI commands, JSON payloads, and visual outputs`
-   - [ ] 7.6 `test(pipeline): verify pipeline tenant integration workflow`
+   - [x] 7.1 `feat(tenant): export public tenant API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 tenant command group (info, partition, corridor, audit)`
+   - [x] 7.3 `feat(cli): register tenant CLI group and update release audit expected count to 20`
+   - [x] 7.4 `feat(pipeline): integrate --tenant options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify tenant CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline tenant integration workflow`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 8.1 `docs: update README with Phase 28 multi-tenant partitioning capabilities and CLI usage`
    - [ ] 8.2 `docs(progress): document completed Phase 28 milestone, Decision Log, and verification gates`
