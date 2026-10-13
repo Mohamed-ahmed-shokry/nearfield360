@@ -284,9 +284,9 @@ Deliver an end-to-end Autonomous Valet Parking Smart Billing, Dynamic Tariffs, a
    - [x] 1.2 `feat(config): add BillingConfig and update default yaml configuration`
    - [x] 1.3 `test(config): add unit tests for BillingConfig validation and environment overrides`
 2. **Task 2: Billing Domain Models & Protocol Schemas**
-   - [ ] 2.1 `feat(billing): implement tariff tiers, billing items, and receipt models`
-   - [ ] 2.2 `feat(billing): implement financial settlement report models`
-   - [ ] 2.3 `test(billing): verify billing domain models, serialization, and validation`
+   - [x] 2.1 `feat(billing): implement tariff tiers, billing items, and receipt models`
+   - [x] 2.2 `feat(billing): implement financial settlement report models`
+   - [x] 2.3 `test(billing): verify billing domain models, serialization, and validation`
 3. **Task 3: Dynamic Tariff Engine & Congestion Pricing**
    - [ ] 3.1 `feat(billing): implement dynamic tariff engine with occupancy load multipliers and grace period`
    - [ ] 3.2 `test(billing): verify dynamic pricing tiers, peak multipliers, and grace period deduction`
