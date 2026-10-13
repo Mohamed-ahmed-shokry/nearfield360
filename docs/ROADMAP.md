@@ -380,9 +380,9 @@ Deliver an end-to-end Multi-Tenant Facility Partitioning, Fleet Operator SLA Man
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Tenant Config Foundation**
-   - [ ] 1.1 `docs: establish Phase 28 multi-tenant partitioning and SLA corridors roadmap`
-   - [ ] 1.2 `feat(config): add TenantConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for TenantConfig validation and environment overrides`
+   - [x] 1.1 `docs: establish Phase 28 multi-tenant partitioning and SLA corridors roadmap`
+   - [x] 1.2 `feat(config): add TenantConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for TenantConfig validation and environment overrides`
 2. **Task 2: Tenant Domain Models & Partition Schemas**
    - [ ] 2.1 `feat(tenant): implement tenant partitions, SLA contracts, and corridor models`
    - [ ] 2.2 `feat(tenant): implement tenant partition summary and audit report models`
