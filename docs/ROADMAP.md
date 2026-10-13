@@ -280,9 +280,9 @@ Deliver an end-to-end Autonomous Valet Parking Smart Billing, Dynamic Tariffs, a
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Billing Config Foundation**
-   - [ ] 1.1 `docs: establish Phase 27 AVP smart billing and cryptographic receipts roadmap`
-   - [ ] 1.2 `feat(config): add BillingConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for BillingConfig validation and environment overrides`
+   - [x] 1.1 `docs: establish Phase 27 AVP smart billing and cryptographic receipts roadmap`
+   - [x] 1.2 `feat(config): add BillingConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for BillingConfig validation and environment overrides`
 2. **Task 2: Billing Domain Models & Protocol Schemas**
    - [ ] 2.1 `feat(billing): implement tariff tiers, billing items, and receipt models`
    - [ ] 2.2 `feat(billing): implement financial settlement report models`
