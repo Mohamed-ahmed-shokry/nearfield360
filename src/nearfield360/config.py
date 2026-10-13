@@ -399,7 +399,9 @@ class BillingConfig(BaseModel):
     valet_service_fee: float = Field(default=10.0, ge=0.0, allow_inf_nan=False)
     grace_period_minutes: float = Field(default=15.0, ge=0.0, allow_inf_nan=False)
     tax_rate: float = Field(default=0.08, ge=0.0, le=1.0, allow_inf_nan=False)
-    receipt_hmac_secret: str = Field(default="nearfield360-facility-hmac-secret-key-2026", min_length=8)
+    receipt_hmac_secret: str = Field(
+        default="nearfield360-facility-hmac-secret-key-2026", min_length=8
+    )
 
 
 class ProjectConfig(BaseSettings):

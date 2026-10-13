@@ -210,9 +210,7 @@ def billing_receipt(
         return
 
     if is_valid:
-        typer.echo(
-            f"[PASS] Receipt {receipt.receipt_id} signature is cryptographically valid."
-        )
+        typer.echo(f"[PASS] Receipt {receipt.receipt_id} signature is cryptographically valid.")
     else:
         typer.echo(
             f"[FAIL] Receipt {receipt.receipt_id} signature verification FAILED!",
