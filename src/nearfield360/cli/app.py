@@ -31,6 +31,7 @@ from nearfield360.cli.release import release_app
 from nearfield360.cli.robustness import robustness_app
 from nearfield360.cli.slots import slots_app
 from nearfield360.cli.state import CliState, get_state
+from nearfield360.cli.tenant import tenant_app
 from nearfield360.cli.tracking import track_app
 from nearfield360.config import ConfigurationError, LoggingConfig, ProjectConfig, load_config
 from nearfield360.logging import configure_logging
@@ -71,6 +72,7 @@ app.add_typer(plan_app, name="plan")
 app.add_typer(release_app, name="release")
 app.add_typer(robustness_app, name="robustness")
 app.add_typer(slots_app, name="slots")
+app.add_typer(tenant_app, name="tenant")
 app.add_typer(track_app, name="track")
 
 
