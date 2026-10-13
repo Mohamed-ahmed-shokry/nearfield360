@@ -388,8 +388,8 @@ Deliver an end-to-end Multi-Tenant Facility Partitioning, Fleet Operator SLA Man
    - [x] 2.2 `feat(tenant): implement tenant partition summary and audit report models`
    - [x] 2.3 `test(tenant): verify tenant domain models, serialization, and validation`
 3. **Task 3: Tenant Partitioning & Quota Enforcement Engine**
-   - [ ] 3.1 `feat(tenant): implement tenant partition manager with quota enforcement and access control`
-   - [ ] 3.2 `test(tenant): verify partition slot allocation, quota limits, and access rejection`
+   - [x] 3.1 `feat(tenant): implement tenant partition manager with quota enforcement and access control`
+   - [x] 3.2 `test(tenant): verify partition slot allocation, quota limits, and access rejection`
 4. **Task 4: Fleet Operator SLA Monitor & Breach Auditor**
    - [ ] 4.1 `feat(tenant): implement SLA monitor with dispatch latency tracking and penalty calculation`
    - [ ] 4.2 `test(tenant): verify SLA compliance scoring, latency measurements, and breach penalties`
