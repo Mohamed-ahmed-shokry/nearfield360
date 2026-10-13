@@ -298,9 +298,9 @@ Deliver an end-to-end Autonomous Valet Parking Smart Billing, Dynamic Tariffs, a
    - [x] 5.1 `feat(billing): implement financial settlement aggregator and revenue metrics calculator`
    - [x] 5.2 `test(billing): verify settlement aggregation, revenue categorization, and KPIs`
 6. **Task 6: BEV Billing Visualizer & Telemetry Dashboard**
-   - [ ] 6.1 `feat(billing): implement BEV revenue map and bay billing badge visualizer`
-   - [ ] 6.2 `feat(billing): implement financial breakdown telemetry charts and KPI rendering`
-   - [ ] 6.3 `test(billing): verify billing visualizer exports valid PNG artifacts`
+   - [x] 6.1 `feat(billing): implement BEV revenue map and bay billing badge visualizer`
+   - [x] 6.2 `feat(billing): implement financial breakdown telemetry charts and KPI rendering`
+   - [x] 6.3 `test(billing): verify billing visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
    - [ ] 7.1 `feat(billing): export public billing API from package init`
    - [ ] 7.2 `feat(cli): implement nearfield360 billing command group (info, calculate, receipt, settle)`
