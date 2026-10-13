@@ -302,12 +302,12 @@ Deliver an end-to-end Autonomous Valet Parking Smart Billing, Dynamic Tariffs, a
    - [x] 6.2 `feat(billing): implement financial breakdown telemetry charts and KPI rendering`
    - [x] 6.3 `test(billing): verify billing visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 7.1 `feat(billing): export public billing API from package init`
-   - [ ] 7.2 `feat(cli): implement nearfield360 billing command group (info, calculate, receipt, settle)`
-   - [ ] 7.3 `feat(cli): register billing CLI group and update release audit expected count to 19`
-   - [ ] 7.4 `feat(pipeline): integrate --billing options into surround pipeline runner`
-   - [ ] 7.5 `test(cli): verify billing CLI commands, JSON payloads, and visual outputs`
-   - [ ] 7.6 `test(pipeline): verify pipeline billing integration workflow`
+   - [x] 7.1 `feat(billing): export public billing API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 billing command group (info, calculate, receipt, settle)`
+   - [x] 7.3 `feat(cli): register billing CLI group and update release audit expected count to 19`
+   - [x] 7.4 `feat(pipeline): integrate --billing options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify billing CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline billing integration workflow`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 8.1 `docs: update README with Phase 27 smart billing capabilities and CLI usage`
    - [ ] 8.2 `docs(progress): document completed Phase 27 milestone, Decision Log, and verification gates`
