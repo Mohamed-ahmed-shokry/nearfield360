@@ -384,9 +384,9 @@ Deliver an end-to-end Multi-Tenant Facility Partitioning, Fleet Operator SLA Man
    - [x] 1.2 `feat(config): add TenantConfig and update default yaml configuration`
    - [x] 1.3 `test(config): add unit tests for TenantConfig validation and environment overrides`
 2. **Task 2: Tenant Domain Models & Partition Schemas**
-   - [ ] 2.1 `feat(tenant): implement tenant partitions, SLA contracts, and corridor models`
-   - [ ] 2.2 `feat(tenant): implement tenant partition summary and audit report models`
-   - [ ] 2.3 `test(tenant): verify tenant domain models, serialization, and validation`
+   - [x] 2.1 `feat(tenant): implement tenant partitions, SLA contracts, and corridor models`
+   - [x] 2.2 `feat(tenant): implement tenant partition summary and audit report models`
+   - [x] 2.3 `test(tenant): verify tenant domain models, serialization, and validation`
 3. **Task 3: Tenant Partitioning & Quota Enforcement Engine**
    - [ ] 3.1 `feat(tenant): implement tenant partition manager with quota enforcement and access control`
    - [ ] 3.2 `test(tenant): verify partition slot allocation, quota limits, and access rejection`
