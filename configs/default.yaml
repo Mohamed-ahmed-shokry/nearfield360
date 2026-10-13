@@ -188,6 +188,16 @@ charging:
   plug_dock_dwell_s: 15.0
   default_charger_power_kw: 50.0
   min_power_allocation_kw: 7.0
+billing:
+  base_hourly_rate: 5.0
+  peak_multiplier: 1.5
+  kwh_tariff: 0.35
+  idle_overstay_per_min: 0.50
+  valet_service_fee: 10.0
+  grace_period_minutes: 15.0
+  tax_rate: 0.08
+  receipt_hmac_secret: "nearfield360-facility-hmac-secret-key-2026"
+
 
 
 

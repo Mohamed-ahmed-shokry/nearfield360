@@ -387,6 +387,21 @@ class ChargingConfig(BaseModel):
     min_power_allocation_kw: float = Field(default=7.0, gt=0.0, allow_inf_nan=False)
 
 
+class BillingConfig(BaseModel):
+    """Parameters for autonomous valet parking billing, dynamic tariffs, and receipt signing."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    base_hourly_rate: float = Field(default=5.0, ge=0.0, allow_inf_nan=False)
+    peak_multiplier: float = Field(default=1.5, ge=1.0, allow_inf_nan=False)
+    kwh_tariff: float = Field(default=0.35, ge=0.0, allow_inf_nan=False)
+    idle_overstay_per_min: float = Field(default=0.50, ge=0.0, allow_inf_nan=False)
+    valet_service_fee: float = Field(default=10.0, ge=0.0, allow_inf_nan=False)
+    grace_period_minutes: float = Field(default=15.0, ge=0.0, allow_inf_nan=False)
+    tax_rate: float = Field(default=0.08, ge=0.0, le=1.0, allow_inf_nan=False)
+    receipt_hmac_secret: str = Field(default="nearfield360-facility-hmac-secret-key-2026", min_length=8)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -422,6 +437,7 @@ class ProjectConfig(BaseSettings):
     mapping: MappingConfig = Field(default_factory=MappingConfig)
     fleet: FleetConfig = Field(default_factory=FleetConfig)
     charging: ChargingConfig = Field(default_factory=ChargingConfig)
+    billing: BillingConfig = Field(default_factory=BillingConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -468,6 +484,7 @@ def load_config(path: Path | None = None) -> ProjectConfig:
 __all__ = [
     "MAX_CONFIG_BYTES",
     "BevConfig",
+    "BillingConfig",
     "CameraHealthConfig",
     "ChargingConfig",
     "ConfigurationError",
