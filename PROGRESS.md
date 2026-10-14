@@ -1878,8 +1878,8 @@ Phase 28 delivers an end-to-end Multi-Tenant Facility Partitioning, Fleet Operat
 
 **Status:** Completed  
 **Repository Branch:** `phase/curbside-dropoff-staging-pedestrian-safety`  
-**Test Suite:** 1208 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy` clean (145 source files)  
+**Test Suite:** 1219 passed, 5 skipped (0 failures)  
+**Type Checking:** `mypy` clean (148 source files)  
 **Linting & Style:** `ruff check` and `ruff format` clean  
 **Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
 **Release Audit:** Passed (21 registered CLI command groups)  
@@ -1950,11 +1950,11 @@ Phase 29 delivers an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwel
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Unit Tests | `uv run pytest -q` | 1208 passed, 5 skipped (0 failures) |
+| Unit Tests | `uv run pytest -q` | 1219 passed, 5 skipped (0 failures) |
 | Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
 | Static Analysis | `uv run ruff check .` | 0 errors |
 | Code Formatting | `uv run ruff format --check .` | 0 errors |
-| Strict Typing | `uv run mypy` | 0 errors in 145 source files |
+| Strict Typing | `uv run mypy` | 0 errors in 148 source files |
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (21 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
