@@ -482,9 +482,9 @@ Deliver an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwell Manageme
    - [x] 1.2 `feat(config): add CurbsideConfig and update default yaml configuration`
    - [x] 1.3 `test(config): add unit tests for CurbsideConfig validation and environment overrides`
 2. **Task 2: Curbside Domain Models & Handover Schemas**
-   - [ ] 2.1 `feat(curbside): implement curbside bays, missions, pedestrian, and interlock models`
-   - [ ] 2.2 `feat(curbside): implement curbside audit report models`
-   - [ ] 2.3 `test(curbside): verify curbside domain models, serialization, and validation`
+   - [x] 2.1 `feat(curbside): implement curbside bays, missions, pedestrian, and interlock models`
+   - [x] 2.2 `feat(curbside): implement curbside audit report models`
+   - [x] 2.3 `test(curbside): verify curbside domain models, serialization, and validation`
 3. **Task 3: Pedestrian Safety Interlock Engine**
    - [ ] 3.1 `feat(curbside): implement pedestrian safety interlock engine with clearance debounce`
    - [ ] 3.2 `test(curbside): verify interlock inhibition on door/trunk open and pedestrian proximity`
