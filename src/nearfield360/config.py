@@ -430,6 +430,35 @@ class CurbsideConfig(BaseModel):
     overstay_penalty_per_min: float = Field(default=1.50, ge=0.0, allow_inf_nan=False)
 
 
+class TeleopConfig(BaseModel):
+    """Parameters for remote teleoperation assistance, video fallback, and emergency MRM."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    heartbeat_timeout_s: float = Field(default=1.5, gt=0.0, allow_inf_nan=False)
+    max_rtt_ms: float = Field(default=150.0, gt=0.0, allow_inf_nan=False)
+    critical_rtt_ms: float = Field(default=350.0, gt=0.0, allow_inf_nan=False)
+    video_target_fps: float = Field(default=20.0, gt=0.0, le=60.0, allow_inf_nan=False)
+    video_fallback_fps: float = Field(default=5.0, gt=0.0, le=60.0, allow_inf_nan=False)
+    mrm_deceleration_mps2: float = Field(default=2.0, gt=0.0, allow_inf_nan=False)
+    safe_stop_standstill_speed_mps: float = Field(default=0.05, ge=0.0, allow_inf_nan=False)
+    auto_mrm_on_heartbeat_loss: bool = True
+
+    @model_validator(mode="after")
+    def validate_teleop_parameters(self) -> Self:
+        if self.video_fallback_fps > self.video_target_fps:
+            raise ValueError(
+                f"video_fallback_fps ({self.video_fallback_fps}) cannot exceed "
+                f"video_target_fps ({self.video_target_fps})"
+            )
+        if self.max_rtt_ms >= self.critical_rtt_ms:
+            raise ValueError(
+                f"max_rtt_ms ({self.max_rtt_ms}) must be strictly less than "
+                f"critical_rtt_ms ({self.critical_rtt_ms})"
+            )
+        return self
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -468,6 +497,7 @@ class ProjectConfig(BaseSettings):
     billing: BillingConfig = Field(default_factory=BillingConfig)
     tenant: TenantConfig = Field(default_factory=TenantConfig)
     curbside: CurbsideConfig = Field(default_factory=CurbsideConfig)
+    teleop: TeleopConfig = Field(default_factory=TeleopConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -518,6 +548,7 @@ __all__ = [
     "CameraHealthConfig",
     "ChargingConfig",
     "ConfigurationError",
+    "CurbsideConfig",
     "FleetConfig",
     "GeometryConfig",
     "InferenceConfig",
@@ -534,6 +565,7 @@ __all__ = [
     "RiskConfig",
     "RobustnessConfig",
     "RuntimeConfig",
+    "TeleopConfig",
     "TenantConfig",
     "TrackingConfig",
     "load_config",
