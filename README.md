@@ -41,6 +41,7 @@ the corresponding experiments have run.
 | Autonomous EV charging dispatch & facility grid balancing | Implemented | Real-time transformer peak shaving, dynamic load balancing, non-linear CC/CV curves, automated relocation queuing, `nearfield360 charging`, and pipeline integration (`pipeline run --charging`) |
 | AVP smart billing, dynamic tariffs & cryptographic receipts | Implemented | Occupancy-based congestion pricing, multi-component itemized billing, grace periods, HMAC-SHA256 receipt signing/verification, `nearfield360 billing`, and pipeline integration (`pipeline run --billing`) |
 | Multi-tenant facility partitioning, SLA management & VIP express corridors | Implemented | Dedicated operator bay partitions, quota enforcement, dispatch latency SLA compliance & breach penalty auditing, VIP express corridor reservation & right-of-way preemption, `nearfield360 tenant`, and surround pipeline integration (`pipeline run --tenant`) |
+| Curbside drop-off/pick-up staging, dwell management & pedestrian safety interlocks | Implemented | Dedicated curbside staging bays, passenger egress/ingress dwell tracking, ISO 23374 Type 2 handover zone, safety interlocks inhibiting motion on open doors/trunks or pedestrian proximity, overstay tariff penalties, BEV safety circle visualization, `nearfield360 curbside`, and surround pipeline integration (`pipeline run --curbside`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -823,6 +824,33 @@ Audit facility multi-tenant partitions, evaluate SLA compliance, and export dual
 
 ```powershell
 uv run nearfield360 tenant audit --output outputs/tenant_audit.json --png outputs/tenant_hud.png
+```
+
+### Curbside Drop-off/Pick-up Staging & Pedestrian Safety Interlocks (ISO 23374 AVP Type 2)
+
+Inspect curbside configuration, dwell limits, and safety interlock debounce settings:
+
+```powershell
+uv run nearfield360 curbside info
+uv run nearfield360 curbside info --json
+```
+
+Simulate curbside drop-off handover execution, passenger egress, and autonomous handover:
+
+```powershell
+uv run nearfield360 curbside dropoff --vehicle-id veh-avp-01 --dwell 60.0 --output outputs/dropoff.json --png outputs/dropoff_map.png
+```
+
+Simulate curbside summon request, passenger boarding, and safety interlock inhibition if doors open or pedestrian detected in critical zone:
+
+```powershell
+uv run nearfield360 curbside summon --vehicle-id veh-vip-02 --pedestrian-distance 3.5 --output outputs/summon.json --png outputs/summon_map.png
+```
+
+Audit facility curbside staging bays, evaluate dwell durations, and export dual-panel BEV telemetry HUD:
+
+```powershell
+uv run nearfield360 curbside audit --output outputs/curbside_audit.json --png outputs/curbside_hud.png
 ```
 
 

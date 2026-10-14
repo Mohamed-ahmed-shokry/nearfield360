@@ -1871,6 +1871,93 @@ Phase 28 delivers an end-to-end Multi-Tenant Facility Partitioning, Fleet Operat
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (20 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
+
+---
+
+## Phase 29: Curbside Drop-off/Pick-up Staging, Dwell Management & Pedestrian Safety Interlocks
+
+**Status:** Completed  
+**Repository Branch:** `phase/curbside-dropoff-staging-pedestrian-safety`  
+**Test Suite:** 1219 passed, 5 skipped (0 failures)  
+**Type Checking:** `mypy` clean (148 source files)  
+**Linting & Style:** `ruff check` and `ruff format` clean  
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
+**Release Audit:** Passed (21 registered CLI command groups)  
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 29 delivers an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwell Management, and Pedestrian Safety Interlock subsystem for NearField360. Building on Phase 24's HD Vector Mapping, Phase 25's Fleet Coordination, Phase 26's Charging Dispatch, Phase 27's Smart Billing, and Phase 28's Multi-Tenant Partitioning, Phase 29 implements the critical Human-Machine Interface Handover Zone (ISO 23374 AVP Type 2). The system manages dedicated curbside drop-off and pick-up staging bays, tracks driver/passenger egress and ingress, enforces safety interlocks that inhibit autonomous motion while doors/trunks are open or pedestrians are detected in the active clearance envelope, optimizes curbside dwell times, queues vehicles awaiting available pick-up bays, and visualizes curbside telemetry and safety interlock statuses:
+
+1. **Configuration (`CurbsideConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Configurable max drop-off dwell time (`max_dropoff_dwell_s`), max pick-up dwell time (`max_pickup_dwell_s`), pedestrian critical safety radius (`pedestrian_safety_radius_m`), interlock clearance hold debounce duration (`interlock_clearance_hold_s`), curbside staging bays capacity (`staging_capacity`), and overstay penalty tariff (`overstay_penalty_per_min`).
+2. **Domain Models & Handover Schemas (`src/nearfield360/curbside/models.py`):**
+   - Pydantic v2 frozen models: `HandoverType` (`DROPOFF`, `PICKUP`), `BayStatus` (`VACANT`, `OCCUPIED_UNLOADING`, `OCCUPIED_BOARDING`, `HANDOVER_READY`, `CLEARING`), `SafetyInterlockStatus` (`ENGAGED_DOOR_OPEN`, `ENGAGED_PEDESTRIAN_PROXIMITY`, `ENGAGED_TRUNK_OPEN`, `DISENGAGED_CLEAR`), `CurbsideBay`, `CurbsideMission`, `PedestrianDetection`, and `CurbsideReport`.
+3. **Pedestrian Safety Interlock Engine (`SafetyInterlockEngine` in `src/nearfield360/curbside/safety.py`):**
+   - Latch and sensor monitoring (door, trunk, pedestrian proximity).
+   - Enforces motion inhibition (`is_motion_permitted == False`) when doors or trunk are open, or when pedestrians are detected within `pedestrian_safety_radius_m`.
+   - Debounce clearance hold logic: requires uninterrupted clearance for `interlock_clearance_hold_s` before transitioning to `DISENGAGED_CLEAR`.
+4. **Curbside Staging & Dwell Queue Manager (`CurbsideManager` in `src/nearfield360/curbside/manager.py`):**
+   - Staging bay allocation, drop-off completion, passenger summon request queueing, dwell duration tracking, and overstay tariff penalty calculations.
+5. **BEV Curbside & Safety HUD Visualizer (`render_curbside_dashboard` in `src/nearfield360/curbside/viz.py`):**
+   - Dual-panel BEV layout rendering facility layout, dedicated curbside staging bays, vehicle footprints, safety envelope circles around vehicles (green=clear, red=interlocked), pedestrian positions, and right-panel queue status and safety KPIs.
+6. **CLI Command Group & Four-Camera Pipeline Integration (`src/nearfield360/cli/curbside.py`, `src/nearfield360/cli/pipeline.py`):**
+   - CLI command group `nearfield360 curbside` with `info`, `dropoff`, `summon`, and `audit` subcommands.
+   - Updated release audit expected group count from 20 to 21.
+   - Integrated `--curbside` flag into `nearfield360 pipeline run`.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- `src/nearfield360/config.py`: Added `CurbsideConfig` with validation rules.
+- `configs/default.yaml`: Added `curbside` default parameters.
+- `src/nearfield360/curbside/models.py`: Pydantic models for bays, missions, pedestrian detections, interlocks, and audit reports.
+- `src/nearfield360/curbside/safety.py`: Pedestrian safety interlock engine with temporal debounce clearance.
+- `src/nearfield360/curbside/manager.py`: Curbside staging bay and dwell queue manager.
+- `src/nearfield360/curbside/viz.py`: Dual-panel BEV visualization of curbside handover zones and safety envelope HUD.
+- `src/nearfield360/curbside/__init__.py`: Package exports for all public curbside components.
+- `src/nearfield360/cli/curbside.py`: Full Typer CLI command group `nearfield360 curbside`.
+- `src/nearfield360/cli/app.py`: Registered `curbside_app` in root CLI.
+- `src/nearfield360/cli/release.py`: Added `curbside` to audited CLI command groups (now 21).
+- `src/nearfield360/cli/pipeline.py`: Added `--curbside` option, stage execution, samples payload, and output report fields.
+- `tests/unit/test_config.py`: Tests for `CurbsideConfig`.
+- `tests/unit/curbside/test_curbside_models.py`: Serialization and validation unit tests.
+- `tests/unit/curbside/test_safety.py`: Pedestrian safety interlock unit tests.
+- `tests/unit/curbside/test_manager.py`: Curbside staging manager and dwell penalty tests.
+- `tests/unit/curbside/test_viz.py`: Visualizer PNG generation tests.
+- `tests/unit/test_curbside_cli.py`: Curbside CLI unit tests with JSON and PNG assertions.
+- `tests/unit/test_pipeline_curbside.py`: Surround pipeline `--curbside` integration tests.
+
+---
+
+### 3. Decision Log
+
+1. **Decision**: Explicit Temporal Debounce Hold Before Disengaging Safety Interlocks  
+   - *Alternatives Considered*: Immediate disengagement as soon as a pedestrian steps outside the critical radius.  
+   - *Rationale & Evidence*: In real-world curbside environments, pedestrians often hesitate, turn back for luggage, or oscillate near vehicle boundaries. ISO 23374 requires a mandatory debounce hold duration (default 3.0 s) after clearance before autonomous motion can resume.
+2. **Decision**: Dual Egress/Ingress Dwell Timers and Minute-Rate Overstay Penalties  
+   - *Alternatives Considered*: Single static dwell timer for all handover events.  
+   - *Rationale & Evidence*: Passenger drop-off egress is significantly faster (default 120 s) than summon boarding (default 180 s), where passengers locate the vehicle and load luggage. Differentiated dwell limits optimize facility curbside throughput while fairly penalizing excessive overstays.
+3. **Decision**: Increment Expected CLI Group Count from 20 to 21 in Release Audit  
+   - *Alternatives Considered*: Excluding `curbside` from release readiness checks.  
+   - *Rationale & Evidence*: Every functional subsystem CLI command group must be verified by `nearfield360 release audit` to maintain 100% command availability.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1219 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 148 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (21 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
  |
 
 

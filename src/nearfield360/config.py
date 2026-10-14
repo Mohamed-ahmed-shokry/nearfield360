@@ -417,6 +417,19 @@ class TenantConfig(BaseModel):
     max_tenant_partitions: int = Field(default=8, ge=1, le=64)
 
 
+class CurbsideConfig(BaseModel):
+    """Parameters for curbside drop-off/pick-up staging, dwell, and pedestrian safety interlocks."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    max_dropoff_dwell_s: float = Field(default=120.0, gt=0.0, allow_inf_nan=False)
+    max_pickup_dwell_s: float = Field(default=180.0, gt=0.0, allow_inf_nan=False)
+    pedestrian_safety_radius_m: float = Field(default=2.0, gt=0.0, allow_inf_nan=False)
+    interlock_clearance_hold_s: float = Field(default=3.0, gt=0.0, allow_inf_nan=False)
+    staging_capacity: int = Field(default=4, ge=1, le=32)
+    overstay_penalty_per_min: float = Field(default=1.50, ge=0.0, allow_inf_nan=False)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -454,6 +467,7 @@ class ProjectConfig(BaseSettings):
     charging: ChargingConfig = Field(default_factory=ChargingConfig)
     billing: BillingConfig = Field(default_factory=BillingConfig)
     tenant: TenantConfig = Field(default_factory=TenantConfig)
+    curbside: CurbsideConfig = Field(default_factory=CurbsideConfig)
 
     @classmethod
     def settings_customise_sources(

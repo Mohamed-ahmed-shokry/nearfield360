@@ -412,6 +412,101 @@ Deliver an end-to-end Multi-Tenant Facility Partitioning, Fleet Operator SLA Man
    - [x] 8.2 `docs(progress): document completed Phase 28 milestone, Decision Log, and verification gates`
    - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
 
+---
+
+## Phase 29: Curbside Drop-off/Pick-up Staging, Dwell Management & Pedestrian Safety Interlocks
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwell Management, and Pedestrian Safety Interlock subsystem for NearField360. Building on Phase 24's HD Vector Mapping, Phase 25's Fleet Coordination, Phase 26's Charging Dispatch, Phase 27's Smart Billing, and Phase 28's Multi-Tenant Partitioning, Phase 29 implements the critical Human-Machine Interface Handover Zone (ISO 23374 AVP Type 2). The system manages dedicated curbside drop-off and pick-up staging bays, tracks driver/passenger egress and ingress, enforces safety interlocks that inhibit autonomous motion while doors/trunks are open or pedestrians are detected in the active clearance envelope, optimizes curbside dwell times, queues vehicles awaiting available pick-up bays, and visualizes curbside telemetry and safety interlock statuses.
+
+### 2. Scope
+
+- **Configuration (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `CurbsideConfig` specifying max drop-off dwell time (`max_dropoff_dwell_s`), max pick-up boarding dwell time (`max_pickup_dwell_s`), pedestrian critical safety radius (`pedestrian_safety_radius_m`), interlock clearance hold debounce duration (`interlock_clearance_hold_s`), curbside staging bays capacity (`staging_capacity`), and overstay penalty tariff (`overstay_penalty_per_min`).
+- **Domain Models & Handover Schemas (`src/nearfield360/curbside/models.py`)**:
+  - `HandoverType`: Enum representing `DROPOFF` and `PICKUP`.
+  - `BayStatus`: Enum representing `VACANT`, `OCCUPIED_UNLOADING`, `OCCUPIED_BOARDING`, `HANDOVER_READY`, and `CLEARING`.
+  - `SafetyInterlockStatus`: Enum representing `ENGAGED_DOOR_OPEN`, `ENGAGED_PEDESTRIAN_PROXIMITY`, `ENGAGED_TRUNK_OPEN`, and `DISENGAGED_CLEAR`.
+  - `CurbsideBay`: ID, bay type, status, occupied vehicle ID, occupancy start timestamp, current interlock state.
+  - `CurbsideMission`: Mission ID, vehicle ID, handover type, assigned bay ID, requested at, completed at, dwell seconds, interlock events count, overstay penalty.
+  - `PedestrianDetection`: ID, distance_m, relative_bearing_rad, in_critical_zone: bool.
+  - `CurbsideReport`: Comprehensive facility curbside handover audit report.
+- **Pedestrian Safety Interlock Engine (`src/nearfield360/curbside/safety.py`)**:
+  - `SafetyInterlockEngine`: Enforces safety invariants inhibiting vehicle motion (`is_motion_permitted == False`) when doors/trunks are unlatched or pedestrians encroach within `pedestrian_safety_radius_m`.
+  - Implements temporal debounce clearance holding ensuring uninterrupted clearance for `interlock_clearance_hold_s` before disengaging interlocks.
+- **Curbside Staging & Dwell Queue Manager (`src/nearfield360/curbside/manager.py`)**:
+  - `CurbsideManager`: Coordinates arrival staging, drop-off handover lifecycle, passenger pick-up summon queue, bay assignment, and overstay penalty calculations.
+- **BEV Curbside & Safety HUD Visualizer (`src/nearfield360/curbside/viz.py`)**:
+  - Dual-panel BEV layout rendering curbside staging bays, vehicle footprints, highlighted pedestrian safety envelope circles (green=clear, red=interlocked), passenger ingress/egress markers, and right-panel curbside queue and safety HUD.
+- **CLI Command Group (`nearfield360 curbside`) & Release Audit (`src/nearfield360/cli/curbside.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info` (inspect curbside thresholds and bay capacity), `dropoff` (simulate vehicle arrival, passenger egress, and autonomous handover), `summon` (simulate summon request, pick-up bay dispatch, boarding, and departure), and `audit` (facility curbside performance audit).
+  - Register `curbside` in `app.py` and update release audit expected count from 20 to 21 groups.
+- **Pipeline Runner Integration (`src/nearfield360/cli/pipeline.py`)**:
+  - Support `--curbside` flag on `nearfield360 pipeline run` to integrate curbside handover telemetry into the surround perception report.
+- **Comprehensive Verification Suite**:
+  - Unit and integration tests covering curbside config, models, safety interlock engine, curbside manager, visualizer, CLI, and pipeline runner.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `CurbsideConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for curbside bays, missions, pedestrian detections, and audit reports | `uv run pytest tests/unit/curbside/test_curbside_models.py` |
+| AC-3 | `SafetyInterlockEngine` inhibits motion when doors/trunks open or pedestrians encroach, requiring clearance hold | `uv run pytest tests/unit/curbside/test_safety.py` |
+| AC-4 | `CurbsideManager` allocates staging bays, handles drop-off/pick-up lifecycle, and calculates dwell overstay | `uv run pytest tests/unit/curbside/test_manager.py` |
+| AC-5 | Dual-panel BEV visualizer renders curbside bays, safety circles, and queue HUD to PNG | `uv run pytest tests/unit/curbside/test_curbside_viz.py` |
+| AC-6 | Dedicated CLI command group `nearfield360 curbside` executes `info`, `dropoff`, `summon`, and `audit` | `uv run pytest tests/unit/test_curbside_cli.py` |
+| AC-7 | Root CLI registers `curbside` command group, passing release audit with 21 groups | `uv run nearfield360 release audit` |
+| AC-8 | Surround pipeline runner integrates `--curbside` option and exports curbside telemetry in report | `uv run pytest tests/unit/test_pipeline_curbside.py` |
+| AC-9 | Full test suite passes with zero failures, clean `mypy`, clean `ruff`, and successful build | `uv run pytest`, `uv run mypy`, `uv run ruff check .`, `uv build` |
+
+### 4. Validation Plan
+
+1. Unit tests covering config, models, safety interlock engine, curbside manager, viz, CLI, and pipeline.
+2. CLI integration tests verifying `nearfield360 curbside dropoff`, `curbside summon`, `curbside audit` with JSON/PNG outputs.
+3. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit: `uv run nearfield360 release audit`.
+5. Full test suite: `uv run pytest -q`.
+
+### 5. Exclusions
+
+- High-voltage overhead robotic pantograph charging inside curbside passenger bays.
+- Automated passenger luggage conveyor belt weighing integration.
+- Public road municipal traffic ticketing integration.
+
+### 6. Task List & Micro-Commit Plan
+
+1. **Task 1: Roadmap & Curbside Config Foundation**
+   - [x] 1.1 `docs: establish Phase 29 curbside staging and pedestrian safety interlocks roadmap`
+   - [x] 1.2 `feat(config): add CurbsideConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for CurbsideConfig validation and environment overrides`
+2. **Task 2: Curbside Domain Models & Handover Schemas**
+   - [x] 2.1 `feat(curbside): implement curbside bays, missions, pedestrian, and interlock models`
+   - [x] 2.2 `feat(curbside): implement curbside audit report models`
+   - [x] 2.3 `test(curbside): verify curbside domain models, serialization, and validation`
+3. **Task 3: Pedestrian Safety Interlock Engine**
+   - [x] 3.1 `feat(curbside): implement pedestrian safety interlock engine with clearance debounce`
+   - [x] 3.2 `test(curbside): verify interlock inhibition on door/trunk open and pedestrian proximity`
+4. **Task 4: Curbside Staging & Dwell Queue Manager**
+   - [x] 4.1 `feat(curbside): implement curbside staging manager with dwell tracking and overstay penalties`
+   - [x] 4.2 `test(curbside): verify dropoff/pickup allocation, staging queue, and overstay calculation`
+5. **Task 5: BEV Curbside Staging & Safety HUD Visualizer**
+   - [x] 5.1 `feat(curbside): implement BEV curbside bay map, pedestrian safety circles, and queue HUD`
+   - [x] 5.2 `test(curbside): verify curbside visualizer exports valid PNG artifacts`
+6. **Task 6: Package Exports, CLI Command Group & Pipeline Integration**
+   - [x] 6.1 `feat(curbside): export public curbside API from package init`
+   - [x] 6.2 `feat(cli): implement nearfield360 curbside command group (info, dropoff, summon, audit)`
+   - [x] 6.3 `feat(cli): register curbside CLI group and update release audit expected count to 21`
+   - [x] 6.4 `feat(pipeline): integrate --curbside options into surround pipeline runner`
+   - [x] 6.5 `test(cli): verify curbside CLI commands, JSON payloads, and visual outputs`
+   - [x] 6.6 `test(pipeline): verify pipeline curbside integration workflow`
+7. **Task 7: End-to-End Documentation, Self-Review & Delivery**
+   - [x] 7.1 `docs: update README with Phase 29 curbside staging capabilities and CLI usage`
+   - [x] 7.2 `docs(progress): document completed Phase 29 milestone, Decision Log, and verification gates`
+   - [x] 7.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+
+
 
 
 

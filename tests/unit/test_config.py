@@ -730,3 +730,37 @@ def test_tenant_config_rejects_invalid_values(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 1"):
         load_config(config_path)
+
+
+def test_curbside_config_defaults() -> None:
+    config = load_config()
+
+    assert config.curbside.max_dropoff_dwell_s == 120.0
+    assert config.curbside.max_pickup_dwell_s == 180.0
+    assert config.curbside.pedestrian_safety_radius_m == 2.0
+    assert config.curbside.interlock_clearance_hold_s == 3.0
+    assert config.curbside.staging_capacity == 4
+    assert config.curbside.overstay_penalty_per_min == 1.50
+
+
+def test_curbside_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("curbside:\n  max_dropoff_dwell_s: 90.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_CURBSIDE__PEDESTRIAN_SAFETY_RADIUS_M", "2.5")
+    monkeypatch.setenv("NEARFIELD360_CURBSIDE__STAGING_CAPACITY", "6")
+
+    config = load_config(config_path)
+
+    assert config.curbside.max_dropoff_dwell_s == 90.0
+    assert config.curbside.pedestrian_safety_radius_m == 2.5
+    assert config.curbside.staging_capacity == 6
+
+
+def test_curbside_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("curbside:\n  staging_capacity: 0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 1"):
+        load_config(config_path)
