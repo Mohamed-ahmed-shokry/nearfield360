@@ -197,6 +197,14 @@ billing:
   grace_period_minutes: 15.0
   tax_rate: 0.08
   receipt_hmac_secret: "nearfield360-facility-hmac-secret-key-2026"
+tenant:
+  default_quota_ratio: 0.25
+  sla_max_dispatch_wait_s: 180.0
+  sla_breach_penalty_per_min: 2.50
+  vip_priority_multiplier: 2.0
+  express_preemption_buffer_s: 15.0
+  max_tenant_partitions: 8
+
 
 
 

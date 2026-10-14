@@ -587,6 +587,13 @@ def run_pipeline(
             help="Calculate itemized session billing and generate signed receipts.",
         ),
     ] = False,
+    tenant: Annotated[
+        bool,
+        typer.Option(
+            "--tenant/--no-tenant",
+            help="Enforce multi-tenant facility partitioning, SLA monitoring, and VIP corridors.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -1024,6 +1031,65 @@ def run_pipeline(
         billing_payload = b_report.model_dump(mode="json")
         timings["billing_ms"] = (time.perf_counter() - billing_stage_start) * 1000.0
 
+    tenant_payload: dict[str, Any] | None = None
+    if tenant:
+        tenant_stage_start = time.perf_counter()
+        from nearfield360.tenant.corridor import VIPCorridorManager
+        from nearfield360.tenant.manager import TenantManager
+        from nearfield360.tenant.models import (
+            TenantPartitionReport,
+            TenantSLAContract,
+            TenantTier,
+        )
+        from nearfield360.tenant.sla import SLAMonitor
+
+        t_facility = build_benchmark_garage()
+        t_mgr = TenantManager(facility_map=t_facility, config=config.tenant)
+        t_p1 = t_mgr.create_partition(
+            tenant_id="fleet-alpha",
+            tenant_name="Alpha Fleet",
+            tier=TenantTier.COMMERCIAL_FLEET,
+            slot_ids=[s.slot_id for s in t_facility.slots[:4]],
+            quota=4,
+        )
+        t_sla = TenantSLAContract(
+            contract_id="sla-alpha",
+            tenant_id="fleet-alpha",
+            max_dispatch_latency_s=config.tenant.sla_max_dispatch_wait_s,
+            breach_penalty_per_min=config.tenant.sla_breach_penalty_per_min,
+        )
+        t_sla_mon = SLAMonitor([t_sla])
+        t_sla_mon.record_dispatch(
+            "fleet-alpha", latency_s=config.tenant.sla_max_dispatch_wait_s * 0.9
+        )
+
+        t_corr_mgr = VIPCorridorManager()
+        t_lanes = (
+            [lane.lane_id for lane in t_facility.lanes[:1]] if t_facility.lanes else ["lane_1"]
+        )
+        t_corr_mgr.register_corridor("vip-express-1", t_lanes)
+        t_c1 = t_corr_mgr.reserve_corridor(
+            "vip-express-1",
+            vehicle_id="vip-fleet-01",
+            start_time_s=0.0,
+            duration_s=60.0,
+            priority_level=2,
+        )
+
+        t_report = TenantPartitionReport(
+            facility_id=t_facility.map_id,
+            timestamp_s=0.0,
+            total_slots_count=len(t_facility.slots),
+            total_partitions_count=len(t_mgr.partitions),
+            partitions=[t_p1],
+            sla_contracts=t_sla_mon.contracts,
+            express_corridors=[t_c1],
+            overall_sla_compliance=t_sla_mon.compute_overall_compliance(),
+            total_breach_penalties=t_sla_mon.compute_total_penalties(),
+        )
+        tenant_payload = t_report.model_dump(mode="json")
+        timings["tenant_ms"] = (time.perf_counter() - tenant_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1051,6 +1117,8 @@ def run_pipeline(
         samples_payload["charging"] = True
     if billing:
         samples_payload["billing"] = True
+    if tenant:
+        samples_payload["tenant"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1122,6 +1190,8 @@ def run_pipeline(
         payload["charging"] = charging_payload
     if billing_payload is not None:
         payload["billing"] = billing_payload
+    if tenant_payload is not None:
+        payload["tenant"] = tenant_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 

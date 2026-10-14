@@ -313,5 +313,105 @@ Deliver an end-to-end Autonomous Valet Parking Smart Billing, Dynamic Tariffs, a
    - [x] 8.2 `docs(progress): document completed Phase 27 milestone, Decision Log, and verification gates`
    - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
 
+---
+
+## Phase 28: Multi-Tenant Facility Partitioning, Fleet Operator SLA Management & Reserved VIP Corridor Access
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Multi-Tenant Facility Partitioning, Fleet Operator SLA Management, and Reserved VIP Corridor Access subsystem for NearField360. Building on Phase 24's HD Vector Mapping, Phase 25's Cloud Fleet Coordination, Phase 26's EV Charging Dispatch, and Phase 27's Smart Billing, Phase 28 enables autonomous valet parking garages to partition facilities into dedicated tenant zones (e.g. ride-hail fleets, car-sharing services, hotel guest VIPs, and public transient parkers). The system enforces operator quota allocations, monitors Service Level Agreements (SLAs: wait times, turnaround guarantees, breach penalties), and schedules exclusive VIP express corridors to grant prioritized vehicles right-of-way through congested facility bottlenecks.
+
+### 2. Scope
+
+- **Configuration (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `TenantConfig` specifying default tenant zone quota ratio (`default_quota_ratio`), SLA max dispatch wait time in seconds (`sla_max_dispatch_wait_s`), SLA breach penalty rate per minute (`sla_breach_penalty_per_min`), VIP priority weight multiplier (`vip_priority_multiplier`), express corridor preemption time buffer in seconds (`express_preemption_buffer_s`), and max concurrent tenant partitions (`max_tenant_partitions`).
+- **Domain Models & Multi-Tenant Protocol (`src/nearfield360/tenant/models.py`)**:
+  - `TenantTier` (`PUBLIC_TRANSIENT`, `COMMERCIAL_FLEET`, `CAR_SHARING`, `VIP_EXECUTIVE`).
+  - `AccessPermission` (`STANDARD_ACCESS`, `PRIORITY_ACCESS`, `RESTRICTED_ACCESS`, `EXCLUSIVE_VIP`).
+  - `TenantPartition`: Partition ID, tenant name, tier, assigned slot IDs, dedicated bay quota, current bay occupancy, active vehicle count, and access permissions.
+  - `TenantSLAContract`: Contract ID, tenant ID, max allowed dispatch latency seconds, target bay availability ratio, breach penalty rate, and breach count.
+  - `VIPExpressCorridor`: Corridor ID, designated lane IDs, active reservation vehicle ID, reservation start timestamp, reservation duration seconds, and preemption status.
+  - `TenantPartitionReport`: Summary of all partitions, quota utilization, SLA compliance rates, breach penalties, and active VIP corridors.
+- **Tenant Partitioning & Quota Enforcement Engine (`src/nearfield360/tenant/manager.py`)**:
+  - `TenantManager`: Allocates and validates slot assignments respecting tenant zone boundaries. Blocks unauthorized vehicles from entering restricted tenant partitions. Dynamically recalculates quota usage and triggers overflow policies.
+- **Fleet Operator SLA Monitor & Breach Auditor (`src/nearfield360/tenant/sla.py`)**:
+  - `SLAMonitor`: Tracks vehicle dispatch request-to-arrival dwell times. Evaluates SLA contract compliance and calculates monetary breach penalties incurred by the facility when wait thresholds are exceeded.
+- **VIP Express Corridor Reservation & Preemption Engine (`src/nearfield360/tenant/corridor.py`)**:
+  - `VIPCorridorManager`: Reserves dedicated express driving lanes for high-priority VIP/commercial vehicles. Issues virtual preemption hold tokens to standard fleet vehicles approaching designated corridor intersections, clearing the route before the VIP vehicle arrives.
+- **BEV Multi-Tenant Partition Visualizer (`src/nearfield360/tenant/viz.py`)**:
+  - Dual-panel BEV layout rendering: left panel shows facility map with parking bays color-coded by tenant partition (e.g., green=Public, blue=Ride-Hail Fleet, purple=Car-Sharing, gold=VIP Executive), with glowing express corridor routes; right panel displays tenant quota gauge charts, SLA compliance gauges, and active corridor reservations.
+- **CLI Command Group (`nearfield360 tenant`) & Release Audit (`src/nearfield360/cli/tenant.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info` (inspect tenant partitions, quotas, and SLAs), `partition` (configure/assign bays to a tenant), `corridor` (reserve/preempt an express corridor), `audit` (evaluate SLA compliance and generate tenant report).
+  - Register `tenant` CLI command group in `app.py` and update release audit expected count from 19 to 20 groups.
+- **Pipeline Runner Integration (`src/nearfield360/cli/pipeline.py`)**:
+  - Support `--tenant` flag on `nearfield360 pipeline run` to integrate tenant zone partition status and SLA metrics into perception pipeline summary.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, partition manager, SLA monitor, corridor preemption, visualizer, CLI, and pipeline integration.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `TenantConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for tenant partitions, SLA contracts, express corridors, and reports | `uv run pytest tests/unit/tenant/test_tenant_models.py` |
+| AC-3 | `TenantManager` partitions bays, enforces quota constraints, and restricts unauthorized access | `uv run pytest tests/unit/tenant/test_manager.py` |
+| AC-4 | `SLAMonitor` measures dispatch latency, tracks SLA compliance, and calculates breach penalties | `uv run pytest tests/unit/tenant/test_sla.py` |
+| AC-5 | `VIPCorridorManager` reserves express lanes and preempts standard traffic at conflict points | `uv run pytest tests/unit/tenant/test_corridor.py` |
+| AC-6 | Dual-panel BEV visualizer renders tenant partitions, VIP lanes, and SLA dashboard to PNG | `uv run pytest tests/unit/tenant/test_tenant_viz.py` |
+| AC-7 | Dedicated CLI command group `nearfield360 tenant` executes `info`, `partition`, `corridor`, and `audit` | `uv run pytest tests/unit/test_tenant_cli.py` |
+| AC-8 | Root CLI registers `tenant` command group, passing release audit with 20 groups | `uv run nearfield360 release audit` |
+| AC-9 | Surround pipeline runner integrates `--tenant` option and exports tenant telemetry in report | `uv run pytest tests/unit/test_pipeline_tenant.py` |
+| AC-10 | Full test suite passes with zero failures, clean `mypy`, clean `ruff`, and successful build | `uv run pytest`, `uv run mypy`, `uv run ruff check .`, `uv build` |
+
+### 4. Validation Plan
+
+1. Unit tests covering config, models, partition manager, SLA monitor, corridor manager, viz, CLI, and pipeline.
+2. CLI integration tests verifying `nearfield360 tenant partition`, `tenant corridor`, `tenant audit` with JSON/PNG outputs.
+3. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit: `uv run nearfield360 release audit`.
+5. Full test suite: `uv run pytest -q`.
+
+### 5. Exclusions
+
+- Multi-facility cross-city roaming federated identity management (SAML/OAuth2).
+- Integration with municipal Department of Transportation public traffic lights.
+- Biometric facial recognition at driver pickup lounge.
+
+### 6. Task List & Micro-Commit Plan
+
+1. **Task 1: Roadmap & Tenant Config Foundation**
+   - [x] 1.1 `docs: establish Phase 28 multi-tenant partitioning and SLA corridors roadmap`
+   - [x] 1.2 `feat(config): add TenantConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for TenantConfig validation and environment overrides`
+2. **Task 2: Tenant Domain Models & Partition Schemas**
+   - [x] 2.1 `feat(tenant): implement tenant partitions, SLA contracts, and corridor models`
+   - [x] 2.2 `feat(tenant): implement tenant partition summary and audit report models`
+   - [x] 2.3 `test(tenant): verify tenant domain models, serialization, and validation`
+3. **Task 3: Tenant Partitioning & Quota Enforcement Engine**
+   - [x] 3.1 `feat(tenant): implement tenant partition manager with quota enforcement and access control`
+   - [x] 3.2 `test(tenant): verify partition slot allocation, quota limits, and access rejection`
+4. **Task 4: Fleet Operator SLA Monitor & Breach Auditor**
+   - [x] 4.1 `feat(tenant): implement SLA monitor with dispatch latency tracking and penalty calculation`
+   - [x] 4.2 `test(tenant): verify SLA compliance scoring, latency measurements, and breach penalties`
+5. **Task 5: VIP Express Corridor Reservation & Preemption Engine**
+   - [x] 5.1 `feat(tenant): implement VIP express corridor reservation and traffic preemption`
+   - [x] 5.2 `test(tenant): verify corridor reservations, conflict clearance, and preemption holds`
+6. **Task 6: BEV Multi-Tenant Partition Visualizer**
+   - [x] 6.1 `feat(tenant): implement BEV tenant partition zone map and VIP corridor rendering`
+   - [x] 6.2 `feat(tenant): implement quota utilization gauges and SLA telemetry HUD`
+   - [x] 6.3 `test(tenant): verify tenant visualizer exports valid PNG artifacts`
+7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
+   - [x] 7.1 `feat(tenant): export public tenant API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 tenant command group (info, partition, corridor, audit)`
+   - [x] 7.3 `feat(cli): register tenant CLI group and update release audit expected count to 20`
+   - [x] 7.4 `feat(pipeline): integrate --tenant options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify tenant CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline tenant integration workflow`
+8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
+   - [x] 8.1 `docs: update README with Phase 28 multi-tenant partitioning capabilities and CLI usage`
+   - [x] 8.2 `docs(progress): document completed Phase 28 milestone, Decision Log, and verification gates`
+   - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+
+
 
 

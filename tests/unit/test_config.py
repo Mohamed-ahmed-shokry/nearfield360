@@ -696,3 +696,37 @@ def test_billing_config_rejects_short_secret(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="at least 8 characters"):
         load_config(config_path)
+
+
+def test_tenant_config_defaults() -> None:
+    config = load_config()
+
+    assert config.tenant.default_quota_ratio == 0.25
+    assert config.tenant.sla_max_dispatch_wait_s == 180.0
+    assert config.tenant.sla_breach_penalty_per_min == 2.50
+    assert config.tenant.vip_priority_multiplier == 2.0
+    assert config.tenant.express_preemption_buffer_s == 15.0
+    assert config.tenant.max_tenant_partitions == 8
+
+
+def test_tenant_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("tenant:\n  default_quota_ratio: 0.50\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_TENANT__SLA_MAX_DISPATCH_WAIT_S", "120.0")
+    monkeypatch.setenv("NEARFIELD360_TENANT__VIP_PRIORITY_MULTIPLIER", "3.0")
+
+    config = load_config(config_path)
+
+    assert config.tenant.default_quota_ratio == 0.50
+    assert config.tenant.sla_max_dispatch_wait_s == 120.0
+    assert config.tenant.vip_priority_multiplier == 3.0
+
+
+def test_tenant_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("tenant:\n  default_quota_ratio: 1.5\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 1"):
+        load_config(config_path)

@@ -404,6 +404,19 @@ class BillingConfig(BaseModel):
     )
 
 
+class TenantConfig(BaseModel):
+    """Parameters for multi-tenant facility partitioning, SLA guarantees, and VIP corridors."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    default_quota_ratio: float = Field(default=0.25, gt=0.0, le=1.0, allow_inf_nan=False)
+    sla_max_dispatch_wait_s: float = Field(default=180.0, gt=0.0, allow_inf_nan=False)
+    sla_breach_penalty_per_min: float = Field(default=2.50, ge=0.0, allow_inf_nan=False)
+    vip_priority_multiplier: float = Field(default=2.0, ge=1.0, allow_inf_nan=False)
+    express_preemption_buffer_s: float = Field(default=15.0, gt=0.0, allow_inf_nan=False)
+    max_tenant_partitions: int = Field(default=8, ge=1, le=64)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -440,6 +453,7 @@ class ProjectConfig(BaseSettings):
     fleet: FleetConfig = Field(default_factory=FleetConfig)
     charging: ChargingConfig = Field(default_factory=ChargingConfig)
     billing: BillingConfig = Field(default_factory=BillingConfig)
+    tenant: TenantConfig = Field(default_factory=TenantConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -506,6 +520,7 @@ __all__ = [
     "RiskConfig",
     "RobustnessConfig",
     "RuntimeConfig",
+    "TenantConfig",
     "TrackingConfig",
     "load_config",
 ]
