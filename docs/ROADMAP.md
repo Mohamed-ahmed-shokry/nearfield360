@@ -478,9 +478,9 @@ Deliver an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwell Manageme
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Curbside Config Foundation**
-   - [ ] 1.1 `docs: establish Phase 29 curbside staging and pedestrian safety interlocks roadmap`
-   - [ ] 1.2 `feat(config): add CurbsideConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for CurbsideConfig validation and environment overrides`
+   - [x] 1.1 `docs: establish Phase 29 curbside staging and pedestrian safety interlocks roadmap`
+   - [x] 1.2 `feat(config): add CurbsideConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for CurbsideConfig validation and environment overrides`
 2. **Task 2: Curbside Domain Models & Handover Schemas**
    - [ ] 2.1 `feat(curbside): implement curbside bays, missions, pedestrian, and interlock models`
    - [ ] 2.2 `feat(curbside): implement curbside audit report models`
