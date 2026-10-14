@@ -486,8 +486,8 @@ Deliver an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwell Manageme
    - [x] 2.2 `feat(curbside): implement curbside audit report models`
    - [x] 2.3 `test(curbside): verify curbside domain models, serialization, and validation`
 3. **Task 3: Pedestrian Safety Interlock Engine**
-   - [ ] 3.1 `feat(curbside): implement pedestrian safety interlock engine with clearance debounce`
-   - [ ] 3.2 `test(curbside): verify interlock inhibition on door/trunk open and pedestrian proximity`
+   - [x] 3.1 `feat(curbside): implement pedestrian safety interlock engine with clearance debounce`
+   - [x] 3.2 `test(curbside): verify interlock inhibition on door/trunk open and pedestrian proximity`
 4. **Task 4: Curbside Staging & Dwell Queue Manager**
    - [ ] 4.1 `feat(curbside): implement curbside staging manager with dwell tracking and overstay penalties`
    - [ ] 4.2 `test(curbside): verify dropoff/pickup allocation, staging queue, and overstay calculation`
