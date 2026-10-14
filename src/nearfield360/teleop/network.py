@@ -18,6 +18,7 @@ class NetworkMonitor:
         self.total_packets_received: int = 0
         self.total_packets_lost: int = 0
         self.ema_rtt_ms: float = 0.0
+        self.last_rtt_ms: float = 0.0
         self.jitter_ms: float = 0.0
         self._alpha_ema: float = 0.2
 
@@ -35,6 +36,7 @@ class NetworkMonitor:
 
         self.last_sequence_number = heartbeat.sequence_number
         self.last_heartbeat_time_s = current_time_s
+        self.last_rtt_ms = heartbeat.rtt_ms
 
         # Update smoothed RTT (EMA) and jitter
         if self.total_packets_received == 1:
@@ -59,10 +61,11 @@ class NetworkMonitor:
             return NetworkQuality.SEVERED
 
         loss_ratio = self.packet_loss_ratio
+        effective_rtt = max(self.ema_rtt_ms, self.last_rtt_ms)
 
-        if self.ema_rtt_ms >= self.config.critical_rtt_ms or loss_ratio >= 0.20:
+        if effective_rtt >= self.config.critical_rtt_ms or loss_ratio >= 0.20:
             return NetworkQuality.CRITICAL
-        if self.ema_rtt_ms >= self.config.max_rtt_ms or loss_ratio >= 0.05:
+        if effective_rtt >= self.config.max_rtt_ms or loss_ratio >= 0.05:
             return NetworkQuality.DEGRADED
         return NetworkQuality.OPTIMAL
 
