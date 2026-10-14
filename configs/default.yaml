@@ -204,6 +204,14 @@ tenant:
   vip_priority_multiplier: 2.0
   express_preemption_buffer_s: 15.0
   max_tenant_partitions: 8
+curbside:
+  max_dropoff_dwell_s: 120.0
+  max_pickup_dwell_s: 180.0
+  pedestrian_safety_radius_m: 2.0
+  interlock_clearance_hold_s: 3.0
+  staging_capacity: 4
+  overstay_penalty_per_min: 1.50
+
 
 
 
