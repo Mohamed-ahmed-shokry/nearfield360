@@ -502,9 +502,9 @@ Deliver an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwell Manageme
    - [x] 6.5 `test(cli): verify curbside CLI commands, JSON payloads, and visual outputs`
    - [x] 6.6 `test(pipeline): verify pipeline curbside integration workflow`
 7. **Task 7: End-to-End Documentation, Self-Review & Delivery**
-   - [ ] 7.1 `docs: update README with Phase 29 curbside staging capabilities and CLI usage`
-   - [ ] 7.2 `docs(progress): document completed Phase 29 milestone, Decision Log, and verification gates`
-   - [ ] 7.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [x] 7.1 `docs: update README with Phase 29 curbside staging capabilities and CLI usage`
+   - [x] 7.2 `docs(progress): document completed Phase 29 milestone, Decision Log, and verification gates`
+   - [x] 7.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
 
 
 
