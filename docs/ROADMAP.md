@@ -495,12 +495,12 @@ Deliver an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwell Manageme
    - [x] 5.1 `feat(curbside): implement BEV curbside bay map, pedestrian safety circles, and queue HUD`
    - [x] 5.2 `test(curbside): verify curbside visualizer exports valid PNG artifacts`
 6. **Task 6: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 6.1 `feat(curbside): export public curbside API from package init`
-   - [ ] 6.2 `feat(cli): implement nearfield360 curbside command group (info, dropoff, summon, audit)`
-   - [ ] 6.3 `feat(cli): register curbside CLI group and update release audit expected count to 21`
-   - [ ] 6.4 `feat(pipeline): integrate --curbside options into surround pipeline runner`
-   - [ ] 6.5 `test(cli): verify curbside CLI commands, JSON payloads, and visual outputs`
-   - [ ] 6.6 `test(pipeline): verify pipeline curbside integration workflow`
+   - [x] 6.1 `feat(curbside): export public curbside API from package init`
+   - [x] 6.2 `feat(cli): implement nearfield360 curbside command group (info, dropoff, summon, audit)`
+   - [x] 6.3 `feat(cli): register curbside CLI group and update release audit expected count to 21`
+   - [x] 6.4 `feat(pipeline): integrate --curbside options into surround pipeline runner`
+   - [x] 6.5 `test(cli): verify curbside CLI commands, JSON payloads, and visual outputs`
+   - [x] 6.6 `test(pipeline): verify pipeline curbside integration workflow`
 7. **Task 7: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 7.1 `docs: update README with Phase 29 curbside staging capabilities and CLI usage`
    - [ ] 7.2 `docs(progress): document completed Phase 29 milestone, Decision Log, and verification gates`
