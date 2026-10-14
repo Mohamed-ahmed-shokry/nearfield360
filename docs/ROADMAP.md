@@ -591,8 +591,8 @@ Deliver an end-to-end Remote Teleoperation Assistance, Latency-Adaptive Video Fa
    - [x] 3.1 `feat(teleop): implement network quality monitoring, RTT tracking, and video throttling`
    - [x] 3.2 `test(teleop): verify network quality classification and bitrate/fps degradation`
 4. **Task 4: Minimum Risk Maneuver (MRM) Safe Stop Engine**
-   - [ ] 4.1 `feat(teleop): implement MRM state machine, deceleration profile, and brake locking`
-   - [ ] 4.2 `test(teleop): verify MRM execution on heartbeat timeout, network loss, and emergency stop`
+   - [x] 4.1 `feat(teleop): implement MRM state machine, deceleration profile, and brake locking`
+   - [x] 4.2 `test(teleop): verify MRM execution on heartbeat timeout, network loss, and emergency stop`
 5. **Task 5: Teleoperation Manager & Session Coordinator**
    - [ ] 5.1 `feat(teleop): implement teleoperation session manager and guidance waypoint dispatcher`
    - [ ] 5.2 `test(teleop): verify session lifecycle, direct driving latency safety rejection, and audit reporting`
