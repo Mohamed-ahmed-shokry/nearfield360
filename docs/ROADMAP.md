@@ -580,9 +580,9 @@ Deliver an end-to-end Remote Teleoperation Assistance, Latency-Adaptive Video Fa
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Teleoperation Config Foundation**
-   - [ ] 1.1 `docs: establish Phase 30 teleoperation assistance and MRM roadmap`
-   - [ ] 1.2 `feat(config): add TeleopConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for TeleopConfig validation and environment overrides`
+   - [x] 1.1 `docs: establish Phase 30 teleoperation assistance and MRM roadmap`
+   - [x] 1.2 `feat(config): add TeleopConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for TeleopConfig validation and environment overrides`
 2. **Task 2: Teleoperation Domain Models & Protocol Schemas**
    - [ ] 2.1 `feat(teleop): implement teleoperation mode, network quality, heartbeat, and command models`
    - [ ] 2.2 `feat(teleop): implement teleoperation session and facility audit report models`
