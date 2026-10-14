@@ -492,8 +492,8 @@ Deliver an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwell Manageme
    - [x] 4.1 `feat(curbside): implement curbside staging manager with dwell tracking and overstay penalties`
    - [x] 4.2 `test(curbside): verify dropoff/pickup allocation, staging queue, and overstay calculation`
 5. **Task 5: BEV Curbside Staging & Safety HUD Visualizer**
-   - [ ] 5.1 `feat(curbside): implement BEV curbside bay map, pedestrian safety circles, and queue HUD`
-   - [ ] 5.2 `test(curbside): verify curbside visualizer exports valid PNG artifacts`
+   - [x] 5.1 `feat(curbside): implement BEV curbside bay map, pedestrian safety circles, and queue HUD`
+   - [x] 5.2 `test(curbside): verify curbside visualizer exports valid PNG artifacts`
 6. **Task 6: Package Exports, CLI Command Group & Pipeline Integration**
    - [ ] 6.1 `feat(curbside): export public curbside API from package init`
    - [ ] 6.2 `feat(cli): implement nearfield360 curbside command group (info, dropoff, summon, audit)`
