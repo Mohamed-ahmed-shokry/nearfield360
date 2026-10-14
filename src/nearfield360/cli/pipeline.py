@@ -594,6 +594,13 @@ def run_pipeline(
             help="Enforce multi-tenant facility partitioning, SLA monitoring, and VIP corridors.",
         ),
     ] = False,
+    curbside: Annotated[
+        bool,
+        typer.Option(
+            "--curbside/--no-curbside",
+            help="Simulate curbside drop-off/pick-up staging, dwell, and safety interlocks.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -1090,6 +1097,18 @@ def run_pipeline(
         tenant_payload = t_report.model_dump(mode="json")
         timings["tenant_ms"] = (time.perf_counter() - tenant_stage_start) * 1000.0
 
+    curbside_payload: dict[str, Any] | None = None
+    if curbside:
+        curbside_stage_start = time.perf_counter()
+        from nearfield360.curbside.manager import CurbsideManager
+
+        c_mgr = CurbsideManager(facility_id="benchmark_garage_avp", config=config.curbside)
+        c_mgr.request_dropoff("veh-curbside-01", current_time_s=0.0)
+        c_mgr.complete_dropoff("veh-curbside-01", current_time_s=45.0)
+        curb_report = c_mgr.generate_report(current_time_s=50.0)
+        curbside_payload = curb_report.model_dump(mode="json")
+        timings["curbside_ms"] = (time.perf_counter() - curbside_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1119,6 +1138,8 @@ def run_pipeline(
         samples_payload["billing"] = True
     if tenant:
         samples_payload["tenant"] = True
+    if curbside:
+        samples_payload["curbside"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1192,6 +1213,8 @@ def run_pipeline(
         payload["billing"] = billing_payload
     if tenant_payload is not None:
         payload["tenant"] = tenant_payload
+    if curbside_payload is not None:
+        payload["curbside"] = curbside_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
