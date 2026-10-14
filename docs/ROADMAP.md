@@ -584,9 +584,9 @@ Deliver an end-to-end Remote Teleoperation Assistance, Latency-Adaptive Video Fa
    - [x] 1.2 `feat(config): add TeleopConfig and update default yaml configuration`
    - [x] 1.3 `test(config): add unit tests for TeleopConfig validation and environment overrides`
 2. **Task 2: Teleoperation Domain Models & Protocol Schemas**
-   - [ ] 2.1 `feat(teleop): implement teleoperation mode, network quality, heartbeat, and command models`
-   - [ ] 2.2 `feat(teleop): implement teleoperation session and facility audit report models`
-   - [ ] 2.3 `test(teleop): verify teleoperation domain models, serialization, and validation`
+   - [x] 2.1 `feat(teleop): implement teleoperation mode, network quality, heartbeat, and command models`
+   - [x] 2.2 `feat(teleop): implement teleoperation session and facility audit report models`
+   - [x] 2.3 `test(teleop): verify teleoperation domain models, serialization, and validation`
 3. **Task 3: Bandwidth-Adaptive Network Monitor & Fallback Throttling**
    - [ ] 3.1 `feat(teleop): implement network quality monitoring, RTT tracking, and video throttling`
    - [ ] 3.2 `test(teleop): verify network quality classification and bitrate/fps degradation`
