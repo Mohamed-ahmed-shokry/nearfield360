@@ -167,15 +167,15 @@ class TeleopManager:
                 if quality == NetworkQuality.SEVERED and mrm and not mrm.is_active:
                     mrm.trigger_mrm("heartbeat_loss_timeout", current_time_s, current_speed_mps=1.0)
                     self._mrm_executions += 1
-                    self.active_sessions[vehicle_id] = session.model_copy(
+                    session = session.model_copy(
                         update={"active_mode": TeleopMode.MRM_SAFE_STOP, "mrm_stage": mrm.stage}
                     )
+                    self.active_sessions[vehicle_id] = session
 
             if mrm and mrm.is_active:
                 mrm.step(current_time_s)
-                self.active_sessions[vehicle_id] = session.model_copy(
-                    update={"mrm_stage": mrm.stage}
-                )
+                session = session.model_copy(update={"mrm_stage": mrm.stage})
+                self.active_sessions[vehicle_id] = session
 
     def generate_report(self, current_time_s: float) -> TeleopReport:
         """Compile a facility-wide teleoperation diagnostic and audit report."""
