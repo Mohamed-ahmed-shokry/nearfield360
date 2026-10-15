@@ -42,6 +42,7 @@ the corresponding experiments have run.
 | AVP smart billing, dynamic tariffs & cryptographic receipts | Implemented | Occupancy-based congestion pricing, multi-component itemized billing, grace periods, HMAC-SHA256 receipt signing/verification, `nearfield360 billing`, and pipeline integration (`pipeline run --billing`) |
 | Multi-tenant facility partitioning, SLA management & VIP express corridors | Implemented | Dedicated operator bay partitions, quota enforcement, dispatch latency SLA compliance & breach penalty auditing, VIP express corridor reservation & right-of-way preemption, `nearfield360 tenant`, and surround pipeline integration (`pipeline run --tenant`) |
 | Curbside drop-off/pick-up staging, dwell management & pedestrian safety interlocks | Implemented | Dedicated curbside staging bays, passenger egress/ingress dwell tracking, ISO 23374 Type 2 handover zone, safety interlocks inhibiting motion on open doors/trunks or pedestrian proximity, overstay tariff penalties, BEV safety circle visualization, `nearfield360 curbside`, and surround pipeline integration (`pipeline run --curbside`) |
+| Remote teleoperation assistance, video fallback & emergency MRM execution | Implemented | Remote operator assistance, guidance waypoints, RTT latency tracking, bandwidth-adaptive video throttling, fail-safe heartbeat watchdog, deterministic Minimum Risk Maneuvers (MRM), `nearfield360 teleop`, and surround pipeline integration (`pipeline run --teleop`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -851,6 +852,33 @@ Audit facility curbside staging bays, evaluate dwell durations, and export dual-
 
 ```powershell
 uv run nearfield360 curbside audit --output outputs/curbside_audit.json --png outputs/curbside_hud.png
+```
+
+### Remote Teleoperation Assistance & Emergency Minimum Risk Maneuver (ISO 23374 / SAE J3016)
+
+Inspect teleoperation latency thresholds, video fallback FPS, and MRM deceleration configuration:
+
+```powershell
+uv run nearfield360 teleop info
+uv run nearfield360 teleop info --json
+```
+
+Initiate a remote teleoperation assistance session and dispatch guidance commands:
+
+```powershell
+uv run nearfield360 teleop session --vehicle-id veh-avp-01 --operator-id op-desk-1 --rtt 45.0 --output outputs/teleop_session.json --png outputs/teleop_dashboard.png
+```
+
+Simulate degraded network latency, video fallback streaming throttling, and watchdog failsafe:
+
+```powershell
+uv run nearfield360 teleop fallback --vehicle-id veh-degraded-01 --latency 280.0 --packet-loss 0.25 --output outputs/teleop_fallback.json --png outputs/teleop_fallback.png
+```
+
+Audit facility remote interventions, link RTT latencies, and emergency MRM safe stops:
+
+```powershell
+uv run nearfield360 teleop audit --output outputs/teleop_audit.json --png outputs/teleop_audit.png
 ```
 
 
