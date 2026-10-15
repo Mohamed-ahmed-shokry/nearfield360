@@ -597,8 +597,8 @@ Deliver an end-to-end Remote Teleoperation Assistance, Latency-Adaptive Video Fa
    - [x] 5.1 `feat(teleop): implement teleoperation session manager and guidance waypoint dispatcher`
    - [x] 5.2 `test(teleop): verify session lifecycle, direct driving latency safety rejection, and audit reporting`
 6. **Task 6: BEV Teleoperation Cockpit & Telemetry HUD Visualizer**
-   - [ ] 6.1 `feat(teleop): implement BEV cockpit view, remote guidance path, and MRM HUD rendering`
-   - [ ] 6.2 `test(teleop): verify teleop visualizer exports valid PNG artifacts`
+   - [x] 6.1 `feat(teleop): implement BEV cockpit view, remote guidance path, and MRM HUD rendering`
+   - [x] 6.2 `test(teleop): verify teleop visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
    - [ ] 7.1 `feat(teleop): export public teleop API from package init`
    - [ ] 7.2 `feat(cli): implement nearfield360 teleop command group (info, session, fallback, audit)`
