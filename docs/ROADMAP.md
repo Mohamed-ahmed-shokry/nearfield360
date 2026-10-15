@@ -594,8 +594,8 @@ Deliver an end-to-end Remote Teleoperation Assistance, Latency-Adaptive Video Fa
    - [x] 4.1 `feat(teleop): implement MRM state machine, deceleration profile, and brake locking`
    - [x] 4.2 `test(teleop): verify MRM execution on heartbeat timeout, network loss, and emergency stop`
 5. **Task 5: Teleoperation Manager & Session Coordinator**
-   - [ ] 5.1 `feat(teleop): implement teleoperation session manager and guidance waypoint dispatcher`
-   - [ ] 5.2 `test(teleop): verify session lifecycle, direct driving latency safety rejection, and audit reporting`
+   - [x] 5.1 `feat(teleop): implement teleoperation session manager and guidance waypoint dispatcher`
+   - [x] 5.2 `test(teleop): verify session lifecycle, direct driving latency safety rejection, and audit reporting`
 6. **Task 6: BEV Teleoperation Cockpit & Telemetry HUD Visualizer**
    - [ ] 6.1 `feat(teleop): implement BEV cockpit view, remote guidance path, and MRM HUD rendering`
    - [ ] 6.2 `test(teleop): verify teleop visualizer exports valid PNG artifacts`
