@@ -1958,7 +1958,92 @@ Phase 29 delivers an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwel
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (21 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
- |
 
+---
 
+## Phase 30: Remote Teleoperation Assistance, Video Fallback Streaming & Emergency Minimum Risk Maneuver (MRM) Execution
 
+**Status:** Completed  
+**Repository Branch:** `phase/remote-teleoperation-assistance-mrm`  
+**Test Suite:** 1243 passed, 5 skipped (0 failures)  
+**Type Checking:** `mypy` clean (153 source files)  
+**Linting & Style:** `ruff check` and `ruff format` clean  
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
+**Release Audit:** Passed (22 registered CLI command groups)  
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 30 delivers an end-to-end Remote Teleoperation Assistance, Latency-Adaptive Video Fallback Streaming, and Emergency Minimum Risk Maneuver (MRM) Execution subsystem for NearField360. Conforming to ISO 23374 (AVP Type 2 / Type 3) and SAE J3016 operational safety concepts, Phase 30 provides the critical remote human fallback layer when autonomous vehicles encounter edge-case blockages, perception ambiguities, or communication degradation:
+
+1. **Configuration (`TeleopConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Configurable heartbeat watchdog timeout (`heartbeat_timeout_s`), direct driving maximum latency (`max_rtt_ms`), critical latency threshold (`critical_rtt_ms`), target streaming frame rate (`video_target_fps`), fallback streaming frame rate (`video_fallback_fps`), MRM deceleration profile (`mrm_deceleration_mps2`), safe stop standstill speed threshold (`safe_stop_standstill_speed_mps`), and automatic failsafe trigger flag (`auto_mrm_on_heartbeat_loss`).
+2. **Domain Models & Teleoperation Protocol (`src/nearfield360/teleop/models.py`):**
+   - Pydantic v2 frozen models: `TeleopMode` (`IDLE_AUTONOMOUS`, `TELE_ASSISTANCE`, `TELE_GUIDANCE`, `DIRECT_DRIVING`, `MRM_SAFE_STOP`), `MRMStage` (`INACTIVE`, `DECELERATING`, `PULLING_TO_SHOULDER`, `STANDSTILL_LOCKED`, `EMERGENCY_BEACON`), `NetworkQuality` (`OPTIMAL`, `DEGRADED`, `CRITICAL`, `SEVERED`), `TeleopWaypoint`, `TeleopCommand`, `TeleopHeartbeat`, `TeleopSession`, and `TeleopReport`.
+3. **Bandwidth-Adaptive Video Fallback & Network Monitor (`NetworkMonitor` in `src/nearfield360/teleop/network.py`):**
+   - RTT exponential moving average (EMA) smoothing, packet loss sequence tracking, jitter estimation, network health classification, and dynamic video streaming throttling recommendations (framerate downscaling and compression scaling).
+4. **Minimum Risk Maneuver (MRM) Safe Stop Engine (`MRMEngine` in `src/nearfield360/teleop/mrm.py`):**
+   - Deterministic deceleration physics: $v(t) = \max(0, v_0 - a \cdot t)$, stopping distance calculation, safe stop waypoint trajectory synthesis, mechanical parking brake locking, and hazard beacon actuation.
+5. **Remote Assistance Executive & Session Coordinator (`TeleopManager` in `src/nearfield360/teleop/manager.py`):**
+   - Multi-vehicle session management, failsafe heartbeat watchdog timer, operator command routing, and strict latency safety enforcement (direct driving rejected if link is not `OPTIMAL`).
+6. **BEV Teleoperation Cockpit & Telemetry HUD Visualizer (`render_teleop_dashboard` in `src/nearfield360/teleop/viz.py`):**
+   - Dual-panel BEV layout rendering facility layout, vehicle footprint, suggested remote path overlays, MRM emergency halos, latency meter bar, and operator cockpit HUD.
+7. **CLI Command Group & Four-Camera Pipeline Integration (`src/nearfield360/cli/teleop.py`, `src/nearfield360/cli/pipeline.py`):**
+   - Dedicated CLI command group `nearfield360 teleop` with `info`, `session`, `fallback`, and `audit` subcommands.
+   - Release audit verified across 22 command groups.
+   - Surround pipeline runner integrated with `--teleop` option.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- `src/nearfield360/config.py`: Added `TeleopConfig` with validation rules.
+- `configs/default.yaml`: Added `teleop` default parameters.
+- `src/nearfield360/teleop/models.py`: Pydantic models for modes, stages, network quality, commands, heartbeats, sessions, and reports.
+- `src/nearfield360/teleop/network.py`: Network quality monitoring, RTT tracking, and adaptive video throttling.
+- `src/nearfield360/teleop/mrm.py`: Deterministic MRM state machine, deceleration physics, and parking brake lock.
+- `src/nearfield360/teleop/manager.py`: Teleoperation session manager and safety command dispatcher.
+- `src/nearfield360/teleop/viz.py`: Dual-panel BEV cockpit visualizer and telemetry HUD.
+- `src/nearfield360/teleop/__init__.py`: Package exports for all public teleop components.
+- `src/nearfield360/cli/teleop.py`: Full Typer CLI command group `nearfield360 teleop`.
+- `src/nearfield360/cli/app.py`: Registered `teleop_app` in root CLI.
+- `src/nearfield360/cli/release.py`: Added `teleop` to audited CLI command groups (now 22).
+- `src/nearfield360/cli/pipeline.py`: Added `--teleop` option, stage execution, samples payload, and output report fields.
+- `tests/unit/test_config.py`: Tests for `TeleopConfig`.
+- `tests/unit/teleop/test_teleop_models.py`: Serialization and validation unit tests.
+- `tests/unit/teleop/test_network.py`: Network quality classification and video throttling tests.
+- `tests/unit/teleop/test_mrm.py`: MRM safe stop execution and deceleration physics tests.
+- `tests/unit/teleop/test_teleop_manager.py`: TeleopManager session lifecycle, latency rejection, and watchdog tests.
+- `tests/unit/teleop/test_teleop_viz.py`: Visualizer PNG generation tests.
+- `tests/unit/test_teleop_cli.py`: Teleoperation CLI unit tests with JSON and PNG assertions.
+- `tests/unit/test_pipeline_teleop.py`: Surround pipeline `--teleop` integration tests.
+
+---
+
+### 3. Decision Log
+
+1. **Decision**: Combined Instantaneous and Exponential Moving Average (EMA) for Network Quality Classification  
+   - *Alternatives Considered*: Pure EMA smoothing only.  
+   - *Rationale & Evidence*: In teleoperation safety, waiting 5+ packets for an EMA to catch up to an instantaneous latency spike (e.g. cellular handoff or network freeze) creates an unacceptable collision hazard. Evaluating `effective_rtt = max(ema_rtt_ms, last_rtt_ms)` immediately inhibits direct steering upon the first anomalous packet.
+2. **Decision**: Automatic Failsafe Standstill Lockdown on Watchdog Timeout  
+   - *Alternatives Considered*: Allowing vehicle to maintain current velocity while waiting for reconnect.  
+   - *Rationale & Evidence*: ISO 23374 and SAE J3016 mandate that loss of teleoperation heartbeat must automatically transition the automated vehicle to a Minimum Risk State within bounded time (`heartbeat_timeout_s = 1.5s`).
+3. **Decision**: Increment Expected CLI Group Count from 21 to 22 in Release Audit  
+   - *Alternatives Considered*: Excluding `teleop` from release readiness checks.  
+   - *Rationale & Evidence*: All functional subsystem CLI command groups must be validated by `nearfield360 release audit` to ensure complete CLI surface availability.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1243 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 153 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (22 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
