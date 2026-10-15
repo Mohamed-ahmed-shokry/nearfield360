@@ -601,6 +601,13 @@ def run_pipeline(
             help="Simulate curbside drop-off/pick-up staging, dwell, and safety interlocks.",
         ),
     ] = False,
+    teleop: Annotated[
+        bool,
+        typer.Option(
+            "--teleop/--no-teleop",
+            help="Simulate remote teleoperation assistance, video fallback, and failsafe MRM.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -1109,6 +1116,26 @@ def run_pipeline(
         curbside_payload = curb_report.model_dump(mode="json")
         timings["curbside_ms"] = (time.perf_counter() - curbside_stage_start) * 1000.0
 
+    teleop_payload: dict[str, Any] | None = None
+    if teleop:
+        teleop_stage_start = time.perf_counter()
+        from nearfield360.teleop.manager import TeleopManager
+        from nearfield360.teleop.models import TeleopHeartbeat, TeleopMode
+
+        teleop_mgr = TeleopManager(facility_id="benchmark_garage_avp", config=config.teleop)
+        teleop_mgr.start_session("veh-pipeline-01", "op-center-01", TeleopMode.TELE_GUIDANCE, 0.0)
+        teleop_mgr.process_heartbeat(
+            TeleopHeartbeat(
+                vehicle_id="veh-pipeline-01",
+                sequence_number=1,
+                timestamp_s=0.5,
+                rtt_ms=45.0,
+            )
+        )
+        teleop_report = teleop_mgr.generate_report(current_time_s=1.0)
+        teleop_payload = teleop_report.model_dump(mode="json")
+        timings["teleop_ms"] = (time.perf_counter() - teleop_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1140,6 +1167,8 @@ def run_pipeline(
         samples_payload["tenant"] = True
     if curbside:
         samples_payload["curbside"] = True
+    if teleop:
+        samples_payload["teleop"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1215,6 +1244,8 @@ def run_pipeline(
         payload["tenant"] = tenant_payload
     if curbside_payload is not None:
         payload["curbside"] = curbside_payload
+    if teleop_payload is not None:
+        payload["teleop"] = teleop_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
