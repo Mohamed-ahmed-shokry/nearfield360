@@ -600,12 +600,12 @@ Deliver an end-to-end Remote Teleoperation Assistance, Latency-Adaptive Video Fa
    - [x] 6.1 `feat(teleop): implement BEV cockpit view, remote guidance path, and MRM HUD rendering`
    - [x] 6.2 `test(teleop): verify teleop visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 7.1 `feat(teleop): export public teleop API from package init`
-   - [ ] 7.2 `feat(cli): implement nearfield360 teleop command group (info, session, fallback, audit)`
-   - [ ] 7.3 `feat(cli): register teleop CLI group and update release audit expected count to 22`
-   - [ ] 7.4 `feat(pipeline): integrate --teleop options into surround pipeline runner`
-   - [ ] 7.5 `test(cli): verify teleop CLI commands, JSON payloads, and visual outputs`
-   - [ ] 7.6 `test(pipeline): verify pipeline teleop integration workflow`
+   - [x] 7.1 `feat(teleop): export public teleop API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 teleop command group (info, session, fallback, audit)`
+   - [x] 7.3 `feat(cli): register teleop CLI group and update release audit expected count to 22`
+   - [x] 7.4 `feat(pipeline): integrate --teleop options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify teleop CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline teleop integration workflow`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 8.1 `docs: update README with Phase 30 teleoperation capabilities and CLI usage`
    - [ ] 8.2 `docs(progress): document completed Phase 30 milestone, Decision Log, and verification gates`
