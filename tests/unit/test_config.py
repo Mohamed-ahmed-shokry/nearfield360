@@ -857,4 +857,3 @@ def test_floor_config_rejects_excessive_floors(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 64"):
         load_config(config_path)
-
