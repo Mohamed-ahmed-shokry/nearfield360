@@ -700,8 +700,8 @@ Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kine
 
 1. **Task 1: Roadmap & Multi-Floor Configuration Foundation**
    - [x] 1.1 `docs(roadmap): establish Phase 31 multi-floor topology, ramp kinematics and elevator roadmap`
-   - [ ] 1.2 `feat(config): add MultiFloorConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for MultiFloorConfig validation and environment overrides`
+   - [x] 1.2 `feat(config): add MultiFloorConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for MultiFloorConfig validation and environment overrides`
 2. **Task 2: Multi-Floor Domain Models & Protocol Schemas**
    - [ ] 2.1 `feat(multilevel): implement floor levels, vertical portals, and pitch state models`
    - [ ] 2.2 `feat(multilevel): implement elevator cabins, routes, and facility report models`
