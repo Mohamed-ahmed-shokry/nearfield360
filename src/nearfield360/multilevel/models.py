@@ -166,4 +166,3 @@ class MultiFloorFacilityReport(BaseModel):
     floors: list[FloorLevel] = Field(default_factory=list)
     portals: list[VerticalPortal] = Field(default_factory=list)
     elevators: list[ElevatorCabin] = Field(default_factory=list)
-

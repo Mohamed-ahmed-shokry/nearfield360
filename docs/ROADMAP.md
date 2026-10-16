@@ -703,9 +703,9 @@ Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kine
    - [x] 1.2 `feat(config): add MultiFloorConfig and update default yaml configuration`
    - [x] 1.3 `test(config): add unit tests for MultiFloorConfig validation and environment overrides`
 2. **Task 2: Multi-Floor Domain Models & Protocol Schemas**
-   - [ ] 2.1 `feat(multilevel): implement floor levels, vertical portals, and pitch state models`
-   - [ ] 2.2 `feat(multilevel): implement elevator cabins, routes, and facility report models`
-   - [ ] 2.3 `test(multilevel): verify multi-floor domain models, serialization, and validation`
+   - [x] 2.1 `feat(multilevel): implement floor levels, vertical portals, and pitch state models`
+   - [x] 2.2 `feat(multilevel): implement elevator cabins, routes, and facility report models`
+   - [x] 2.3 `test(multilevel): verify multi-floor domain models, serialization, and validation`
 3. **Task 3: Multi-Floor Topological Router & Graph Builder**
    - [ ] 3.1 `feat(multilevel): implement multi-floor directed graph and 3D portal routing`
    - [ ] 3.2 `test(multilevel): verify multi-floor graph construction, shortest path search, and transit times`
@@ -732,9 +732,3 @@ Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kine
    - [ ] 9.1 `docs: update README with Phase 31 multi-floor capabilities and CLI usage`
    - [ ] 9.2 `docs(progress): document completed Phase 31 milestone, Decision Log, and verification gates`
    - [ ] 9.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
-
-
-
-
-
-
