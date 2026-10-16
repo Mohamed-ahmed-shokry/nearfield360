@@ -2052,13 +2052,13 @@ Phase 30 delivers an end-to-end Remote Teleoperation Assistance, Latency-Adaptiv
 
 ## Phase 31: Multi-Floor Facility Topology, Spiral Ramp Kinematics, Steep Incline Pitch Dynamics & Automated Vehicle Elevator Dispatch (ISO 23374 Vertical Transit)
 
-**Status:** Completed  
-**Repository Branch:** `phase/multi-floor-ramp-elevator-transit`  
-**Test Suite:** 1272 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy` clean (160 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (23 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/multi-floor-ramp-elevator-transit`
+**Test Suite:** 1272 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy` clean (160 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (23 registered CLI command groups)
 
 ---
 
@@ -2140,4 +2140,3 @@ Phase 31 delivers an end-to-end Multi-Floor Facility Topology, Spiral & Straight
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (23 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
-
