@@ -6,8 +6,6 @@ import math
 from pathlib import Path
 
 import numpy as np
-import onnx
-from onnx import TensorProto, helper
 
 
 def export_temporal_forecaster_onnx(
@@ -31,6 +29,16 @@ def export_temporal_forecaster_onnx(
     - ``forecast_occupancy``: ``(1, horizon_steps, height, width)``
     - ``velocity_field``: ``(1, 2, height, width)``
     """
+    try:
+        import onnx
+        from onnx import TensorProto, helper
+    except ImportError as exc:
+        msg = (
+            "onnx is required to export temporal forecaster ONNX graph. "
+            "Please install onnx via `pip install onnx`."
+        )
+        raise ImportError(msg) from exc
+
     path = Path(path).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
 
