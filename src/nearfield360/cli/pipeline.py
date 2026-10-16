@@ -608,6 +608,13 @@ def run_pipeline(
             help="Simulate remote teleoperation assistance, video fallback, and failsafe MRM.",
         ),
     ] = False,
+    floor: Annotated[
+        bool,
+        typer.Option(
+            "--floor/--no-floor",
+            help="Simulate multi-floor facility topology, vertical ramps, and vehicle elevators.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -1136,6 +1143,26 @@ def run_pipeline(
         teleop_payload = teleop_report.model_dump(mode="json")
         timings["teleop_ms"] = (time.perf_counter() - teleop_stage_start) * 1000.0
 
+    floor_payload: dict[str, Any] | None = None
+    if floor:
+        floor_stage_start = time.perf_counter()
+        from nearfield360.multilevel.graph import build_default_facility_graph
+        from nearfield360.multilevel.ramp import RampDynamicsEngine
+
+        m_graph = build_default_facility_graph()
+        multi_route = m_graph.find_route("L1-entry", "L2-bay-42", vehicle_id="veh-pipeline-01")
+        r_engine = RampDynamicsEngine()
+        pitch = r_engine.calculate_pitch_dynamics(
+            "veh-pipeline-01", grade_pct=11.0, elevation_m=1.75
+        )
+        floor_payload = {
+            "route": multi_route.model_dump(mode="json"),
+            "pitch_dynamics": pitch.model_dump(mode="json"),
+            "floors_count": len(m_graph.floors),
+            "total_bays": sum(f.bays_count for f in m_graph.floors.values()),
+        }
+        timings["floor_ms"] = (time.perf_counter() - floor_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1169,6 +1196,8 @@ def run_pipeline(
         samples_payload["curbside"] = True
     if teleop:
         samples_payload["teleop"] = True
+    if floor:
+        samples_payload["floor"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1246,6 +1275,8 @@ def run_pipeline(
         payload["curbside"] = curbside_payload
     if teleop_payload is not None:
         payload["teleop"] = teleop_payload
+    if floor_payload is not None:
+        payload["floor"] = floor_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 

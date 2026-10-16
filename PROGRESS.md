@@ -1530,13 +1530,13 @@ Phase 24 establishes an end-to-end Parking Facility HD Vector Mapping, Topologic
 
 ## Phase 25: Cloud Fleet Coordination, V2X Facility Dispatch & Multi-Agent Conflict Deconfliction
 
-**Status:** Completed  
-**Repository Branch:** `phase/v2x-cloud-fleet-coordination`  
-**Test Suite:** 1118 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy --strict` clean (121 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean (230 files)  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (17 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/v2x-cloud-fleet-coordination`
+**Test Suite:** 1118 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (121 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean (230 files)
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (17 registered CLI command groups)
 
 ---
 
@@ -1605,13 +1605,13 @@ Phase 25 establishes a comprehensive cloud-edge fleet coordination, V2X facility
 
 ## Phase 26: Autonomous EV Charging Dispatch, Power Grid Management & Robot/Automated Bay Scheduling
 
-**Status:** Completed  
-**Repository Branch:** `phase/ev-charging-dispatch-scheduling`  
-**Test Suite:** 1141 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy --strict` clean (128 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean (244 files)  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (18 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/ev-charging-dispatch-scheduling`
+**Test Suite:** 1141 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (128 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean (244 files)
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (18 registered CLI command groups)
 
 ---
 
@@ -1665,17 +1665,17 @@ Phase 26 delivers an end-to-end Autonomous EV Charging Dispatch, Power Grid Mana
 
 ### 3. Decision Log
 
-1. **Decision**: Mutable `ChargingSession` (`frozen=False`) vs. Frozen `ChargerBay` & `EVBatteryState`  
-   - *Alternatives Considered*: Making `ChargingSession` immutable and returning new session instances at every simulation step.  
+1. **Decision**: Mutable `ChargingSession` (`frozen=False`) vs. Frozen `ChargerBay` & `EVBatteryState`
+   - *Alternatives Considered*: Making `ChargingSession` immutable and returning new session instances at every simulation step.
    - *Rationale & Evidence*: In line with `ConflictPoint` in `nearfield360.fleet.models`, discrete-time simulation steps update `current_soc`, `energy_delivered_kwh`, `allocated_power_kw`, and `status` in place across active sessions while keeping static facility specifications immutable.
-2. **Decision**: Non-Linear Exponential CC/CV Tapering Above 80% SoC  
-   - *Alternatives Considered*: Linear constant-power charging from 0% to 100% SoC.  
+2. **Decision**: Non-Linear Exponential CC/CV Tapering Above 80% SoC
+   - *Alternatives Considered*: Linear constant-power charging from 0% to 100% SoC.
    - *Rationale & Evidence*: Real-world lithium-ion EV batteries transition from Constant Current (CC) to Constant Voltage (CV) around 80% SoC to prevent cell plating and over-voltage. Modeling exponential decay $P(\text{SoC}) = P_{\max}\exp(-k(\text{SoC}-0.80))$ accurately reflects topping-off behavior and grid load release.
-3. **Decision**: Priority-Weighted Power Curtailment in `GridPowerManager`  
-   - *Alternatives Considered*: Equal flat division of grid power across all active chargers during peak demand.  
+3. **Decision**: Priority-Weighted Power Curtailment in `GridPowerManager`
+   - *Alternatives Considered*: Equal flat division of grid power across all active chargers during peak demand.
    - *Rationale & Evidence*: Vehicles below `critical_soc_threshold` (20%) require urgent energy replenishment. Weighting power shares by $(1 - \text{SoC})$ plus a critical boost ensures depleted vehicles charge faster while still strictly respecting `facility_grid_power_kw`.
-4. **Decision**: Increment Expected CLI Group Count from 17 to 18 in Release Audit  
-   - *Alternatives Considered*: Exempting new command groups from `release.py`.  
+4. **Decision**: Increment Expected CLI Group Count from 17 to 18 in Release Audit
+   - *Alternatives Considered*: Exempting new command groups from `release.py`.
    - *Rationale & Evidence*: `nearfield360 release audit` enforces strict surface verification across all registered Typer subcommands.
 
 ---
@@ -1697,13 +1697,13 @@ Phase 26 delivers an end-to-end Autonomous EV Charging Dispatch, Power Grid Mana
 
 ## Phase 27: Autonomous Valet Parking Smart Billing, Dynamic Tariffs & Cryptographic Session Receipts
 
-**Status:** Completed  
-**Repository Branch:** `phase/automated-valet-parking-payment-billing`  
-**Test Suite:** 1157 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy --strict` clean (134 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean (254 files)  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (19 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/automated-valet-parking-payment-billing`
+**Test Suite:** 1157 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (134 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean (254 files)
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (19 registered CLI command groups)
 
 ---
 
@@ -1758,14 +1758,14 @@ Phase 27 delivers an end-to-end Autonomous Valet Parking Smart Billing, Dynamic 
 
 ### 3. Decision Log
 
-1. **Decision**: SHA-256 HMAC with Deterministic Canonical JSON over Asymmetric Public Key  
-   - *Alternatives Considered*: RSA or Ed25519 asymmetric signatures.  
+1. **Decision**: SHA-256 HMAC with Deterministic Canonical JSON over Asymmetric Public Key
+   - *Alternatives Considered*: RSA or Ed25519 asymmetric signatures.
    - *Rationale & Evidence*: Within an AVP facility server ecosystem, HMAC provides symmetric authentication and tampering protection without introducing heavy cryptography dependencies (`cryptography` library), staying lean with Python standard library `hashlib` and `hmac`.
-2. **Decision**: Strict Grace Period Zero-Billing Deduction  
-   - *Alternatives Considered*: Prorating grace period by the minute.  
+2. **Decision**: Strict Grace Period Zero-Billing Deduction
+   - *Alternatives Considered*: Prorating grace period by the minute.
    - *Rationale & Evidence*: Standard commercial parking and valet practices provide a 15-minute free drop-off/pick-up window. If duration <= `grace_period_minutes`, zero parking fee is assessed.
-3. **Decision**: Increment Expected CLI Group Count from 18 to 19 in Release Audit  
-   - *Alternatives Considered*: Not testing `billing` in `release.py`.  
+3. **Decision**: Increment Expected CLI Group Count from 18 to 19 in Release Audit
+   - *Alternatives Considered*: Not testing `billing` in `release.py`.
    - *Rationale & Evidence*: `nearfield360 release audit` verifies full CLI subcommand discovery; adding `billing` maintains release integrity.
 
 ---
@@ -1787,13 +1787,13 @@ Phase 27 delivers an end-to-end Autonomous Valet Parking Smart Billing, Dynamic 
 
 ## Phase 28: Multi-Tenant Facility Partitioning, Fleet Operator SLA Management & Reserved VIP Corridor Access
 
-**Status:** Completed  
-**Repository Branch:** `phase/multi-tenant-facility-sla-corridors`  
-**Test Suite:** 1187 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy` clean (140 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (20 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/multi-tenant-facility-sla-corridors`
+**Test Suite:** 1187 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy` clean (140 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (20 registered CLI command groups)
 
 ---
 
@@ -1847,14 +1847,14 @@ Phase 28 delivers an end-to-end Multi-Tenant Facility Partitioning, Fleet Operat
 
 ### 3. Decision Log
 
-1. **Decision**: Explicit Spatiotemporal Preemption over Deadlock Waiting for VIP Corridors  
-   - *Alternatives Considered*: Queueing lower-priority vehicles until they clear before granting the VIP reservation.  
+1. **Decision**: Explicit Spatiotemporal Preemption over Deadlock Waiting for VIP Corridors
+   - *Alternatives Considered*: Queueing lower-priority vehicles until they clear before granting the VIP reservation.
    - *Rationale & Evidence*: Commercial and hospital VIP/emergency operations require guaranteed lane clearance. When a higher-priority corridor reservation is activated, conflicting reservations are preempted immediately with an explicit preemption hold token.
-2. **Decision**: Strict Quota and Tier Access Enforcement with Dedicated Exception Types  
-   - *Alternatives Considered*: Generic runtime exceptions or soft warnings.  
+2. **Decision**: Strict Quota and Tier Access Enforcement with Dedicated Exception Types
+   - *Alternatives Considered*: Generic runtime exceptions or soft warnings.
    - *Rationale & Evidence*: Defining `QuotaExceededError` and `UnauthorizedAccessError` ensures explicit, recoverable error handling across the dispatch and billing layers.
-3. **Decision**: Increment Expected CLI Group Count from 19 to 20 in Release Audit  
-   - *Alternatives Considered*: Not including `tenant` in the release audit group list.  
+3. **Decision**: Increment Expected CLI Group Count from 19 to 20 in Release Audit
+   - *Alternatives Considered*: Not including `tenant` in the release audit group list.
    - *Rationale & Evidence*: Every functional subsystem CLI command group must be verified by `nearfield360 release audit` to ensure zero command regressions.
 
 ---
@@ -1876,13 +1876,13 @@ Phase 28 delivers an end-to-end Multi-Tenant Facility Partitioning, Fleet Operat
 
 ## Phase 29: Curbside Drop-off/Pick-up Staging, Dwell Management & Pedestrian Safety Interlocks
 
-**Status:** Completed  
-**Repository Branch:** `phase/curbside-dropoff-staging-pedestrian-safety`  
-**Test Suite:** 1219 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy` clean (148 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (21 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/curbside-dropoff-staging-pedestrian-safety`
+**Test Suite:** 1219 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy` clean (148 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (21 registered CLI command groups)
 
 ---
 
@@ -1934,14 +1934,14 @@ Phase 29 delivers an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwel
 
 ### 3. Decision Log
 
-1. **Decision**: Explicit Temporal Debounce Hold Before Disengaging Safety Interlocks  
-   - *Alternatives Considered*: Immediate disengagement as soon as a pedestrian steps outside the critical radius.  
+1. **Decision**: Explicit Temporal Debounce Hold Before Disengaging Safety Interlocks
+   - *Alternatives Considered*: Immediate disengagement as soon as a pedestrian steps outside the critical radius.
    - *Rationale & Evidence*: In real-world curbside environments, pedestrians often hesitate, turn back for luggage, or oscillate near vehicle boundaries. ISO 23374 requires a mandatory debounce hold duration (default 3.0 s) after clearance before autonomous motion can resume.
-2. **Decision**: Dual Egress/Ingress Dwell Timers and Minute-Rate Overstay Penalties  
-   - *Alternatives Considered*: Single static dwell timer for all handover events.  
+2. **Decision**: Dual Egress/Ingress Dwell Timers and Minute-Rate Overstay Penalties
+   - *Alternatives Considered*: Single static dwell timer for all handover events.
    - *Rationale & Evidence*: Passenger drop-off egress is significantly faster (default 120 s) than summon boarding (default 180 s), where passengers locate the vehicle and load luggage. Differentiated dwell limits optimize facility curbside throughput while fairly penalizing excessive overstays.
-3. **Decision**: Increment Expected CLI Group Count from 20 to 21 in Release Audit  
-   - *Alternatives Considered*: Excluding `curbside` from release readiness checks.  
+3. **Decision**: Increment Expected CLI Group Count from 20 to 21 in Release Audit
+   - *Alternatives Considered*: Excluding `curbside` from release readiness checks.
    - *Rationale & Evidence*: Every functional subsystem CLI command group must be verified by `nearfield360 release audit` to maintain 100% command availability.
 
 ---
@@ -1963,13 +1963,13 @@ Phase 29 delivers an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwel
 
 ## Phase 30: Remote Teleoperation Assistance, Video Fallback Streaming & Emergency Minimum Risk Maneuver (MRM) Execution
 
-**Status:** Completed  
-**Repository Branch:** `phase/remote-teleoperation-assistance-mrm`  
-**Test Suite:** 1243 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy` clean (153 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (22 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/remote-teleoperation-assistance-mrm`
+**Test Suite:** 1243 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy` clean (153 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (22 registered CLI command groups)
 
 ---
 
@@ -2023,14 +2023,14 @@ Phase 30 delivers an end-to-end Remote Teleoperation Assistance, Latency-Adaptiv
 
 ### 3. Decision Log
 
-1. **Decision**: Combined Instantaneous and Exponential Moving Average (EMA) for Network Quality Classification  
-   - *Alternatives Considered*: Pure EMA smoothing only.  
+1. **Decision**: Combined Instantaneous and Exponential Moving Average (EMA) for Network Quality Classification
+   - *Alternatives Considered*: Pure EMA smoothing only.
    - *Rationale & Evidence*: In teleoperation safety, waiting 5+ packets for an EMA to catch up to an instantaneous latency spike (e.g. cellular handoff or network freeze) creates an unacceptable collision hazard. Evaluating `effective_rtt = max(ema_rtt_ms, last_rtt_ms)` immediately inhibits direct steering upon the first anomalous packet.
-2. **Decision**: Automatic Failsafe Standstill Lockdown on Watchdog Timeout  
-   - *Alternatives Considered*: Allowing vehicle to maintain current velocity while waiting for reconnect.  
+2. **Decision**: Automatic Failsafe Standstill Lockdown on Watchdog Timeout
+   - *Alternatives Considered*: Allowing vehicle to maintain current velocity while waiting for reconnect.
    - *Rationale & Evidence*: ISO 23374 and SAE J3016 mandate that loss of teleoperation heartbeat must automatically transition the automated vehicle to a Minimum Risk State within bounded time (`heartbeat_timeout_s = 1.5s`).
-3. **Decision**: Increment Expected CLI Group Count from 21 to 22 in Release Audit  
-   - *Alternatives Considered*: Excluding `teleop` from release readiness checks.  
+3. **Decision**: Increment Expected CLI Group Count from 21 to 22 in Release Audit
+   - *Alternatives Considered*: Excluding `teleop` from release readiness checks.
    - *Rationale & Evidence*: All functional subsystem CLI command groups must be validated by `nearfield360 release audit` to ensure complete CLI surface availability.
 
 ---
@@ -2046,4 +2046,97 @@ Phase 30 delivers an end-to-end Remote Teleoperation Assistance, Latency-Adaptiv
 | Strict Typing | `uv run mypy` | 0 errors in 153 source files |
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (22 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
+
+---
+
+## Phase 31: Multi-Floor Facility Topology, Spiral Ramp Kinematics, Steep Incline Pitch Dynamics & Automated Vehicle Elevator Dispatch (ISO 23374 Vertical Transit)
+
+**Status:** Completed
+**Repository Branch:** `phase/multi-floor-ramp-elevator-transit`
+**Test Suite:** 1272 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy` clean (160 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (23 registered CLI command groups)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 31 delivers an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kinematics, Steep Incline Pitch Dynamics, and Automated Vehicle Elevator Dispatch subsystem for NearField360. Conforming to ISO 23374 (AVP Type 2 / Type 3) multi-level facility navigation standards, Phase 31 equips automated vehicles with the capability to transit vertically between multiple garage floors (subterranean basements, ground floors, multi-tier elevated decks, and rooftops):
+
+1. **Configuration (`MultiFloorConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Configurable default floor height (`default_floor_height_m`), maximum safe ramp grade (`max_ramp_grade_pct`), chassis ground breakover clearance threshold (`min_breakover_clearance_m`), ramp speed limit (`ramp_speed_limit_mps`), vehicle elevator hoist speed (`elevator_hoist_speed_mps`), door open/close dwell cycle time (`elevator_door_dwell_s`), platform vertical leveling tolerance (`elevator_leveling_tolerance_m`), single-lane ramp token lease timeout (`ramp_token_timeout_s`), and maximum supported floors (`max_floors_supported`).
+2. **Domain Models & Vertical Transit Protocol (`src/nearfield360/multilevel/models.py`):**
+   - Pydantic v2 frozen models: `PortalType` (`STRAIGHT_RAMP`, `SPIRAL_RAMP`, `VEHICLE_ELEVATOR`), `ElevatorState` (`IDLE`, `CALLED`, `TRANSITING`, `DOORS_OPENING`, `LOADING`, `LEVELING`, `HOISTING`, `UNLOADING`, `HOLD`), `RampDirection` (`ASCENDING`, `DESCENDING`, `BIDIRECTIONAL`), `RampTokenPriority` (`ASCENDING_FIRST`, `DESCENDING_FIRST`, `FIFO`), `FloorLevel`, `VerticalPortal`, `VehiclePitchState`, `Waypoint3D`, `ElevatorCabin`, `RampToken`, `MultiFloorRoute`, and `MultiFloorFacilityReport`.
+3. **Multi-Floor Topological Router & Graph Builder (`MultiFloorGraph` in `src/nearfield360/multilevel/graph.py`):**
+   - 3D multi-floor directed graph representing intra-floor aisles, parking bays, and vertical portals. Dijkstra/A* multi-level routing synthesizing 3D waypoints with altitude $z$, horizontal distances, transit times, and incline pitch gradients.
+4. **Ramp Kinematics, Pitch Dynamics & Chassis Breakover Checker (`RampDynamicsEngine` in `src/nearfield360/multilevel/ramp.py`):**
+   - Slope angle $\theta = \arctan(G / 100)$, longitudinal gravity load $F_g = mg \sin\theta$, normal force $F_N = mg \cos\theta$, required tractive friction $\mu_{\text{req}} = \tan\theta$, traction margin $\mu - \mu_{\text{req}}$, spiral continuous curvature yaw rate $\omega = v_{\text{horiz}} / R$, lateral centripetal acceleration, vertical climb rate $\dot{z}$, and underbody chassis breakover clearance checking against crest angle $\Delta \theta$.
+5. **Single-Lane Bidirectional Ramp Token Arbiter (`RampTokenArbiter` in `src/nearfield360/multilevel/arbiter.py`):**
+   - Mutual exclusion token arbitration for single-lane ramps. Directional priority resolution (`ASCENDING_FIRST` to prevent heavy vehicles stalling or rollback on steep inclines) and automatic lease timeout eviction to prevent deadlocks.
+6. **Automated Vehicle Elevator Dispatcher & Leveling Interlocks (`VehicleElevatorDispatcher` in `src/nearfield360/multilevel/elevator.py`):**
+   - Scheduling queue, closest idle cabin selection, door dwell cycles, capacity payload enforcement ($\le 3500$ kg), vertical hoist velocity profiling, and safety interlock validation (`is_drive_in_permitted` and `is_drive_out_permitted` verifying platform leveling $\le 15$ mm).
+7. **Multi-Floor BEV & Elevation HUD Visualizer (`render_multilevel_dashboard` in `src/nearfield360/multilevel/viz.py`):**
+   - Dual-panel BEV layout rendering stacked multi-floor floorplans, aisles, bays, straight and spiral ramps, elevator shafts, active vehicle footprints, 3D route trajectory, and right-panel vertical transit HUD.
+8. **CLI Command Group & Four-Camera Pipeline Integration (`src/nearfield360/cli/floor.py`, `src/nearfield360/cli/pipeline.py`):**
+   - Dedicated CLI command group `nearfield360 floor` with `info`, `route`, `ramp`, `elevator`, and `audit` subcommands.
+   - Release audit verified across 23 registered command groups.
+   - Four-camera pipeline runner integrated with `--floor` option.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- `src/nearfield360/config.py`: Added `MultiFloorConfig` with validation rules.
+- `configs/default.yaml`: Added `floor` default parameters.
+- `src/nearfield360/multilevel/models.py`: Pydantic models for floors, portals, pitch states, elevator cabins, tokens, routes, and facility reports.
+- `src/nearfield360/multilevel/graph.py`: 3D multi-floor topological graph and Dijkstra vertical routing engine.
+- `src/nearfield360/multilevel/ramp.py`: Ramp kinematics, incline gravity physics, spiral curvature, and breakover clearance engine.
+- `src/nearfield360/multilevel/arbiter.py`: Single-lane ramp token arbiter with ascending priority and timeout release.
+- `src/nearfield360/multilevel/elevator.py`: Automated car elevator dispatcher with door dwell and leveling safety interlocks.
+- `src/nearfield360/multilevel/viz.py`: Dual-panel stacked multi-floor BEV visualizer and telemetry HUD.
+- `src/nearfield360/multilevel/__init__.py`: Package exports for all public multi-floor components.
+- `src/nearfield360/cli/floor.py`: Full Typer CLI command group `nearfield360 floor`.
+- `src/nearfield360/cli/app.py`: Registered `floor_app` in root CLI.
+- `src/nearfield360/cli/release.py`: Added `floor` to audited CLI command groups (now 23).
+- `src/nearfield360/cli/pipeline.py`: Added `--floor` option, stage execution, samples payload, and output report fields.
+- `tests/unit/test_config.py`: Tests for `MultiFloorConfig`.
+- `tests/unit/multilevel/test_multilevel_models.py`: Serialization and validation unit tests.
+- `tests/unit/multilevel/test_graph.py`: Multi-floor topological graph and 3D routing tests.
+- `tests/unit/multilevel/test_ramp.py`: Ramp pitch dynamics, gravity force, and breakover clearance tests.
+- `tests/unit/multilevel/test_arbiter.py`: Single-lane ramp mutual exclusion and ascending priority tests.
+- `tests/unit/multilevel/test_elevator.py`: Vehicle elevator dispatch, hoisting, and leveling interlock tests.
+- `tests/unit/multilevel/test_multilevel_viz.py`: Visualizer PNG generation tests.
+- `tests/unit/test_floor_cli.py`: Floor CLI unit tests with JSON and PNG assertions.
+- `tests/unit/test_pipeline_floor.py`: Surround pipeline `--floor` integration tests.
+
+---
+
+### 3. Decision Log
+
+1. **Decision**: Ascending-First Directional Priority on Single-Lane Ramps
+   - *Alternatives Considered*: Standard first-come first-served (FIFO) queue.
+   - *Rationale & Evidence*: In multi-story automotive parking garages with steep ramp grades (up to 15%), stopping an ascending vehicle mid-ramp to yield to a descending vehicle creates severe rollback hazards, high transmission strain, and traction loss on damp concrete. Prioritizing ascending vehicles clears uphill momentum safely while descending vehicles can easily hold on flat deck waiting bays.
+2. **Decision**: Platform Leveling Sensor Interlock Gate ($\le 15$ mm) for Car Hoists
+   - *Alternatives Considered*: Allowing vehicle drive-in as soon as the hoist reaches the target floor elevation without measuring leveling offset.
+   - *Rationale & Evidence*: Vehicle underbody ground clearance and low-profile wheel rims can suffer severe structural damage if driven across an uneven vertical step greater than 15 mm between garage deck and elevator platform. Gating drive-in/drive-out behind `abs(leveling_offset_m) <= leveling_tolerance_m` guarantees safe mechanical transitions.
+3. **Decision**: Increment Expected CLI Group Count from 22 to 23 in Release Audit
+   - *Alternatives Considered*: Subsuming multi-floor operations under the existing 2D `map` command.
+   - *Rationale & Evidence*: Multi-floor vertical transit (ramps, elevators, pitch dynamics, tokens) represents a distinct operational layer separate from 2D vector lane SLAM, and warrants a first-class CLI command group `nearfield360 floor` verified by `nearfield360 release audit`.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1272 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 160 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (23 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |

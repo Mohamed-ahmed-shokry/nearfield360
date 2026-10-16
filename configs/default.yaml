@@ -220,9 +220,13 @@ teleop:
   mrm_deceleration_mps2: 2.0
   safe_stop_standstill_speed_mps: 0.05
   auto_mrm_on_heartbeat_loss: true
-
-
-
-
-
-
+floor:
+  default_floor_height_m: 3.5
+  max_ramp_grade_pct: 15.0
+  min_breakover_clearance_m: 0.05
+  ramp_speed_limit_mps: 2.5
+  elevator_hoist_speed_mps: 1.2
+  elevator_door_dwell_s: 5.0
+  elevator_leveling_tolerance_m: 0.015
+  ramp_token_timeout_s: 30.0
+  max_floors_supported: 16

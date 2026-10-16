@@ -43,6 +43,7 @@ the corresponding experiments have run.
 | Multi-tenant facility partitioning, SLA management & VIP express corridors | Implemented | Dedicated operator bay partitions, quota enforcement, dispatch latency SLA compliance & breach penalty auditing, VIP express corridor reservation & right-of-way preemption, `nearfield360 tenant`, and surround pipeline integration (`pipeline run --tenant`) |
 | Curbside drop-off/pick-up staging, dwell management & pedestrian safety interlocks | Implemented | Dedicated curbside staging bays, passenger egress/ingress dwell tracking, ISO 23374 Type 2 handover zone, safety interlocks inhibiting motion on open doors/trunks or pedestrian proximity, overstay tariff penalties, BEV safety circle visualization, `nearfield360 curbside`, and surround pipeline integration (`pipeline run --curbside`) |
 | Remote teleoperation assistance, video fallback & emergency MRM execution | Implemented | Remote operator assistance, guidance waypoints, RTT latency tracking, bandwidth-adaptive video throttling, fail-safe heartbeat watchdog, deterministic Minimum Risk Maneuvers (MRM), `nearfield360 teleop`, and surround pipeline integration (`pipeline run --teleop`) |
+| Multi-floor facility topology, spiral ramp kinematics & elevator dispatch | Implemented | Multi-level 3D graph routing, pitch dynamics ($F_g = mg \sin\theta$), spiral kinematics, single-lane ramp token arbiter, automated car lift scheduling with leveling interlocks, `nearfield360 floor`, and surround pipeline integration (`pipeline run --floor`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -879,6 +880,39 @@ Audit facility remote interventions, link RTT latencies, and emergency MRM safe 
 
 ```powershell
 uv run nearfield360 teleop audit --output outputs/teleop_audit.json --png outputs/teleop_audit.png
+```
+
+### Multi-Floor Facility Topology, Spiral Ramp Kinematics & Elevator Dispatch (ISO 23374 Vertical Transit)
+
+Inspect multi-floor facility transit configuration, default floor height, and elevator parameters:
+
+```powershell
+uv run nearfield360 floor info
+uv run nearfield360 floor info --json
+```
+
+Plan an optimal 3D path across floor aisles, straight ramps, spiral chutes, and car hoists:
+
+```powershell
+uv run nearfield360 floor route --origin L1-entry --destination L2-bay-42 --vehicle-id veh-avp-01 --output outputs/floor_route.json --png outputs/floor_route.png
+```
+
+Simulate vehicle pitch dynamics, gravity resistance, traction margin, and chassis breakover ground clearance on inclined and spiral ramps:
+
+```powershell
+uv run nearfield360 floor ramp --vehicle-id veh-ramp-01 --grade 12.0 --elevation 1.75 --spiral-radius 12.0 --velocity 2.5 --output outputs/ramp_dynamics.json --png outputs/ramp_dashboard.png
+```
+
+Simulate automated car lift / vehicle elevator dispatch, vertical hoisting, and leveling safety interlock handshakes:
+
+```powershell
+uv run nearfield360 floor elevator --elevator-id lift-01 --origin-floor L1 --destination-floor L2 --vehicle-id veh-lift-01 --weight 1800.0 --output outputs/elevator_cycle.json --png outputs/elevator_dashboard.png
+```
+
+Perform a comprehensive facility structural audit and vertical transit telemetry analysis:
+
+```powershell
+uv run nearfield360 floor audit --output outputs/floor_audit.json --png outputs/floor_dashboard.png
 ```
 
 
