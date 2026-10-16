@@ -831,8 +831,8 @@ Deliver an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuati
    - [x] 4.1 `feat(emergency): implement hazard perimeter geofencing, threat classification, and fire door clearance interlocks`
    - [x] 4.2 `test(emergency): verify hazard exclusion buffer enforcement, EV thermal runaway handling, and fire door gate timeout`
 5. **Task 5: Multi-Wave Facility Evacuation Planner**
-   - [ ] 5.1 `feat(emergency): implement hazard-avoiding evacuation routing and prioritized wave scheduling`
-   - [ ] 5.2 `test(emergency): verify evacuation route clearance, egress wave staggering, and bottleneck avoidance`
+   - [x] 5.1 `feat(emergency): implement hazard-avoiding evacuation routing and prioritized wave scheduling`
+   - [x] 5.2 `test(emergency): verify evacuation route clearance, egress wave staggering, and bottleneck avoidance`
 6. **Task 6: Life Safety BEV Tactical Map & Situational Visualizer**
    - [ ] 6.1 `feat(emergency): implement BEV hazard zones, responder trajectory, fire doors, and life safety HUD rendering`
    - [ ] 6.2 `test(emergency): verify emergency visualizer exports valid PNG artifacts`
