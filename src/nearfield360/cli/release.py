@@ -138,6 +138,7 @@ def _run_checks() -> list[dict[str, Any]]:
         "release",
         "robustness",
         "slots",
+        "teleop",
         "tenant",
         "track",
     }

@@ -506,6 +506,112 @@ Deliver an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwell Manageme
    - [x] 7.2 `docs(progress): document completed Phase 29 milestone, Decision Log, and verification gates`
    - [x] 7.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
 
+---
+
+## Phase 30: Remote Teleoperation Assistance, Video Fallback Streaming & Emergency Minimum Risk Maneuver (MRM) Execution
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Remote Teleoperation Assistance, Latency-Adaptive Video Fallback Streaming, and Emergency Minimum Risk Maneuver (MRM) Execution subsystem for NearField360. Conforming to ISO 23374 (AVP Type 2 / Type 3) and SAE J3016 operational safety concepts, Phase 30 provides the critical remote human fallback layer when autonomous vehicles encounter edge-case blockages, perception ambiguities, or communication degradation. The system coordinates remote operator assistance requests, modes of intervention (`TELE_ASSISTANCE`, `TELE_GUIDANCE`, `DIRECT_DRIVING`), adaptive video fallback encoding/frame-rate throttling based on real-time RTT jitter and packet loss, a fail-safe heartbeat watchdog, and deterministic autonomous execution of Minimum Risk Maneuvers (controlled deceleration, emergency safe stopping in lane or pulling to shoulder, hazard beacon actuation, and failsafe brake locking).
+
+### 2. Scope
+
+- **Configuration (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `TeleopConfig` specifying `heartbeat_timeout_s`, `max_rtt_ms`, `video_target_fps`, `video_fallback_fps`, `mrm_deceleration_mps2`, `safe_stop_standstill_speed_mps`, and `auto_mrm_on_heartbeat_loss`.
+- **Domain Models & Teleoperation Protocol (`src/nearfield360/teleop/models.py`)**:
+  - `TeleopMode`: Enum representing `IDLE_AUTONOMOUS`, `TELE_ASSISTANCE`, `TELE_GUIDANCE`, `DIRECT_DRIVING`, and `MRM_SAFE_STOP`.
+  - `MRMStage`: Enum representing `INACTIVE`, `DECELERATING`, `PULLING_TO_SHOULDER`, `STANDSTILL_LOCKED`, and `EMERGENCY_BEACON`.
+  - `NetworkQuality`: Enum representing `OPTIMAL`, `DEGRADED`, `CRITICAL`, and `SEVERED`.
+  - `TeleopCommand`: Operator steering angle, speed, emergency stop override, waypoint suggestions, timestamp.
+  - `TeleopHeartbeat`: Vehicle ID, timestamp, sequence number, round trip time (RTT), network quality.
+  - `TeleopSession`: Session ID, vehicle ID, operator ID, active mode, start timestamp, commands received count, current MRM state.
+  - `TeleopReport`: Facility-wide teleoperation events, interventions count, average RTT, and MRM executions summary.
+- **Bandwidth-Adaptive Video Fallback & Network Monitor (`src/nearfield360/teleop/network.py`)**:
+  - `NetworkMonitor`: Tracks packet sequence numbers, RTT exponential moving average (EMA), jitter, and packet loss ratio. Classifies network quality (`OPTIMAL` < 100ms, `DEGRADED` 100-250ms, `CRITICAL` 250-500ms, `SEVERED` > 500ms or timeout).
+  - Provides dynamic video throttling recommendations (target FPS, compression scale factor).
+- **Minimum Risk Maneuver (MRM) Safe Stop Engine (`src/nearfield360/teleop/mrm.py`)**:
+  - `MRMEngine`: Finite state machine orchestrating safe transitions:
+    - Detects trigger: heartbeat timeout, network severance, critical sensor failure, or explicit operator E-stop.
+    - Computes safe deceleration profile to zero velocity.
+    - Engages parking brake lock, disables traction motor, activates emergency hazard beacon, and emits distress event.
+- **Remote Assistance Executive & Session Coordinator (`src/nearfield360/teleop/manager.py`)**:
+  - `TeleopManager`: Manages active teleoperation sessions across facility vehicles, processes incoming commands, enforces safety checks (rejects direct steering if RTT > `max_rtt_ms`), routes guidance waypoints, and evaluates session termination.
+- **BEV Teleoperation Cockpit & MRM Dashboard (`src/nearfield360/teleop/viz.py`)**:
+  - `render_teleop_dashboard`: Dual-panel cockpit view:
+    - Left panel: BEV map with vehicle footprint, suggested remote path overlay, MRM safe stop trajectory, hazard envelope warning icons.
+    - Right panel: Operator telemetry cockpit HUD with real-time RTT gauge, network quality indicator, current teleoperation mode badge, and MRM status.
+- **Package Exports & CLI Command Group (`src/nearfield360/teleop/__init__.py`, `src/nearfield360/cli/teleop.py`)**:
+  - Dedicated CLI command group: `nearfield360 teleop` with `info`, `session`, `fallback`, and `audit` subcommands.
+  - Root CLI registration (`app.py`).
+  - Update release readiness audit for 22 CLI command groups (`release.py`).
+  - Four-camera pipeline integration: `nearfield360 pipeline run --teleop`.
+- **Comprehensive Verification Suite**:
+  - Unit and integration tests covering config, models, network monitor, MRM engine, session manager, visualization, CLI, release audit, and pipeline runner.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `TeleopConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for teleoperation sessions, heartbeats, network quality, commands, and MRM states | `uv run pytest tests/unit/teleop/test_teleop_models.py` |
+| AC-3 | `NetworkMonitor` evaluates RTT, jitter, packet loss, and throttles streaming frame rate | `uv run pytest tests/unit/teleop/test_network.py` |
+| AC-4 | `MRMEngine` executes deterministic safe stop upon heartbeat timeout or emergency trigger | `uv run pytest tests/unit/teleop/test_mrm.py` |
+| AC-5 | `TeleopManager` handles remote assistance lifecycle, guidance waypoint routing, and safety bounds | `uv run pytest tests/unit/teleop/test_teleop_manager.py` |
+| AC-6 | Dual-panel BEV cockpit visualizer renders remote path, MRM stop point, and HUD gauges to PNG | `uv run pytest tests/unit/teleop/test_teleop_viz.py` |
+| AC-7 | Dedicated CLI command group `nearfield360 teleop` executes `info`, `session`, `fallback`, and `audit` | `uv run pytest tests/unit/test_teleop_cli.py` |
+| AC-8 | Root CLI registers `teleop` command group, passing release audit with 22 groups | `uv run nearfield360 release audit` |
+| AC-9 | Surround pipeline runner integrates teleoperation options and exports fallback telemetry | `uv run pytest tests/unit/test_pipeline_teleop.py` |
+| AC-10 | Full test suite passes with zero failures, clean `mypy`, clean `ruff`, and successful build | `uv run pytest`, `uv run mypy`, `uv run ruff check .`, `uv build` |
+
+### 4. Validation Plan
+
+1. Unit tests covering config, models, network monitor, MRM engine, manager, viz, CLI, and pipeline.
+2. CLI integration tests verifying `nearfield360 teleop session`, `teleop fallback`, `teleop audit` with JSON/PNG outputs.
+3. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit: `uv run nearfield360 release audit`.
+5. Full test suite: `uv run pytest -q`.
+
+### 5. Exclusions
+
+- Real WebRTC / SIP media server infrastructure (discrete frame packet simulation is used).
+- Physical CAN-bus steer-by-wire transceiver hardware protocols.
+- Regulatory cellular spectrum licensing negotiations.
+
+### 6. Task List & Micro-Commit Plan
+
+1. **Task 1: Roadmap & Teleoperation Config Foundation**
+   - [x] 1.1 `docs: establish Phase 30 teleoperation assistance and MRM roadmap`
+   - [x] 1.2 `feat(config): add TeleopConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for TeleopConfig validation and environment overrides`
+2. **Task 2: Teleoperation Domain Models & Protocol Schemas**
+   - [x] 2.1 `feat(teleop): implement teleoperation mode, network quality, heartbeat, and command models`
+   - [x] 2.2 `feat(teleop): implement teleoperation session and facility audit report models`
+   - [x] 2.3 `test(teleop): verify teleoperation domain models, serialization, and validation`
+3. **Task 3: Bandwidth-Adaptive Network Monitor & Fallback Throttling**
+   - [x] 3.1 `feat(teleop): implement network quality monitoring, RTT tracking, and video throttling`
+   - [x] 3.2 `test(teleop): verify network quality classification and bitrate/fps degradation`
+4. **Task 4: Minimum Risk Maneuver (MRM) Safe Stop Engine**
+   - [x] 4.1 `feat(teleop): implement MRM state machine, deceleration profile, and brake locking`
+   - [x] 4.2 `test(teleop): verify MRM execution on heartbeat timeout, network loss, and emergency stop`
+5. **Task 5: Teleoperation Manager & Session Coordinator**
+   - [x] 5.1 `feat(teleop): implement teleoperation session manager and guidance waypoint dispatcher`
+   - [x] 5.2 `test(teleop): verify session lifecycle, direct driving latency safety rejection, and audit reporting`
+6. **Task 6: BEV Teleoperation Cockpit & Telemetry HUD Visualizer**
+   - [x] 6.1 `feat(teleop): implement BEV cockpit view, remote guidance path, and MRM HUD rendering`
+   - [x] 6.2 `test(teleop): verify teleop visualizer exports valid PNG artifacts`
+7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
+   - [x] 7.1 `feat(teleop): export public teleop API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 teleop command group (info, session, fallback, audit)`
+   - [x] 7.3 `feat(cli): register teleop CLI group and update release audit expected count to 22`
+   - [x] 7.4 `feat(pipeline): integrate --teleop options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify teleop CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline teleop integration workflow`
+8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
+   - [x] 8.1 `docs: update README with Phase 30 teleoperation capabilities and CLI usage`
+   - [x] 8.2 `docs(progress): document completed Phase 30 milestone, Decision Log, and verification gates`
+   - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+
+
 
 
 

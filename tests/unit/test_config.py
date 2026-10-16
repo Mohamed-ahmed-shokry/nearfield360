@@ -764,3 +764,49 @@ def test_curbside_config_rejects_invalid_values(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="greater than or equal to 1"):
         load_config(config_path)
+
+
+def test_teleop_config_defaults_and_env_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("teleop:\n  heartbeat_timeout_s: 2.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_TELEOP__MAX_RTT_MS", "120.0")
+    monkeypatch.setenv("NEARFIELD360_TELEOP__AUTO_MRM_ON_HEARTBEAT_LOSS", "false")
+
+    config = load_config(config_path)
+
+    assert config.teleop.heartbeat_timeout_s == 2.0
+    assert config.teleop.max_rtt_ms == 120.0
+    assert config.teleop.auto_mrm_on_heartbeat_loss is False
+    assert config.teleop.critical_rtt_ms == 350.0
+    assert config.teleop.video_target_fps == 20.0
+    assert config.teleop.video_fallback_fps == 5.0
+
+
+def test_teleop_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("teleop:\n  heartbeat_timeout_s: -1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
+
+
+def test_teleop_config_rejects_fallback_exceeding_target(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "teleop:\n  video_target_fps: 10.0\n  video_fallback_fps: 15.0\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValidationError, match="cannot exceed"):
+        load_config(config_path)
+
+
+def test_teleop_config_rejects_max_rtt_exceeding_critical(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "teleop:\n  max_rtt_ms: 400.0\n  critical_rtt_ms: 300.0\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValidationError, match="strictly less than"):
+        load_config(config_path)
