@@ -729,6 +729,6 @@ Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kine
    - [x] 8.5 `test(cli): verify floor CLI commands, JSON payloads, and visual outputs`
    - [x] 8.6 `test(pipeline): verify pipeline floor integration workflow`
 9. **Task 9: End-to-End Documentation, Self-Review & Delivery**
-   - [ ] 9.1 `docs: update README with Phase 31 multi-floor capabilities and CLI usage`
+   - [x] 9.1 `docs: update README with Phase 31 multi-floor capabilities and CLI usage`
    - [ ] 9.2 `docs(progress): document completed Phase 31 milestone, Decision Log, and verification gates`
    - [ ] 9.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
