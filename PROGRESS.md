@@ -2047,3 +2047,97 @@ Phase 30 delivers an end-to-end Remote Teleoperation Assistance, Latency-Adaptiv
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (22 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
+
+---
+
+## Phase 31: Multi-Floor Facility Topology, Spiral Ramp Kinematics, Steep Incline Pitch Dynamics & Automated Vehicle Elevator Dispatch (ISO 23374 Vertical Transit)
+
+**Status:** Completed  
+**Repository Branch:** `phase/multi-floor-ramp-elevator-transit`  
+**Test Suite:** 1272 passed, 5 skipped (0 failures)  
+**Type Checking:** `mypy` clean (160 source files)  
+**Linting & Style:** `ruff check` and `ruff format` clean  
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
+**Release Audit:** Passed (23 registered CLI command groups)  
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 31 delivers an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kinematics, Steep Incline Pitch Dynamics, and Automated Vehicle Elevator Dispatch subsystem for NearField360. Conforming to ISO 23374 (AVP Type 2 / Type 3) multi-level facility navigation standards, Phase 31 equips automated vehicles with the capability to transit vertically between multiple garage floors (subterranean basements, ground floors, multi-tier elevated decks, and rooftops):
+
+1. **Configuration (`MultiFloorConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Configurable default floor height (`default_floor_height_m`), maximum safe ramp grade (`max_ramp_grade_pct`), chassis ground breakover clearance threshold (`min_breakover_clearance_m`), ramp speed limit (`ramp_speed_limit_mps`), vehicle elevator hoist speed (`elevator_hoist_speed_mps`), door open/close dwell cycle time (`elevator_door_dwell_s`), platform vertical leveling tolerance (`elevator_leveling_tolerance_m`), single-lane ramp token lease timeout (`ramp_token_timeout_s`), and maximum supported floors (`max_floors_supported`).
+2. **Domain Models & Vertical Transit Protocol (`src/nearfield360/multilevel/models.py`):**
+   - Pydantic v2 frozen models: `PortalType` (`STRAIGHT_RAMP`, `SPIRAL_RAMP`, `VEHICLE_ELEVATOR`), `ElevatorState` (`IDLE`, `CALLED`, `TRANSITING`, `DOORS_OPENING`, `LOADING`, `LEVELING`, `HOISTING`, `UNLOADING`, `HOLD`), `RampDirection` (`ASCENDING`, `DESCENDING`, `BIDIRECTIONAL`), `RampTokenPriority` (`ASCENDING_FIRST`, `DESCENDING_FIRST`, `FIFO`), `FloorLevel`, `VerticalPortal`, `VehiclePitchState`, `Waypoint3D`, `ElevatorCabin`, `RampToken`, `MultiFloorRoute`, and `MultiFloorFacilityReport`.
+3. **Multi-Floor Topological Router & Graph Builder (`MultiFloorGraph` in `src/nearfield360/multilevel/graph.py`):**
+   - 3D multi-floor directed graph representing intra-floor aisles, parking bays, and vertical portals. Dijkstra/A* multi-level routing synthesizing 3D waypoints with altitude $z$, horizontal distances, transit times, and incline pitch gradients.
+4. **Ramp Kinematics, Pitch Dynamics & Chassis Breakover Checker (`RampDynamicsEngine` in `src/nearfield360/multilevel/ramp.py`):**
+   - Slope angle $\theta = \arctan(G / 100)$, longitudinal gravity load $F_g = mg \sin\theta$, normal force $F_N = mg \cos\theta$, required tractive friction $\mu_{\text{req}} = \tan\theta$, traction margin $\mu - \mu_{\text{req}}$, spiral continuous curvature yaw rate $\omega = v_{\text{horiz}} / R$, lateral centripetal acceleration, vertical climb rate $\dot{z}$, and underbody chassis breakover clearance checking against crest angle $\Delta \theta$.
+5. **Single-Lane Bidirectional Ramp Token Arbiter (`RampTokenArbiter` in `src/nearfield360/multilevel/arbiter.py`):**
+   - Mutual exclusion token arbitration for single-lane ramps. Directional priority resolution (`ASCENDING_FIRST` to prevent heavy vehicles stalling or rollback on steep inclines) and automatic lease timeout eviction to prevent deadlocks.
+6. **Automated Vehicle Elevator Dispatcher & Leveling Interlocks (`VehicleElevatorDispatcher` in `src/nearfield360/multilevel/elevator.py`):**
+   - Scheduling queue, closest idle cabin selection, door dwell cycles, capacity payload enforcement ($\le 3500$ kg), vertical hoist velocity profiling, and safety interlock validation (`is_drive_in_permitted` and `is_drive_out_permitted` verifying platform leveling $\le 15$ mm).
+7. **Multi-Floor BEV & Elevation HUD Visualizer (`render_multilevel_dashboard` in `src/nearfield360/multilevel/viz.py`):**
+   - Dual-panel BEV layout rendering stacked multi-floor floorplans, aisles, bays, straight and spiral ramps, elevator shafts, active vehicle footprints, 3D route trajectory, and right-panel vertical transit HUD.
+8. **CLI Command Group & Four-Camera Pipeline Integration (`src/nearfield360/cli/floor.py`, `src/nearfield360/cli/pipeline.py`):**
+   - Dedicated CLI command group `nearfield360 floor` with `info`, `route`, `ramp`, `elevator`, and `audit` subcommands.
+   - Release audit verified across 23 registered command groups.
+   - Four-camera pipeline runner integrated with `--floor` option.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- `src/nearfield360/config.py`: Added `MultiFloorConfig` with validation rules.
+- `configs/default.yaml`: Added `floor` default parameters.
+- `src/nearfield360/multilevel/models.py`: Pydantic models for floors, portals, pitch states, elevator cabins, tokens, routes, and facility reports.
+- `src/nearfield360/multilevel/graph.py`: 3D multi-floor topological graph and Dijkstra vertical routing engine.
+- `src/nearfield360/multilevel/ramp.py`: Ramp kinematics, incline gravity physics, spiral curvature, and breakover clearance engine.
+- `src/nearfield360/multilevel/arbiter.py`: Single-lane ramp token arbiter with ascending priority and timeout release.
+- `src/nearfield360/multilevel/elevator.py`: Automated car elevator dispatcher with door dwell and leveling safety interlocks.
+- `src/nearfield360/multilevel/viz.py`: Dual-panel stacked multi-floor BEV visualizer and telemetry HUD.
+- `src/nearfield360/multilevel/__init__.py`: Package exports for all public multi-floor components.
+- `src/nearfield360/cli/floor.py`: Full Typer CLI command group `nearfield360 floor`.
+- `src/nearfield360/cli/app.py`: Registered `floor_app` in root CLI.
+- `src/nearfield360/cli/release.py`: Added `floor` to audited CLI command groups (now 23).
+- `src/nearfield360/cli/pipeline.py`: Added `--floor` option, stage execution, samples payload, and output report fields.
+- `tests/unit/test_config.py`: Tests for `MultiFloorConfig`.
+- `tests/unit/multilevel/test_multilevel_models.py`: Serialization and validation unit tests.
+- `tests/unit/multilevel/test_graph.py`: Multi-floor topological graph and 3D routing tests.
+- `tests/unit/multilevel/test_ramp.py`: Ramp pitch dynamics, gravity force, and breakover clearance tests.
+- `tests/unit/multilevel/test_arbiter.py`: Single-lane ramp mutual exclusion and ascending priority tests.
+- `tests/unit/multilevel/test_elevator.py`: Vehicle elevator dispatch, hoisting, and leveling interlock tests.
+- `tests/unit/multilevel/test_multilevel_viz.py`: Visualizer PNG generation tests.
+- `tests/unit/test_floor_cli.py`: Floor CLI unit tests with JSON and PNG assertions.
+- `tests/unit/test_pipeline_floor.py`: Surround pipeline `--floor` integration tests.
+
+---
+
+### 3. Decision Log
+
+1. **Decision**: Ascending-First Directional Priority on Single-Lane Ramps
+   - *Alternatives Considered*: Standard first-come first-served (FIFO) queue.
+   - *Rationale & Evidence*: In multi-story automotive parking garages with steep ramp grades (up to 15%), stopping an ascending vehicle mid-ramp to yield to a descending vehicle creates severe rollback hazards, high transmission strain, and traction loss on damp concrete. Prioritizing ascending vehicles clears uphill momentum safely while descending vehicles can easily hold on flat deck waiting bays.
+2. **Decision**: Platform Leveling Sensor Interlock Gate ($\le 15$ mm) for Car Hoists
+   - *Alternatives Considered*: Allowing vehicle drive-in as soon as the hoist reaches the target floor elevation without measuring leveling offset.
+   - *Rationale & Evidence*: Vehicle underbody ground clearance and low-profile wheel rims can suffer severe structural damage if driven across an uneven vertical step greater than 15 mm between garage deck and elevator platform. Gating drive-in/drive-out behind `abs(leveling_offset_m) <= leveling_tolerance_m` guarantees safe mechanical transitions.
+3. **Decision**: Increment Expected CLI Group Count from 22 to 23 in Release Audit
+   - *Alternatives Considered*: Subsuming multi-floor operations under the existing 2D `map` command.
+   - *Rationale & Evidence*: Multi-floor vertical transit (ramps, elevators, pitch dynamics, tokens) represents a distinct operational layer separate from 2D vector lane SLAM, and warrants a first-class CLI command group `nearfield360 floor` verified by `nearfield360 release audit`.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1272 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 160 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (23 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
+
