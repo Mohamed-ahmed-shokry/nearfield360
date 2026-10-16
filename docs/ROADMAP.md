@@ -825,8 +825,8 @@ Deliver an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuati
    - [x] 2.2 `feat(emergency): implement fire doors, emergency vehicles, evacuation routes, and life safety report models`
    - [x] 2.3 `test(emergency): verify life safety domain models, serialization, and validation`
 3. **Task 3: Emergency Vehicle Preemption (EVP) Arbiter**
-   - [ ] 3.1 `feat(emergency): implement emergency responder tracking and preemptive corridor clearance`
-   - [ ] 3.2 `test(emergency): verify preemption corridor detection, yield holds, and right-of-way clearance`
+   - [x] 3.1 `feat(emergency): implement emergency responder tracking and preemptive corridor clearance`
+   - [x] 3.2 `test(emergency): verify preemption corridor detection, yield holds, and right-of-way clearance`
 4. **Task 4: Dynamic Hazard Containment & Fire Door Interlocks**
    - [ ] 4.1 `feat(emergency): implement hazard perimeter geofencing, threat classification, and fire door clearance interlocks`
    - [ ] 4.2 `test(emergency): verify hazard exclusion buffer enforcement, EV thermal runaway handling, and fire door gate timeout`
