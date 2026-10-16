@@ -10,8 +10,6 @@ from typing import Any
 
 import cv2
 import numpy as np
-import onnx
-from onnx import TensorProto, helper, numpy_helper
 
 from nearfield360.perception.inference.models import (
     CalibrationSummary,
@@ -28,6 +26,20 @@ logger = logging.getLogger(__name__)
 
 class OptimizationError(RuntimeError):
     """Raised when model conversion, quantization, or calibration fails."""
+
+
+def _require_onnx() -> tuple[Any, Any, Any, Any]:
+    try:
+        import onnx
+        from onnx import TensorProto, helper, numpy_helper
+
+        return onnx, TensorProto, helper, numpy_helper
+    except ImportError as exc:
+        msg = (
+            "onnx is not installed. Install with `pip install onnx` to use model "
+            "optimization tools."
+        )
+        raise OptimizationError(msg) from exc
 
 
 def _float_to_hex_scale(scale: float) -> str:
@@ -53,6 +65,7 @@ def convert_model_to_fp16(
     Returns:
         Tuple of (total_node_count, converted_node_count).
     """
+    onnx, TensorProto, helper, numpy_helper = _require_onnx()  # noqa: N806
     try:
         model = onnx.load(str(input_path))
     except Exception as exc:
@@ -163,6 +176,7 @@ def quantize_model_dynamic_int8(
     falling back to pure ONNX affine weight quantization.
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    onnx, TensorProto, helper, numpy_helper = _require_onnx()  # noqa: N806
 
     try:
         from onnxruntime.quantization import (  # type: ignore[import-not-found,import-untyped,unused-ignore]
@@ -328,6 +342,7 @@ def generate_int8_calibration_table(
         raise OptimizationError("At least one calibration sample array is required.")
 
     # Inspect model to identify output/activation tensor names
+    onnx, _, _, _ = _require_onnx()
     try:
         model = onnx.load(str(model_path))
     except Exception as exc:
