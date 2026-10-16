@@ -40,7 +40,7 @@ def test_json_reader_rejects_ambiguous_or_invalid_documents(tmp_path: Path, payl
 
 def test_json_reader_bounds_size_and_nesting(tmp_path: Path) -> None:
     path = tmp_path / "large.json"
-    path.write_text("[" * 5000 + "0" + "]" * 5000, encoding="utf-8")
+    path.write_text("[" * 50000 + "0" + "]" * 50000, encoding="utf-8")
     with pytest.raises(ArtifactError, match="byte limit"):
         read_json(path, max_bytes=100)
     with pytest.raises(ArtifactError, match="Unable to read"):
