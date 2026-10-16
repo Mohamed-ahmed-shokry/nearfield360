@@ -483,7 +483,9 @@ class EmergencyConfig(BaseModel):
     preemption_radius_m: float = Field(default=35.0, gt=0.0, le=200.0, allow_inf_nan=False)
     hazard_buffer_radius_m: float = Field(default=12.0, gt=0.0, le=100.0, allow_inf_nan=False)
     evacuation_speed_limit_mps: float = Field(default=4.0, gt=0.0, le=15.0, allow_inf_nan=False)
-    fire_door_clearance_timeout_s: float = Field(default=15.0, gt=0.0, le=120.0, allow_inf_nan=False)
+    fire_door_clearance_timeout_s: float = Field(
+        default=15.0, gt=0.0, le=120.0, allow_inf_nan=False
+    )
     stagger_interval_s: float = Field(default=3.0, ge=0.0, le=60.0, allow_inf_nan=False)
     emergency_heartbeat_timeout_s: float = Field(default=1.0, gt=0.0, le=10.0, allow_inf_nan=False)
     thermal_runaway_temp_c: float = Field(default=70.0, gt=0.0, le=250.0, allow_inf_nan=False)

@@ -902,4 +902,3 @@ def test_emergency_config_rejects_excessive_temperature(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 250"):
         load_config(config_path)
-

@@ -159,4 +159,3 @@ class LifeSafetyReport(BaseModel):
     yielding_count: int = Field(default=0, ge=0)
     trapped_count: int = Field(default=0, ge=0)
     evp_active: bool = False
-

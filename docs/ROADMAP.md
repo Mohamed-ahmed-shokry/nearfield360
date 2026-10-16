@@ -847,4 +847,3 @@ Deliver an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuati
    - [ ] 8.1 `docs: update README with Phase 32 emergency preemption capabilities and CLI usage`
    - [ ] 8.2 `docs(progress): document completed Phase 32 milestone, Decision Log, and verification gates`
    - [ ] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
-
