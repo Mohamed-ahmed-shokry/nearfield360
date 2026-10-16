@@ -1770,7 +1770,7 @@ def test_eval_compare_output_file_and_overwrite(tmp_path: Path) -> None:
 
     second = runner.invoke(app, cmd)
     assert second.exit_code == 1
-    assert "already exists" in second.stderr
+    assert "Artifact error" in second.stderr
 
     third = runner.invoke(app, [*cmd, "--overwrite"])
     assert third.exit_code == 0, third.output
