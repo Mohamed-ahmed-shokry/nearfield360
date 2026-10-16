@@ -119,9 +119,7 @@ def floor_ramp(
     spiral_radius: Annotated[
         float | None, typer.Option("--spiral-radius", help="Spiral ramp radius if curved.")
     ] = None,
-    velocity_mps: Annotated[
-        float, typer.Option("--velocity", help="Speed traversing ramp.")
-    ] = 2.5,
+    velocity_mps: Annotated[float, typer.Option("--velocity", help="Speed traversing ramp.")] = 2.5,
     output: OutputOption = None,
     png: PngOption = None,
 ) -> None:
@@ -167,9 +165,7 @@ def floor_elevator(
         str, typer.Option("--destination-floor", help="Dropoff floor ID.")
     ] = "L2",
     vehicle_id: Annotated[str, typer.Option("--vehicle-id", help="Vehicle ID.")] = "veh-lift-01",
-    vehicle_weight: Annotated[
-        float, typer.Option("--weight", help="Vehicle mass in kg.")
-    ] = 1800.0,
+    vehicle_weight: Annotated[float, typer.Option("--weight", help="Vehicle mass in kg.")] = 1800.0,
     output: OutputOption = None,
     png: PngOption = None,
 ) -> None:

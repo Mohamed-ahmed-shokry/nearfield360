@@ -224,9 +224,7 @@ class MultiFloorGraph:
                 horiz_dist = math.hypot(dx, dy)
                 heading = math.atan2(dy, dx)
                 pitch_deg = (
-                    math.degrees(math.atan2(dz, max(horiz_dist, 0.01)))
-                    if abs(dz) > 0.01
-                    else 0.0
+                    math.degrees(math.atan2(dz, max(horiz_dist, 0.01))) if abs(dz) > 0.01 else 0.0
                 )
 
                 waypoints.append(

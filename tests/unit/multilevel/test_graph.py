@@ -51,9 +51,7 @@ def test_multifloor_graph_construction_and_errors() -> None:
 
 def test_portal_mismatch_and_elevator_edge() -> None:
     graph = MultiFloorGraph()
-    f1 = FloorLevel(
-        floor_id="L1", name="Ground", elevation_m=0.0, bays_count=10, available_bays=2
-    )
+    f1 = FloorLevel(floor_id="L1", name="Ground", elevation_m=0.0, bays_count=10, available_bays=2)
     f2 = FloorLevel(floor_id="L2", name="Deck", elevation_m=3.5, bays_count=10, available_bays=2)
     graph.add_floor(f1)
     graph.add_floor(f2)
@@ -122,9 +120,7 @@ def test_find_route_and_waypoints() -> None:
 
 def test_disconnected_subgraph_raises() -> None:
     graph = MultiFloorGraph()
-    f1 = FloorLevel(
-        floor_id="L1", name="Ground", elevation_m=0.0, bays_count=10, available_bays=2
-    )
+    f1 = FloorLevel(floor_id="L1", name="Ground", elevation_m=0.0, bays_count=10, available_bays=2)
     f2 = FloorLevel(floor_id="L2", name="Deck", elevation_m=3.5, bays_count=10, available_bays=2)
     graph.add_floor(f1)
     graph.add_floor(f2)

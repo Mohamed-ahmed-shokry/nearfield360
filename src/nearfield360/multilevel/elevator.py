@@ -191,9 +191,7 @@ class VehicleElevatorDispatcher:
                             state=ElevatorState.LOADING,
                             leveling_offset_m=0.002,
                         )
-                        events.append(
-                            {"event": "doors_opened_loading", "elevator_id": elevator_id}
-                        )
+                        events.append({"event": "doors_opened_loading", "elevator_id": elevator_id})
                 else:
                     self._dwell_timers[elevator_id] = timer
 
@@ -203,9 +201,7 @@ class VehicleElevatorDispatcher:
                     veh_id = active_call.vehicle_id if active_call else "veh-default"
                     self._dwell_timers[elevator_id] = self.door_dwell_s
                     target_dest = (
-                        active_call.destination_floor_id
-                        if active_call
-                        else cabin.current_floor_id
+                        active_call.destination_floor_id if active_call else cabin.current_floor_id
                     )
                     self._update_cabin(
                         elevator_id,

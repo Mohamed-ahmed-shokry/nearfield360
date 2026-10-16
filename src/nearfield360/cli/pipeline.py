@@ -1150,9 +1150,7 @@ def run_pipeline(
         from nearfield360.multilevel.ramp import RampDynamicsEngine
 
         m_graph = build_default_facility_graph()
-        multi_route = m_graph.find_route(
-            "L1-entry", "L2-bay-42", vehicle_id="veh-pipeline-01"
-        )
+        multi_route = m_graph.find_route("L1-entry", "L2-bay-42", vehicle_id="veh-pipeline-01")
         r_engine = RampDynamicsEngine()
         pitch = r_engine.calculate_pitch_dynamics(
             "veh-pipeline-01", grade_pct=11.0, elevation_m=1.75

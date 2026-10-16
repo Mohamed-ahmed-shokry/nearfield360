@@ -208,9 +208,7 @@ def render_multilevel_dashboard(
         level_status = (
             "ALIGNED (<15mm)" if abs(active_cabin.leveling_offset_m) <= 0.015 else "MISALIGNED"
         )
-        _put_text(
-            canvas, f"Leveling: {level_status}", (px + 12, py + 112), 0.42, COLOR_BAY_VACANT
-        )
+        _put_text(canvas, f"Leveling: {level_status}", (px + 12, py + 112), 0.42, COLOR_BAY_VACANT)
     else:
         _put_text(
             canvas, "Cabin: HOIST-01 | State: IDLE", (px + 12, py + 55), 0.45, COLOR_TEXT_BODY

@@ -52,14 +52,12 @@ def test_ramp_token_priority_ascending_first() -> None:
 
     # Veh-2 (descending) arrives first at t=1.0 and is queued
     assert (
-        arbiter.request_token("ramp-01", "veh-2", RampDirection.DESCENDING, timestamp_s=1.0)
-        is None
+        arbiter.request_token("ramp-01", "veh-2", RampDirection.DESCENDING, timestamp_s=1.0) is None
     )
 
     # Veh-3 (ascending) arrives second at t=2.0 and is queued
     assert (
-        arbiter.request_token("ramp-01", "veh-3", RampDirection.ASCENDING, timestamp_s=2.0)
-        is None
+        arbiter.request_token("ramp-01", "veh-3", RampDirection.ASCENDING, timestamp_s=2.0) is None
     )
 
     assert arbiter.get_queue_length("ramp-01") == 2
