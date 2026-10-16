@@ -722,12 +722,12 @@ Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kine
    - [x] 7.1 `feat(multilevel): implement multi-floor BEV floorplans, elevation profile, and telemetry HUD`
    - [x] 7.2 `test(multilevel): verify multi-floor visualizer exports valid PNG artifacts`
 8. **Task 8: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 8.1 `feat(multilevel): export public multilevel API from package init`
-   - [ ] 8.2 `feat(cli): implement nearfield360 floor command group (info, route, ramp, elevator, audit)`
-   - [ ] 8.3 `feat(cli): register floor CLI group and update release audit expected count to 23`
-   - [ ] 8.4 `feat(pipeline): integrate --floor options into surround pipeline runner`
-   - [ ] 8.5 `test(cli): verify floor CLI commands, JSON payloads, and visual outputs`
-   - [ ] 8.6 `test(pipeline): verify pipeline floor integration workflow`
+   - [x] 8.1 `feat(multilevel): export public multilevel API from package init`
+   - [x] 8.2 `feat(cli): implement nearfield360 floor command group (info, route, ramp, elevator, audit)`
+   - [x] 8.3 `feat(cli): register floor CLI group and update release audit expected count to 23`
+   - [x] 8.4 `feat(pipeline): integrate --floor options into surround pipeline runner`
+   - [x] 8.5 `test(cli): verify floor CLI commands, JSON payloads, and visual outputs`
+   - [x] 8.6 `test(pipeline): verify pipeline floor integration workflow`
 9. **Task 9: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 9.1 `docs: update README with Phase 31 multi-floor capabilities and CLI usage`
    - [ ] 9.2 `docs(progress): document completed Phase 31 milestone, Decision Log, and verification gates`
