@@ -817,9 +817,9 @@ Deliver an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuati
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Emergency Configuration Foundation**
-   - [ ] 1.1 `docs(roadmap): establish Phase 32 emergency preemption, evacuation and life safety roadmap`
-   - [ ] 1.2 `feat(config): add EmergencyConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for EmergencyConfig validation and environment overrides`
+   - [x] 1.1 `docs(roadmap): establish Phase 32 emergency preemption, evacuation and life safety roadmap`
+   - [x] 1.2 `feat(config): add EmergencyConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for EmergencyConfig validation and environment overrides`
 2. **Task 2: Life Safety Domain Models & Protocol Schemas**
    - [ ] 2.1 `feat(emergency): implement emergency type, severity, status, and hazard zone models`
    - [ ] 2.2 `feat(emergency): implement fire doors, emergency vehicles, evacuation routes, and life safety report models`
