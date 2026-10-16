@@ -713,8 +713,8 @@ Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kine
    - [x] 4.1 `feat(multilevel): implement ramp grade dynamics, spiral kinematics, and breakover clearance`
    - [x] 4.2 `test(multilevel): verify steep incline pitch physics, traction limits, and chassis scraping checks`
 5. **Task 5: Single-Lane Ramp Token Arbiter & Conflict Resolution**
-   - [ ] 5.1 `feat(multilevel): implement ramp token arbiter with ascending priority and deadlock prevention`
-   - [ ] 5.2 `test(multilevel): verify ramp mutual exclusion, priority token allocation, and timeout release`
+   - [x] 5.1 `feat(multilevel): implement ramp token arbiter with ascending priority and deadlock prevention`
+   - [x] 5.2 `test(multilevel): verify ramp mutual exclusion, priority token allocation, and timeout release`
 6. **Task 6: Automated Vehicle Elevator Dispatcher & Leveling Interlocks**
    - [ ] 6.1 `feat(multilevel): implement vehicle elevator state machine, dispatch queue, and leveling interlocks`
    - [ ] 6.2 `test(multilevel): verify elevator scheduling, hoist velocity profiling, and safety interlock gates`
