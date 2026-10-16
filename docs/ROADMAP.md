@@ -719,8 +719,8 @@ Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kine
    - [x] 6.1 `feat(multilevel): implement vehicle elevator state machine, dispatch queue, and leveling interlocks`
    - [x] 6.2 `test(multilevel): verify elevator scheduling, hoist velocity profiling, and safety interlock gates`
 7. **Task 7: Multi-Floor BEV & Vertical Transit Dashboard Visualizer**
-   - [ ] 7.1 `feat(multilevel): implement multi-floor BEV floorplans, elevation profile, and telemetry HUD`
-   - [ ] 7.2 `test(multilevel): verify multi-floor visualizer exports valid PNG artifacts`
+   - [x] 7.1 `feat(multilevel): implement multi-floor BEV floorplans, elevation profile, and telemetry HUD`
+   - [x] 7.2 `test(multilevel): verify multi-floor visualizer exports valid PNG artifacts`
 8. **Task 8: Package Exports, CLI Command Group & Pipeline Integration**
    - [ ] 8.1 `feat(multilevel): export public multilevel API from package init`
    - [ ] 8.2 `feat(cli): implement nearfield360 floor command group (info, route, ramp, elevator, audit)`
