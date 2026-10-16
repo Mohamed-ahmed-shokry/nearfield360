@@ -810,3 +810,51 @@ def test_teleop_config_rejects_max_rtt_exceeding_critical(tmp_path: Path) -> Non
 
     with pytest.raises(ValidationError, match="strictly less than"):
         load_config(config_path)
+
+
+def test_floor_config_defaults() -> None:
+    config = load_config()
+
+    assert config.floor.default_floor_height_m == 3.5
+    assert config.floor.max_ramp_grade_pct == 15.0
+    assert config.floor.min_breakover_clearance_m == 0.05
+    assert config.floor.ramp_speed_limit_mps == 2.5
+    assert config.floor.elevator_hoist_speed_mps == 1.2
+    assert config.floor.elevator_door_dwell_s == 5.0
+    assert config.floor.elevator_leveling_tolerance_m == 0.015
+    assert config.floor.ramp_token_timeout_s == 30.0
+    assert config.floor.max_floors_supported == 16
+
+
+def test_floor_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("floor:\n  default_floor_height_m: 4.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_FLOOR__MAX_RAMP_GRADE_PCT", "18.0")
+    monkeypatch.setenv("NEARFIELD360_FLOOR__ELEVATOR_HOIST_SPEED_MPS", "1.5")
+    monkeypatch.setenv("NEARFIELD360_FLOOR__MAX_FLOORS_SUPPORTED", "24")
+
+    config = load_config(config_path)
+
+    assert config.floor.default_floor_height_m == 4.0
+    assert config.floor.max_ramp_grade_pct == 18.0
+    assert config.floor.elevator_hoist_speed_mps == 1.5
+    assert config.floor.max_floors_supported == 24
+
+
+def test_floor_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("floor:\n  default_floor_height_m: -1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
+
+
+def test_floor_config_rejects_excessive_floors(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("floor:\n  max_floors_supported: 100\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 64"):
+        load_config(config_path)
+
