@@ -710,8 +710,8 @@ Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kine
    - [x] 3.1 `feat(multilevel): implement multi-floor directed graph and 3D portal routing`
    - [x] 3.2 `test(multilevel): verify multi-floor graph construction, shortest path search, and transit times`
 4. **Task 4: Ramp Kinematics, Pitch Dynamics & Chassis Breakover Checker**
-   - [ ] 4.1 `feat(multilevel): implement ramp grade dynamics, spiral kinematics, and breakover clearance`
-   - [ ] 4.2 `test(multilevel): verify steep incline pitch physics, traction limits, and chassis scraping checks`
+   - [x] 4.1 `feat(multilevel): implement ramp grade dynamics, spiral kinematics, and breakover clearance`
+   - [x] 4.2 `test(multilevel): verify steep incline pitch physics, traction limits, and chassis scraping checks`
 5. **Task 5: Single-Lane Ramp Token Arbiter & Conflict Resolution**
    - [ ] 5.1 `feat(multilevel): implement ramp token arbiter with ascending priority and deadlock prevention`
    - [ ] 5.2 `test(multilevel): verify ramp mutual exclusion, priority token allocation, and timeout release`
