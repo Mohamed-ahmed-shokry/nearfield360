@@ -821,9 +821,9 @@ Deliver an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuati
    - [x] 1.2 `feat(config): add EmergencyConfig and update default yaml configuration`
    - [x] 1.3 `test(config): add unit tests for EmergencyConfig validation and environment overrides`
 2. **Task 2: Life Safety Domain Models & Protocol Schemas**
-   - [ ] 2.1 `feat(emergency): implement emergency type, severity, status, and hazard zone models`
-   - [ ] 2.2 `feat(emergency): implement fire doors, emergency vehicles, evacuation routes, and life safety report models`
-   - [ ] 2.3 `test(emergency): verify life safety domain models, serialization, and validation`
+   - [x] 2.1 `feat(emergency): implement emergency type, severity, status, and hazard zone models`
+   - [x] 2.2 `feat(emergency): implement fire doors, emergency vehicles, evacuation routes, and life safety report models`
+   - [x] 2.3 `test(emergency): verify life safety domain models, serialization, and validation`
 3. **Task 3: Emergency Vehicle Preemption (EVP) Arbiter**
    - [ ] 3.1 `feat(emergency): implement emergency responder tracking and preemptive corridor clearance`
    - [ ] 3.2 `test(emergency): verify preemption corridor detection, yield holds, and right-of-way clearance`
