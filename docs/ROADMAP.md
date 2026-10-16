@@ -611,6 +611,128 @@ Deliver an end-to-end Remote Teleoperation Assistance, Latency-Adaptive Video Fa
    - [x] 8.2 `docs(progress): document completed Phase 30 milestone, Decision Log, and verification gates`
    - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
 
+---
+
+## Phase 31: Multi-Floor Facility Topology, Spiral Ramp Kinematics, Steep Incline Pitch Dynamics & Automated Vehicle Elevator Dispatch (ISO 23374 Vertical Transit)
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kinematics, Steep Incline Pitch Dynamics, and Automated Vehicle Elevator Dispatch subsystem for NearField360. Conforming to ISO 23374 (AVP Type 2 / Type 3) multi-level facility navigation standards, Phase 31 equips automated vehicles with the capability to transit vertically between multiple garage floors (subterranean basements, ground floors, multi-tier elevated decks, and rooftops). The system models 3D multi-floor topological connectivity (`FloorGraph`, `FloorLevel`, `VerticalPortal`), calculates longitudinal gravity resistance and reduced tire adhesion on steep inclines ($F_g = mg \sin\theta$), validates chassis approach/departure/ramp-breakover clearances, arbitrates bidirectional single-lane ramp traffic tokens to prevent mid-ramp deadlocks, orchestrates automated car elevator / vehicle hoist lift sequencing with leveling safety interlocks, renders multi-floor stacked BEV floorplans and isometric ramp elevation dashboards, and exposes dedicated CLI commands with full surround perception pipeline integration.
+
+### 2. Scope
+
+- **Configuration (`MultiFloorConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `default_floor_height_m`: Default vertical distance between facility floors (e.g. 3.5 m).
+  - `max_ramp_grade_pct`: Maximum safe ramp grade allowed for autonomous driving (e.g. 15.0%).
+  - `min_breakover_clearance_m`: Minimum underbody chassis breakover clearance buffer (e.g. 0.05 m).
+  - `ramp_speed_limit_mps`: Speed limit enforced while traversing inclined/spiral ramps (e.g. 2.5 m/s).
+  - `elevator_hoist_speed_mps`: Vertical elevator ascent/descent velocity (e.g. 1.2 m/s).
+  - `elevator_door_dwell_s`: Elevator door opening and closing safety duration (e.g. 5.0 s).
+  - `elevator_leveling_tolerance_m`: Platform vertical leveling tolerance threshold (e.g. 0.015 m).
+  - `ramp_token_timeout_s`: Single-lane ramp reservation lease timeout (e.g. 30.0 s).
+- **Domain Models & Schemas (`src/nearfield360/multilevel/models.py`)**:
+  - `PortalType` Enum: `STRAIGHT_RAMP`, `SPIRAL_RAMP`, `VEHICLE_ELEVATOR`.
+  - `ElevatorState` Enum: `IDLE`, `CALLED`, `TRANSITING`, `DOORS_OPENING`, `LOADING`, `LEVELING`, `HOISTING`, `UNLOADING`, `HOLD`.
+  - `RampDirection` Enum: `ASCENDING`, `DESCENDING`, `BIDIRECTIONAL`.
+  - `RampTokenPriority` Enum: `ASCENDING_FIRST`, `DESCENDING_FIRST`, `FIFO`.
+  - `FloorLevel`: `floor_id`, `name`, `elevation_m`, `bays_count`, `available_bays`, `is_rooftop`, `is_basement`.
+  - `VerticalPortal`: `portal_id`, `portal_type`, `from_floor_id`, `to_floor_id`, `length_m`, `grade_pct`, `curvature_radius_m`, `is_bidirectional`, `speed_limit_mps`.
+  - `VehiclePitchState`: `vehicle_id`, `pitch_angle_deg`, `grade_pct`, `elevation_m`, `gravity_force_n`, `normal_force_n`, `traction_margin`, `breakover_clearance_m`, `is_clearance_safe`.
+  - `ElevatorCabin`: `elevator_id`, `current_floor_id`, `target_floor_id`, `state`, `current_elevation_m`, `max_weight_kg`, `occupied_vehicle_id`, `leveling_offset_m`.
+  - `MultiFloorRoute`: `route_id`, `vehicle_id`, `origin_floor_id`, `destination_floor_id`, `portals_sequence`, `waypoints_3d`, `total_distance_m`, `estimated_transit_time_s`.
+  - `MultiFloorFacilityReport`: `facility_name`, `floors_count`, `active_vehicles_per_floor`, `ramp_token_events`, `elevator_cycles_count`, `average_vertical_transit_time_s`.
+- **Multi-Floor Topological Router & Graph Builder (`src/nearfield360/multilevel/graph.py`)**:
+  - Directed multi-layer topological graph connecting floor waypoints and vertical portal links.
+  - Multi-floor routing engine calculating lowest-cost 3D vertical routes across ramps and elevators, factoring in transit times and grade penalties.
+- **Ramp Kinematics, Pitch Dynamics & Chassis Breakover Checker (`src/nearfield360/multilevel/ramp.py`)**:
+  - `RampDynamicsEngine`: Straight ramp slope dynamics, gravity forces, normal force reduction, and traction coefficients.
+  - Spiral ramp helical kinematics: radius $R$, yaw rate $\omega = v / R$, centripetal acceleration, and vertical climb velocity.
+  - Chassis breakover angle verification based on wheelbase ($L$), ground clearance ($h$), and ramp crest angle $\Delta \theta$ to prevent underbody grounding.
+- **Single-Lane Bidirectional Ramp Token Arbiter (`src/nearfield360/multilevel/arbiter.py`)**:
+  - `RampTokenArbiter`: Mutual exclusion locking for single-lane ramps.
+  - Directional priority arbitration (`ASCENDING_FIRST` to prevent rollback/stall) and lease timeout auto-release.
+- **Automated Vehicle Elevator Dispatcher & Leveling Interlocks (`src/nearfield360/multilevel/elevator.py`)**:
+  - `VehicleElevatorDispatcher`: Manages call queues, floor scheduling, door cycles, weight limits, vertical hoisting velocity profiles, and platform leveling precision verification ($\le 15$ mm) before granting vehicle ingress/egress.
+- **Multi-Floor BEV & Isometric Vertical Transit Visualizer (`src/nearfield360/multilevel/viz.py`)**:
+  - `render_multilevel_dashboard`: Dual-panel / multi-floor visualizer:
+    - Left panel: Multi-layer stacked BEV floorplans (e.g. Level 1 and Level 2) with floor transitions, ramp entries/exits, active vehicle positions with elevation tags ($z$), and elevator shafts.
+    - Right panel: Isometric vertical elevation profile showing ramp slope cross-section, vehicle pitch angle, elevator hoist shaft with real-time cabin height badge, and token status HUD.
+- **Package Exports & Dedicated CLI Command Group (`src/nearfield360/multilevel/__init__.py`, `src/nearfield360/cli/floor.py`)**:
+  - Subcommands: `info`, `route`, `ramp`, `elevator`, `audit`.
+  - Register `floor` CLI group in `src/nearfield360/cli/app.py`.
+  - Update release audit in `src/nearfield360/cli/release.py` to expect 23 command groups.
+- **Pipeline Runner Integration (`src/nearfield360/cli/pipeline.py`)**:
+  - Support `--floor` flag on `nearfield360 pipeline run` to integrate vertical transit and multi-floor facility metrics into perception pipeline summary.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, graph router, ramp dynamics, arbiter, elevator dispatcher, viz, CLI, and pipeline integration.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `MultiFloorConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for floors, vertical portals, pitch states, elevator cabins, routes, and facility reports | `uv run pytest tests/unit/multilevel/test_multilevel_models.py` |
+| AC-3 | `MultiFloorGraph` models 3D layer topology and routes optimal vertical paths across ramps and elevators | `uv run pytest tests/unit/multilevel/test_graph.py` |
+| AC-4 | `RampDynamicsEngine` calculates incline pitch dynamics, gravity forces, traction requirements, and breakover clearance | `uv run pytest tests/unit/multilevel/test_ramp.py` |
+| AC-5 | `RampTokenArbiter` enforces single-lane mutual exclusion, priority arbitration (ascending first), and lease timeouts | `uv run pytest tests/unit/multilevel/test_arbiter.py` |
+| AC-6 | `VehicleElevatorDispatcher` coordinates call queues, door cycles, weight limits, hoist profiles, and leveling safety interlocks | `uv run pytest tests/unit/multilevel/test_elevator.py` |
+| AC-7 | Dual-panel BEV visualizer renders stacked floorplans, vertical elevation cross-sections, and elevator HUD to valid PNG | `uv run pytest tests/unit/multilevel/test_multilevel_viz.py` |
+| AC-8 | Dedicated CLI command group `nearfield360 floor` executes `info`, `route`, `ramp`, `elevator`, and `audit` | `uv run pytest tests/unit/test_floor_cli.py` |
+| AC-9 | Root CLI registers `floor` command group, passing release audit with 23 groups | `uv run nearfield360 release audit` |
+| AC-10 | Surround pipeline runner integrates `--floor` option and exports multi-floor vertical transit telemetry in report | `uv run pytest tests/unit/test_pipeline_floor.py` |
+| AC-11 | Full test suite passes with zero failures, clean `mypy`, clean `ruff`, and successful build | `uv run pytest`, `uv run mypy`, `uv run ruff check .`, `uv build` |
+
+### 4. Validation Plan
+
+1. Unit tests covering config, models, graph router, ramp dynamics, arbiter, elevator dispatcher, viz, CLI, and pipeline.
+2. CLI integration tests verifying `nearfield360 floor route`, `floor ramp`, `floor elevator`, `floor audit` with JSON/PNG outputs.
+3. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit: `uv run nearfield360 release audit`.
+5. Full test suite: `uv run pytest -q`.
+
+### 5. Exclusions
+
+- Hydraulic fluid pressure sensor calibration and physical hoist winch motor microcode.
+- Building structural seismic damper finite element analysis.
+- Public utility municipal 480V substation transformer power supply redundancy.
+
+### 6. Task List & Micro-Commit Plan
+
+1. **Task 1: Roadmap & Multi-Floor Configuration Foundation**
+   - [x] 1.1 `docs(roadmap): establish Phase 31 multi-floor topology, ramp kinematics and elevator roadmap`
+   - [ ] 1.2 `feat(config): add MultiFloorConfig and update default yaml configuration`
+   - [ ] 1.3 `test(config): add unit tests for MultiFloorConfig validation and environment overrides`
+2. **Task 2: Multi-Floor Domain Models & Protocol Schemas**
+   - [ ] 2.1 `feat(multilevel): implement floor levels, vertical portals, and pitch state models`
+   - [ ] 2.2 `feat(multilevel): implement elevator cabins, routes, and facility report models`
+   - [ ] 2.3 `test(multilevel): verify multi-floor domain models, serialization, and validation`
+3. **Task 3: Multi-Floor Topological Router & Graph Builder**
+   - [ ] 3.1 `feat(multilevel): implement multi-floor directed graph and 3D portal routing`
+   - [ ] 3.2 `test(multilevel): verify multi-floor graph construction, shortest path search, and transit times`
+4. **Task 4: Ramp Kinematics, Pitch Dynamics & Chassis Breakover Checker**
+   - [ ] 4.1 `feat(multilevel): implement ramp grade dynamics, spiral kinematics, and breakover clearance`
+   - [ ] 4.2 `test(multilevel): verify steep incline pitch physics, traction limits, and chassis scraping checks`
+5. **Task 5: Single-Lane Ramp Token Arbiter & Conflict Resolution**
+   - [ ] 5.1 `feat(multilevel): implement ramp token arbiter with ascending priority and deadlock prevention`
+   - [ ] 5.2 `test(multilevel): verify ramp mutual exclusion, priority token allocation, and timeout release`
+6. **Task 6: Automated Vehicle Elevator Dispatcher & Leveling Interlocks**
+   - [ ] 6.1 `feat(multilevel): implement vehicle elevator state machine, dispatch queue, and leveling interlocks`
+   - [ ] 6.2 `test(multilevel): verify elevator scheduling, hoist velocity profiling, and safety interlock gates`
+7. **Task 7: Multi-Floor BEV & Vertical Transit Dashboard Visualizer**
+   - [ ] 7.1 `feat(multilevel): implement multi-floor BEV floorplans, elevation profile, and telemetry HUD`
+   - [ ] 7.2 `test(multilevel): verify multi-floor visualizer exports valid PNG artifacts`
+8. **Task 8: Package Exports, CLI Command Group & Pipeline Integration**
+   - [ ] 8.1 `feat(multilevel): export public multilevel API from package init`
+   - [ ] 8.2 `feat(cli): implement nearfield360 floor command group (info, route, ramp, elevator, audit)`
+   - [ ] 8.3 `feat(cli): register floor CLI group and update release audit expected count to 23`
+   - [ ] 8.4 `feat(pipeline): integrate --floor options into surround pipeline runner`
+   - [ ] 8.5 `test(cli): verify floor CLI commands, JSON payloads, and visual outputs`
+   - [ ] 8.6 `test(pipeline): verify pipeline floor integration workflow`
+9. **Task 9: End-to-End Documentation, Self-Review & Delivery**
+   - [ ] 9.1 `docs: update README with Phase 31 multi-floor capabilities and CLI usage`
+   - [ ] 9.2 `docs(progress): document completed Phase 31 milestone, Decision Log, and verification gates`
+   - [ ] 9.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+
 
 
 
