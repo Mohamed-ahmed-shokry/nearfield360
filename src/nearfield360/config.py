@@ -459,6 +459,22 @@ class TeleopConfig(BaseModel):
         return self
 
 
+class MultiFloorConfig(BaseModel):
+    """Parameters for multi-floor facility topology, ramp pitch dynamics, and vehicle elevators."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    default_floor_height_m: float = Field(default=3.5, gt=0.0, le=20.0, allow_inf_nan=False)
+    max_ramp_grade_pct: float = Field(default=15.0, gt=0.0, le=30.0, allow_inf_nan=False)
+    min_breakover_clearance_m: float = Field(default=0.05, ge=0.0, le=1.0, allow_inf_nan=False)
+    ramp_speed_limit_mps: float = Field(default=2.5, gt=0.0, le=10.0, allow_inf_nan=False)
+    elevator_hoist_speed_mps: float = Field(default=1.2, gt=0.0, le=5.0, allow_inf_nan=False)
+    elevator_door_dwell_s: float = Field(default=5.0, gt=0.0, le=60.0, allow_inf_nan=False)
+    elevator_leveling_tolerance_m: float = Field(default=0.015, gt=0.0, le=0.1, allow_inf_nan=False)
+    ramp_token_timeout_s: float = Field(default=30.0, gt=0.0, le=300.0, allow_inf_nan=False)
+    max_floors_supported: int = Field(default=16, ge=2, le=64)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -498,6 +514,7 @@ class ProjectConfig(BaseSettings):
     tenant: TenantConfig = Field(default_factory=TenantConfig)
     curbside: CurbsideConfig = Field(default_factory=CurbsideConfig)
     teleop: TeleopConfig = Field(default_factory=TeleopConfig)
+    floor: MultiFloorConfig = Field(default_factory=MultiFloorConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -555,6 +572,7 @@ __all__ = [
     "LoggingConfig",
     "MappingConfig",
     "MissionConfig",
+    "MultiFloorConfig",
     "OccupancyConfig",
     "OccupancyForecastConfig",
     "ParkingControlConfig",
