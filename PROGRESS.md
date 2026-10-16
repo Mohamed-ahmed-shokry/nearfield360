@@ -1530,13 +1530,13 @@ Phase 24 establishes an end-to-end Parking Facility HD Vector Mapping, Topologic
 
 ## Phase 25: Cloud Fleet Coordination, V2X Facility Dispatch & Multi-Agent Conflict Deconfliction
 
-**Status:** Completed  
-**Repository Branch:** `phase/v2x-cloud-fleet-coordination`  
-**Test Suite:** 1118 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy --strict` clean (121 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean (230 files)  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (17 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/v2x-cloud-fleet-coordination`
+**Test Suite:** 1118 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (121 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean (230 files)
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (17 registered CLI command groups)
 
 ---
 
@@ -1605,13 +1605,13 @@ Phase 25 establishes a comprehensive cloud-edge fleet coordination, V2X facility
 
 ## Phase 26: Autonomous EV Charging Dispatch, Power Grid Management & Robot/Automated Bay Scheduling
 
-**Status:** Completed  
-**Repository Branch:** `phase/ev-charging-dispatch-scheduling`  
-**Test Suite:** 1141 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy --strict` clean (128 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean (244 files)  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (18 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/ev-charging-dispatch-scheduling`
+**Test Suite:** 1141 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (128 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean (244 files)
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (18 registered CLI command groups)
 
 ---
 
@@ -1665,17 +1665,17 @@ Phase 26 delivers an end-to-end Autonomous EV Charging Dispatch, Power Grid Mana
 
 ### 3. Decision Log
 
-1. **Decision**: Mutable `ChargingSession` (`frozen=False`) vs. Frozen `ChargerBay` & `EVBatteryState`  
-   - *Alternatives Considered*: Making `ChargingSession` immutable and returning new session instances at every simulation step.  
+1. **Decision**: Mutable `ChargingSession` (`frozen=False`) vs. Frozen `ChargerBay` & `EVBatteryState`
+   - *Alternatives Considered*: Making `ChargingSession` immutable and returning new session instances at every simulation step.
    - *Rationale & Evidence*: In line with `ConflictPoint` in `nearfield360.fleet.models`, discrete-time simulation steps update `current_soc`, `energy_delivered_kwh`, `allocated_power_kw`, and `status` in place across active sessions while keeping static facility specifications immutable.
-2. **Decision**: Non-Linear Exponential CC/CV Tapering Above 80% SoC  
-   - *Alternatives Considered*: Linear constant-power charging from 0% to 100% SoC.  
+2. **Decision**: Non-Linear Exponential CC/CV Tapering Above 80% SoC
+   - *Alternatives Considered*: Linear constant-power charging from 0% to 100% SoC.
    - *Rationale & Evidence*: Real-world lithium-ion EV batteries transition from Constant Current (CC) to Constant Voltage (CV) around 80% SoC to prevent cell plating and over-voltage. Modeling exponential decay $P(\text{SoC}) = P_{\max}\exp(-k(\text{SoC}-0.80))$ accurately reflects topping-off behavior and grid load release.
-3. **Decision**: Priority-Weighted Power Curtailment in `GridPowerManager`  
-   - *Alternatives Considered*: Equal flat division of grid power across all active chargers during peak demand.  
+3. **Decision**: Priority-Weighted Power Curtailment in `GridPowerManager`
+   - *Alternatives Considered*: Equal flat division of grid power across all active chargers during peak demand.
    - *Rationale & Evidence*: Vehicles below `critical_soc_threshold` (20%) require urgent energy replenishment. Weighting power shares by $(1 - \text{SoC})$ plus a critical boost ensures depleted vehicles charge faster while still strictly respecting `facility_grid_power_kw`.
-4. **Decision**: Increment Expected CLI Group Count from 17 to 18 in Release Audit  
-   - *Alternatives Considered*: Exempting new command groups from `release.py`.  
+4. **Decision**: Increment Expected CLI Group Count from 17 to 18 in Release Audit
+   - *Alternatives Considered*: Exempting new command groups from `release.py`.
    - *Rationale & Evidence*: `nearfield360 release audit` enforces strict surface verification across all registered Typer subcommands.
 
 ---
@@ -1697,13 +1697,13 @@ Phase 26 delivers an end-to-end Autonomous EV Charging Dispatch, Power Grid Mana
 
 ## Phase 27: Autonomous Valet Parking Smart Billing, Dynamic Tariffs & Cryptographic Session Receipts
 
-**Status:** Completed  
-**Repository Branch:** `phase/automated-valet-parking-payment-billing`  
-**Test Suite:** 1157 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy --strict` clean (134 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean (254 files)  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (19 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/automated-valet-parking-payment-billing`
+**Test Suite:** 1157 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (134 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean (254 files)
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (19 registered CLI command groups)
 
 ---
 
@@ -1758,14 +1758,14 @@ Phase 27 delivers an end-to-end Autonomous Valet Parking Smart Billing, Dynamic 
 
 ### 3. Decision Log
 
-1. **Decision**: SHA-256 HMAC with Deterministic Canonical JSON over Asymmetric Public Key  
-   - *Alternatives Considered*: RSA or Ed25519 asymmetric signatures.  
+1. **Decision**: SHA-256 HMAC with Deterministic Canonical JSON over Asymmetric Public Key
+   - *Alternatives Considered*: RSA or Ed25519 asymmetric signatures.
    - *Rationale & Evidence*: Within an AVP facility server ecosystem, HMAC provides symmetric authentication and tampering protection without introducing heavy cryptography dependencies (`cryptography` library), staying lean with Python standard library `hashlib` and `hmac`.
-2. **Decision**: Strict Grace Period Zero-Billing Deduction  
-   - *Alternatives Considered*: Prorating grace period by the minute.  
+2. **Decision**: Strict Grace Period Zero-Billing Deduction
+   - *Alternatives Considered*: Prorating grace period by the minute.
    - *Rationale & Evidence*: Standard commercial parking and valet practices provide a 15-minute free drop-off/pick-up window. If duration <= `grace_period_minutes`, zero parking fee is assessed.
-3. **Decision**: Increment Expected CLI Group Count from 18 to 19 in Release Audit  
-   - *Alternatives Considered*: Not testing `billing` in `release.py`.  
+3. **Decision**: Increment Expected CLI Group Count from 18 to 19 in Release Audit
+   - *Alternatives Considered*: Not testing `billing` in `release.py`.
    - *Rationale & Evidence*: `nearfield360 release audit` verifies full CLI subcommand discovery; adding `billing` maintains release integrity.
 
 ---
@@ -1787,13 +1787,13 @@ Phase 27 delivers an end-to-end Autonomous Valet Parking Smart Billing, Dynamic 
 
 ## Phase 28: Multi-Tenant Facility Partitioning, Fleet Operator SLA Management & Reserved VIP Corridor Access
 
-**Status:** Completed  
-**Repository Branch:** `phase/multi-tenant-facility-sla-corridors`  
-**Test Suite:** 1187 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy` clean (140 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (20 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/multi-tenant-facility-sla-corridors`
+**Test Suite:** 1187 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy` clean (140 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (20 registered CLI command groups)
 
 ---
 
@@ -1847,14 +1847,14 @@ Phase 28 delivers an end-to-end Multi-Tenant Facility Partitioning, Fleet Operat
 
 ### 3. Decision Log
 
-1. **Decision**: Explicit Spatiotemporal Preemption over Deadlock Waiting for VIP Corridors  
-   - *Alternatives Considered*: Queueing lower-priority vehicles until they clear before granting the VIP reservation.  
+1. **Decision**: Explicit Spatiotemporal Preemption over Deadlock Waiting for VIP Corridors
+   - *Alternatives Considered*: Queueing lower-priority vehicles until they clear before granting the VIP reservation.
    - *Rationale & Evidence*: Commercial and hospital VIP/emergency operations require guaranteed lane clearance. When a higher-priority corridor reservation is activated, conflicting reservations are preempted immediately with an explicit preemption hold token.
-2. **Decision**: Strict Quota and Tier Access Enforcement with Dedicated Exception Types  
-   - *Alternatives Considered*: Generic runtime exceptions or soft warnings.  
+2. **Decision**: Strict Quota and Tier Access Enforcement with Dedicated Exception Types
+   - *Alternatives Considered*: Generic runtime exceptions or soft warnings.
    - *Rationale & Evidence*: Defining `QuotaExceededError` and `UnauthorizedAccessError` ensures explicit, recoverable error handling across the dispatch and billing layers.
-3. **Decision**: Increment Expected CLI Group Count from 19 to 20 in Release Audit  
-   - *Alternatives Considered*: Not including `tenant` in the release audit group list.  
+3. **Decision**: Increment Expected CLI Group Count from 19 to 20 in Release Audit
+   - *Alternatives Considered*: Not including `tenant` in the release audit group list.
    - *Rationale & Evidence*: Every functional subsystem CLI command group must be verified by `nearfield360 release audit` to ensure zero command regressions.
 
 ---
@@ -1876,13 +1876,13 @@ Phase 28 delivers an end-to-end Multi-Tenant Facility Partitioning, Fleet Operat
 
 ## Phase 29: Curbside Drop-off/Pick-up Staging, Dwell Management & Pedestrian Safety Interlocks
 
-**Status:** Completed  
-**Repository Branch:** `phase/curbside-dropoff-staging-pedestrian-safety`  
-**Test Suite:** 1219 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy` clean (148 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (21 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/curbside-dropoff-staging-pedestrian-safety`
+**Test Suite:** 1219 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy` clean (148 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (21 registered CLI command groups)
 
 ---
 
@@ -1934,14 +1934,14 @@ Phase 29 delivers an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwel
 
 ### 3. Decision Log
 
-1. **Decision**: Explicit Temporal Debounce Hold Before Disengaging Safety Interlocks  
-   - *Alternatives Considered*: Immediate disengagement as soon as a pedestrian steps outside the critical radius.  
+1. **Decision**: Explicit Temporal Debounce Hold Before Disengaging Safety Interlocks
+   - *Alternatives Considered*: Immediate disengagement as soon as a pedestrian steps outside the critical radius.
    - *Rationale & Evidence*: In real-world curbside environments, pedestrians often hesitate, turn back for luggage, or oscillate near vehicle boundaries. ISO 23374 requires a mandatory debounce hold duration (default 3.0 s) after clearance before autonomous motion can resume.
-2. **Decision**: Dual Egress/Ingress Dwell Timers and Minute-Rate Overstay Penalties  
-   - *Alternatives Considered*: Single static dwell timer for all handover events.  
+2. **Decision**: Dual Egress/Ingress Dwell Timers and Minute-Rate Overstay Penalties
+   - *Alternatives Considered*: Single static dwell timer for all handover events.
    - *Rationale & Evidence*: Passenger drop-off egress is significantly faster (default 120 s) than summon boarding (default 180 s), where passengers locate the vehicle and load luggage. Differentiated dwell limits optimize facility curbside throughput while fairly penalizing excessive overstays.
-3. **Decision**: Increment Expected CLI Group Count from 20 to 21 in Release Audit  
-   - *Alternatives Considered*: Excluding `curbside` from release readiness checks.  
+3. **Decision**: Increment Expected CLI Group Count from 20 to 21 in Release Audit
+   - *Alternatives Considered*: Excluding `curbside` from release readiness checks.
    - *Rationale & Evidence*: Every functional subsystem CLI command group must be verified by `nearfield360 release audit` to maintain 100% command availability.
 
 ---
@@ -1963,13 +1963,13 @@ Phase 29 delivers an end-to-end Curbside Drop-off & Pick-up (DOPU) Staging, Dwel
 
 ## Phase 30: Remote Teleoperation Assistance, Video Fallback Streaming & Emergency Minimum Risk Maneuver (MRM) Execution
 
-**Status:** Completed  
-**Repository Branch:** `phase/remote-teleoperation-assistance-mrm`  
-**Test Suite:** 1243 passed, 5 skipped (0 failures)  
-**Type Checking:** `mypy` clean (153 source files)  
-**Linting & Style:** `ruff check` and `ruff format` clean  
-**Test Coverage:** >88.5% (exceeds required 85.0% threshold)  
-**Release Audit:** Passed (22 registered CLI command groups)  
+**Status:** Completed
+**Repository Branch:** `phase/remote-teleoperation-assistance-mrm`
+**Test Suite:** 1243 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy` clean (153 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (22 registered CLI command groups)
 
 ---
 
@@ -2023,14 +2023,14 @@ Phase 30 delivers an end-to-end Remote Teleoperation Assistance, Latency-Adaptiv
 
 ### 3. Decision Log
 
-1. **Decision**: Combined Instantaneous and Exponential Moving Average (EMA) for Network Quality Classification  
-   - *Alternatives Considered*: Pure EMA smoothing only.  
+1. **Decision**: Combined Instantaneous and Exponential Moving Average (EMA) for Network Quality Classification
+   - *Alternatives Considered*: Pure EMA smoothing only.
    - *Rationale & Evidence*: In teleoperation safety, waiting 5+ packets for an EMA to catch up to an instantaneous latency spike (e.g. cellular handoff or network freeze) creates an unacceptable collision hazard. Evaluating `effective_rtt = max(ema_rtt_ms, last_rtt_ms)` immediately inhibits direct steering upon the first anomalous packet.
-2. **Decision**: Automatic Failsafe Standstill Lockdown on Watchdog Timeout  
-   - *Alternatives Considered*: Allowing vehicle to maintain current velocity while waiting for reconnect.  
+2. **Decision**: Automatic Failsafe Standstill Lockdown on Watchdog Timeout
+   - *Alternatives Considered*: Allowing vehicle to maintain current velocity while waiting for reconnect.
    - *Rationale & Evidence*: ISO 23374 and SAE J3016 mandate that loss of teleoperation heartbeat must automatically transition the automated vehicle to a Minimum Risk State within bounded time (`heartbeat_timeout_s = 1.5s`).
-3. **Decision**: Increment Expected CLI Group Count from 21 to 22 in Release Audit  
-   - *Alternatives Considered*: Excluding `teleop` from release readiness checks.  
+3. **Decision**: Increment Expected CLI Group Count from 21 to 22 in Release Audit
+   - *Alternatives Considered*: Excluding `teleop` from release readiness checks.
    - *Rationale & Evidence*: All functional subsystem CLI command groups must be validated by `nearfield360 release audit` to ensure complete CLI surface availability.
 
 ---
