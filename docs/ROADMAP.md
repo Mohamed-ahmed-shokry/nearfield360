@@ -716,8 +716,8 @@ Deliver an end-to-end Multi-Floor Facility Topology, Spiral & Straight Ramp Kine
    - [x] 5.1 `feat(multilevel): implement ramp token arbiter with ascending priority and deadlock prevention`
    - [x] 5.2 `test(multilevel): verify ramp mutual exclusion, priority token allocation, and timeout release`
 6. **Task 6: Automated Vehicle Elevator Dispatcher & Leveling Interlocks**
-   - [ ] 6.1 `feat(multilevel): implement vehicle elevator state machine, dispatch queue, and leveling interlocks`
-   - [ ] 6.2 `test(multilevel): verify elevator scheduling, hoist velocity profiling, and safety interlock gates`
+   - [x] 6.1 `feat(multilevel): implement vehicle elevator state machine, dispatch queue, and leveling interlocks`
+   - [x] 6.2 `test(multilevel): verify elevator scheduling, hoist velocity profiling, and safety interlock gates`
 7. **Task 7: Multi-Floor BEV & Vertical Transit Dashboard Visualizer**
    - [ ] 7.1 `feat(multilevel): implement multi-floor BEV floorplans, elevation profile, and telemetry HUD`
    - [ ] 7.2 `test(multilevel): verify multi-floor visualizer exports valid PNG artifacts`
