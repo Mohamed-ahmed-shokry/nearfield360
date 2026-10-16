@@ -828,8 +828,8 @@ Deliver an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuati
    - [x] 3.1 `feat(emergency): implement emergency responder tracking and preemptive corridor clearance`
    - [x] 3.2 `test(emergency): verify preemption corridor detection, yield holds, and right-of-way clearance`
 4. **Task 4: Dynamic Hazard Containment & Fire Door Interlocks**
-   - [ ] 4.1 `feat(emergency): implement hazard perimeter geofencing, threat classification, and fire door clearance interlocks`
-   - [ ] 4.2 `test(emergency): verify hazard exclusion buffer enforcement, EV thermal runaway handling, and fire door gate timeout`
+   - [x] 4.1 `feat(emergency): implement hazard perimeter geofencing, threat classification, and fire door clearance interlocks`
+   - [x] 4.2 `test(emergency): verify hazard exclusion buffer enforcement, EV thermal runaway handling, and fire door gate timeout`
 5. **Task 5: Multi-Wave Facility Evacuation Planner**
    - [ ] 5.1 `feat(emergency): implement hazard-avoiding evacuation routing and prioritized wave scheduling`
    - [ ] 5.2 `test(emergency): verify evacuation route clearance, egress wave staggering, and bottleneck avoidance`
