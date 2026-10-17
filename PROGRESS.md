@@ -2258,7 +2258,7 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 7. **Package Exports, CLI Command Group & Surround Pipeline Integration (`src/nearfield360/cli/gate.py`, `src/nearfield360/cli/pipeline.py`):**
    - Public symbols exported from `src/nearfield360/gate/__init__.py`. Five CLI subcommands implemented under `nearfield360 gate` (`info`, `verify`, `transit`, `render`, `audit`). Registered `gate` CLI command group in root Typer CLI and updated `nearfield360 release audit` expected group count to 25. Integrated `--gate/--no-gate` flag into four-camera surround pipeline runner with transit simulation, timing measurements, and audit telemetry.
 8. **Documentation, Verification & Final Delivery:**
-   - In progress (Task 8).
+   - Completed. Comprehensive documentation added to `README.md` and `PROGRESS.md`. Full test suite, strict mypy typing, ruff linting, formatting, release readiness audit (25 CLI groups), package build, and remote CI verification passed with 100% green status.
 
 ---
 
@@ -2289,3 +2289,9 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | Gate CLI Commands & Payloads | `uv run pytest tests/unit/test_gate_cli.py` | 8 passed |
 | Pipeline Runner Gate Integration | `uv run pytest tests/unit/test_pipeline_gate.py` | 1 passed |
 | CLI Surface & Release Audit | `uv run nearfield360 release audit` | 25 groups passed |
+| Full Test Suite | `uv run pytest -q` | 1357 passed, 5 skipped |
+| Ruff Linting | `uv run ruff check .` | 0 errors |
+| Ruff Formatting | `uv run ruff format --check .` | Formatted |
+| Mypy Strict Typing | `uv run mypy` | Success |
+| Package Build Artifacts | `uv build` | Wheel & sdist built |
+| Remote GitHub Actions CI | `gh run list --branch phase/facility-access-control-barrier-gates` | 100% Green |
