@@ -957,10 +957,10 @@ Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock,
    - [x] 4.2 `test(gate): verify over-height, over-width, and ground clearance violation detection`
    - [x] 4.3 `docs(progress): mark Task 4 envelope profiler completed`
 5. **Task 5: Inductive Loop & Anti-Tailgating Barrier Interlock Controller**
-   - [ ] 5.1 `feat(gate): implement inductive loop state sequencing and barrier arm kinematics`
-   - [ ] 5.2 `feat(gate): implement anti-tailgating interlocks, safety reversal, and transit audit aggregation`
-   - [ ] 5.3 `test(gate): verify loop transitions, barrier timing, anti-tailgating lockout, and safety reversals`
-   - [ ] 5.4 `docs(progress): mark Task 5 barrier controller completed`
+   - [x] 5.1 `feat(gate): implement inductive loop state sequencing and barrier arm kinematics`
+   - [x] 5.2 `feat(gate): implement anti-tailgating interlocks, safety reversal, and transit audit aggregation`
+   - [x] 5.3 `test(gate): verify loop transitions, barrier timing, anti-tailgating lockout, and safety reversals`
+   - [x] 5.4 `docs(progress): mark Task 5 barrier controller completed`
 6. **Task 6: Gateway Tactical BEV Map & Visualizer**
    - [ ] 6.1 `feat(gate): implement BEV access portal, inductive loop pads, barrier arm angle, and HUD rendering`
    - [ ] 6.2 `test(gate): verify gateway visualizer exports valid PNG artifacts`

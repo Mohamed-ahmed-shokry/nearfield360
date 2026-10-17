@@ -2252,9 +2252,9 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 4. **Dimensional Clearance & Envelope Profiler (`src/nearfield360/gate/envelope.py`):**
    - 3D bounding geometry assessment against portal height, width, and ground clearance parameters. Automatic calculation of safety margins (`headroom_margin_m`, `width_margin_m`, `ground_margin_m`) and generation of granular rejection codes (`REJECTED_OVER_HEIGHT`, `REJECTED_OVER_WIDTH`, `REJECTED_LOW_GROUND_CLEARANCE`).
 5. **Inductive Loop & Anti-Tailgating Barrier Interlock Controller (`src/nearfield360/gate/controller.py`):**
-   - In progress (Task 5).
+   - Four-loop sensor sequencing (Loop A approach, Loop B presence/scan, Loop C safety, Loop D departure). Dynamic boom arm kinematic state machine ($0^\circ \to 90^\circ$). Immediate safety reversal on Loop C obstruction during descent. Anti-tailgating unauthorized ingress detection and alarm latching. High-level transit simulation and aggregated `GateAuditReport` generation.
 6. **Gateway BEV Tactical Map & Visualizer (`src/nearfield360/gate/viz.py`):**
-   - Planned (Task 6).
+   - In progress (Task 6).
 7. **Package Exports, CLI Command Group & Surround Pipeline Integration:**
    - Planned (Task 7).
 
@@ -2265,6 +2265,9 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 1. **Decision**: Explicit 3D Dimensional Envelope Validation Before Physical Barrier Gate Actuation
    - *Alternatives Considered*: Allowing barrier arm opening solely upon credential match and delegating collision avoidance to vehicle ultrasonic sensors.
    - *Rationale & Evidence*: In automated valet parking structures, low ceiling pipes, ventilation ducts, and overhead signage frequently impose hard headroom limits (typically 2.1m). If an over-height vehicle (e.g. SUV with roof box) or low-clearance vehicle is admitted, structural damage or ramp bottoming occurs within the facility. Pre-barrier gateway clearance profiling ensures structural compliance before physical admission.
+2. **Decision**: Immediate Safety Reversal on Loop C Obstruction Rather Than Stop-and-Hold
+   - *Alternatives Considered*: Halting the descending barrier arm in place when an obstruction is detected on Loop C.
+   - *Rationale & Evidence*: Under UL 325 and ISO 23374 gateway safety regulations, a descending gate barrier that contacts or detects an unexpected vehicle or pedestrian under the arm must immediately reverse upwards at accelerated angular velocity (1.5x) back to 90 degrees to eliminate crush injury risks and vehicle roof impact.
 
 ---
 
@@ -2276,3 +2279,4 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | Gate Domain Models & Constraints | `uv run pytest tests/unit/gate/test_gate_models.py` | 6 passed |
 | Access Credential Validator & ALPR | `uv run pytest tests/unit/gate/test_validator.py` | 7 passed |
 | Dimensional Clearance & Envelope Profiler | `uv run pytest tests/unit/gate/test_envelope.py` | 5 passed |
+| Barrier Controller & Safety Interlocks | `uv run pytest tests/unit/gate/test_controller.py` | 6 passed |
