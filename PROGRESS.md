@@ -2248,9 +2248,9 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
    - Enums: `GateDirection` (`ENTRY`, `EXIT`, `BIDIRECTIONAL`), `BarrierArmState` (`LOWERED_CLOSED`, `OPENING`, `RAISED_OPEN`, `CLOSING`, `SAFETY_REVERSING`, `FAULT_LOCKED`), `CredentialType` (`ALPR_PLATE`, `UWB_DIGITAL_KEY`, `RFID_BADGE`, `QR_BARCODE`, `V2X_DIRECT_AUTH`), `AccessDecisionStatus` (`GRANTED`, `REJECTED_UNKNOWN_CREDENTIAL`, `REJECTED_OVER_HEIGHT`, `REJECTED_OVER_WIDTH`, `REJECTED_LOW_GROUND_CLEARANCE`, `REJECTED_EXPIRED_RESERVATION`, `TAILGATING_LOCKOUT`), `InductiveLoopId` (`LOOP_A_APPROACH`, `LOOP_B_PRESENCE`, `LOOP_C_SAFETY`, `LOOP_D_DEPARTURE`).
    - Domain models: `VehicleDimensionEnvelope`, `VehicleCredential`, `InductiveLoopState`, `GateAccessRequest`, `GateAccessDecision`, `BarrierKinematicsState`, `GateTransitEvent`, `GateAuditReport`.
 3. **Access Credential Validator & ALPR Optical Matcher (`src/nearfield360/gate/validator.py`):**
-   - In progress (Task 3).
+   - String normalization (`normalize_plate_string`), Levenshtein similarity metric (`compute_plate_similarity`), registry CRUD methods, optical confidence cutoff checking (`alpr_confidence_threshold`), reservation validity window verification, and pass ID generation.
 4. **Dimensional Clearance & Envelope Profiler (`src/nearfield360/gate/envelope.py`):**
-   - Planned (Task 4).
+   - In progress (Task 4).
 5. **Inductive Loop & Anti-Tailgating Barrier Interlock Controller (`src/nearfield360/gate/controller.py`):**
    - Planned (Task 5).
 6. **Gateway BEV Tactical Map & Visualizer (`src/nearfield360/gate/viz.py`):**
@@ -2274,5 +2274,7 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | --- | --- | --- |
 | Gate Config Defaults & Overrides | `uv run pytest tests/unit/test_config.py` | 87 passed |
 | Gate Domain Models & Constraints | `uv run pytest tests/unit/gate/test_gate_models.py` | 6 passed |
+| Access Credential Validator & ALPR | `uv run pytest tests/unit/gate/test_validator.py` | 7 passed |
+
 
 

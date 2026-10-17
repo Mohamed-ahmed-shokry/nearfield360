@@ -949,9 +949,9 @@ Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock,
    - [x] 2.3 `test(gate): verify gateway domain models, serialization, and validation constraints`
    - [x] 2.4 `docs(progress): mark Task 2 domain models completed`
 3. **Task 3: Access Credential Validator & ALPR Optical Matcher**
-   - [ ] 3.1 `feat(gate): implement license plate string matching and credential token validation`
-   - [ ] 3.2 `test(gate): verify ALPR confidence filtering, reservation matching, and credential expiry`
-   - [ ] 3.3 `docs(progress): mark Task 3 credential validator completed`
+   - [x] 3.1 `feat(gate): implement license plate string matching and credential token validation`
+   - [x] 3.2 `test(gate): verify ALPR confidence filtering, reservation matching, and credential expiry`
+   - [x] 3.3 `docs(progress): mark Task 3 credential validator completed`
 4. **Task 4: Dimensional Clearance & Envelope Profiler**
    - [ ] 4.1 `feat(gate): implement vehicle clearance envelope profiling and physical margin computation`
    - [ ] 4.2 `test(gate): verify over-height, over-width, and ground clearance violation detection`
