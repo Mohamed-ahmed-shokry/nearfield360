@@ -2255,8 +2255,10 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
    - Four-loop sensor sequencing (Loop A approach, Loop B presence/scan, Loop C safety, Loop D departure). Dynamic boom arm kinematic state machine ($0^\circ \to 90^\circ$). Immediate safety reversal on Loop C obstruction during descent. Anti-tailgating unauthorized ingress detection and alarm latching. High-level transit simulation and aggregated `GateAuditReport` generation.
 6. **Gateway BEV Tactical Map & Visualizer (`src/nearfield360/gate/viz.py`):**
    - High-contrast dual-panel 1280x720 tactical rendering (`render_gate_dashboard`). Left panel displays gateway roadway corridor, structural portal pillars, color-coded inductive loop sensor pads, ALPR optical camera scanning beam, and dynamic barrier arm with angular position and safety stripes. Right panel displays real-time status HUD with kinematics gauges, authorization badges, headroom and width margin indicators, loop detector dwell times, anti-tailgating alarm banners, and operational audit telemetry.
-7. **Package Exports, CLI Command Group & Surround Pipeline Integration:**
-   - In progress (Task 7).
+7. **Package Exports, CLI Command Group & Surround Pipeline Integration (`src/nearfield360/cli/gate.py`, `src/nearfield360/cli/pipeline.py`):**
+   - Public symbols exported from `src/nearfield360/gate/__init__.py`. Five CLI subcommands implemented under `nearfield360 gate` (`info`, `verify`, `transit`, `render`, `audit`). Registered `gate` CLI command group in root Typer CLI and updated `nearfield360 release audit` expected group count to 25. Integrated `--gate/--no-gate` flag into four-camera surround pipeline runner with transit simulation, timing measurements, and audit telemetry.
+8. **Documentation, Verification & Final Delivery:**
+   - In progress (Task 8).
 
 ---
 
@@ -2268,6 +2270,9 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 2. **Decision**: Immediate Safety Reversal on Loop C Obstruction Rather Than Stop-and-Hold
    - *Alternatives Considered*: Halting the descending barrier arm in place when an obstruction is detected on Loop C.
    - *Rationale & Evidence*: Under UL 325 and ISO 23374 gateway safety regulations, a descending gate barrier that contacts or detects an unexpected vehicle or pedestrian under the arm must immediately reverse upwards at accelerated angular velocity (1.5x) back to 90 degrees to eliminate crush injury risks and vehicle roof impact.
+3. **Decision**: Pre-Seeding Demonstrator Credentials Whitelist in CLI Commands
+   - *Alternatives Considered*: Requiring external database connection or custom flag inputs for all credential authentications.
+   - *Rationale & Evidence*: Providing default whitelisted credentials (e.g. `ABC-1234` for standard public access, `XYZ-7890` for reserved, and `uwb-valid-hash` for fleet VIP) ensures CLI tools (`verify`, `transit`, `audit`, and pipeline integration) run friction-free out-of-the-box with deterministic behavior while allowing full custom plate and token overrides.
 
 ---
 
@@ -2281,3 +2286,6 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | Dimensional Clearance & Envelope Profiler | `uv run pytest tests/unit/gate/test_envelope.py` | 5 passed |
 | Barrier Controller & Safety Interlocks | `uv run pytest tests/unit/gate/test_gate_controller.py` | 6 passed |
 | Tactical BEV Gateway Visualizer | `uv run pytest tests/unit/gate/test_gate_viz.py` | 3 passed |
+| Gate CLI Commands & Payloads | `uv run pytest tests/unit/test_gate_cli.py` | 8 passed |
+| Pipeline Runner Gate Integration | `uv run pytest tests/unit/test_pipeline_gate.py` | 1 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 25 groups passed |

@@ -966,13 +966,13 @@ Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock,
    - [x] 6.2 `test(gate): verify gateway visualizer exports valid PNG artifacts`
    - [x] 6.3 `docs(progress): mark Task 6 gateway visualizer completed`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 7.1 `feat(gate): export public gate API from package init`
-   - [ ] 7.2 `feat(cli): implement nearfield360 gate command group (info, verify, transit, render, audit)`
-   - [ ] 7.3 `feat(cli): register gate CLI group and update release audit expected count to 25`
-   - [ ] 7.4 `feat(pipeline): integrate --gate options into surround pipeline runner`
-   - [ ] 7.5 `test(cli): verify gate CLI commands, JSON payloads, and visual outputs`
-   - [ ] 7.6 `test(pipeline): verify pipeline gate integration workflow`
-   - [ ] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
+   - [x] 7.1 `feat(gate): export public gate API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 gate command group (info, verify, transit, render, audit)`
+   - [x] 7.3 `feat(cli): register gate CLI group and update release audit expected count to 25`
+   - [x] 7.4 `feat(pipeline): integrate --gate options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify gate CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline gate integration workflow`
+   - [x] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 8.1 `docs: update README with Phase 33 facility access and barrier gate usage examples`
    - [ ] 8.2 `docs(progress): document completed Phase 33 milestone, Decision Log, and verification gates`
