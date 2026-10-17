@@ -622,6 +622,13 @@ def run_pipeline(
             help="Simulate emergency preemption, evacuation planning, and life safety dispatch.",
         ),
     ] = False,
+    gate: Annotated[
+        bool,
+        typer.Option(
+            "--gate/--no-gate",
+            help="Simulate facility access control, barrier gate interlocks, and ALPR enveloping.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -1233,6 +1240,57 @@ def run_pipeline(
         }
         timings["emergency_ms"] = (time.perf_counter() - emergency_stage_start) * 1000.0
 
+    gate_payload: dict[str, Any] | None = None
+    if gate:
+        gate_stage_start = time.perf_counter()
+        from nearfield360.gate.controller import BarrierInterlockController
+        from nearfield360.gate.envelope import VehicleEnvelopeProfiler
+        from nearfield360.gate.models import (
+            GateAccessRequest,
+            GateDirection,
+            VehicleDimensionEnvelope,
+        )
+        from nearfield360.gate.validator import AccessCredentialValidator
+
+        g_validator = AccessCredentialValidator(config.gate)
+        g_profiler = VehicleEnvelopeProfiler(config.gate)
+        g_controller = BarrierInterlockController(
+            config=config.gate,
+            validator=g_validator,
+            envelope_profiler=g_profiler,
+            gate_id="GATE_ENTRY_01",
+            direction=GateDirection.ENTRY,
+        )
+
+        g_envelope = VehicleDimensionEnvelope(
+            length_m=config.slots.vehicle_length,
+            width_m=config.slots.vehicle_width,
+            height_m=1.65,
+            ground_clearance_m=0.15,
+        )
+        g_request = GateAccessRequest(
+            request_id="req-pipeline-gate",
+            gate_id="GATE_ENTRY_01",
+            vehicle_id="veh-pipeline",
+            detected_plate="ABC-1234",
+            plate_confidence=0.98,
+            envelope=g_envelope,
+        )
+        g_event = g_controller.simulate_transit(g_request)
+        g_report = g_controller.generate_audit_report()
+
+        gate_payload = {
+            "gate_id": g_event.gate_id,
+            "vehicle_id": g_event.vehicle_id,
+            "decision": g_event.decision.model_dump(mode="json"),
+            "transit_duration_s": g_event.duration_s,
+            "tailgating_detected": g_event.tailgating_detected,
+            "barrier_state": str(g_controller.barrier.state.value),
+            "barrier_angle_deg": g_controller.barrier.barrier_angle_deg,
+            "audit_report": g_report.model_dump(mode="json"),
+        }
+        timings["gate_ms"] = (time.perf_counter() - gate_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1270,6 +1328,8 @@ def run_pipeline(
         samples_payload["floor"] = True
     if emergency:
         samples_payload["emergency"] = True
+    if gate:
+        samples_payload["gate"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1351,6 +1411,8 @@ def run_pipeline(
         payload["floor"] = floor_payload
     if emergency_payload is not None:
         payload["emergency"] = emergency_payload
+    if gate_payload is not None:
+        payload["gate"] = gate_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
