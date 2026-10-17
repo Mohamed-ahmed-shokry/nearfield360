@@ -974,7 +974,7 @@ Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock,
    - [x] 7.6 `test(pipeline): verify pipeline gate integration workflow`
    - [x] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
-   - [ ] 8.1 `docs: update README with Phase 33 facility access and barrier gate usage examples`
-   - [ ] 8.2 `docs(progress): document completed Phase 33 milestone, Decision Log, and verification gates`
-   - [ ] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
-   - [ ] 8.4 `docs(roadmap): mark Phase 33 fully completed and all acceptance criteria met`
+   - [x] 8.1 `docs: update README with Phase 33 facility access and barrier gate usage examples`
+   - [x] 8.2 `docs(progress): document completed Phase 33 milestone, Decision Log, and verification gates`
+   - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [x] 8.4 `docs(roadmap): mark Phase 33 fully completed and all acceptance criteria met`
