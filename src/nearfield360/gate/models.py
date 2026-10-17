@@ -74,3 +74,95 @@ class VehicleCredential(BaseModel):
     valid_until_s: float = Field(default=86400.0, ge=0.0, allow_inf_nan=False)
     tenant_id: str = Field(default="PUBLIC", min_length=1)
     vip_status: bool = False
+
+
+class InductiveLoopId(StrEnum):
+    """Identifier for roadway inductive loop detector embedded at gateway."""
+
+    LOOP_A_APPROACH = "loop_a_approach"
+    LOOP_B_PRESENCE = "loop_b_presence"
+    LOOP_C_SAFETY = "loop_c_safety"
+    LOOP_D_DEPARTURE = "loop_d_departure"
+
+
+class InductiveLoopState(BaseModel):
+    """Real-time detection state of an inductive loop sensor."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    loop_id: InductiveLoopId
+    occupied: bool = False
+    activated_at_s: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    dwell_duration_s: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+
+
+class GateAccessRequest(BaseModel):
+    """Ingress or egress authorization request generated when a vehicle arrives at a gate."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    request_id: str = Field(min_length=1)
+    gate_id: str = Field(min_length=1)
+    timestamp_s: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    vehicle_id: str = Field(min_length=1)
+    detected_plate: str = Field(default="", max_length=16)
+    plate_confidence: float = Field(default=0.0, ge=0.0, le=1.0, allow_inf_nan=False)
+    credential: VehicleCredential | None = None
+    envelope: VehicleDimensionEnvelope
+    approach_speed_mps: float = Field(default=0.0, ge=0.0, le=15.0, allow_inf_nan=False)
+
+
+class GateAccessDecision(BaseModel):
+    """Security authorization decision and clearance profile for an access request."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    decision_id: str = Field(min_length=1)
+    request_id: str = Field(min_length=1)
+    status: AccessDecisionStatus
+    granted: bool
+    message: str = Field(default="", max_length=256)
+    authorized_at_s: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    headroom_margin_m: float = Field(default=0.0, allow_inf_nan=False)
+    width_margin_m: float = Field(default=0.0, allow_inf_nan=False)
+    issued_pass_id: str = Field(default="", max_length=64)
+
+
+class BarrierKinematicsState(BaseModel):
+    """Instantaneous mechanical position and velocity of the barrier boom arm."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    barrier_angle_deg: float = Field(default=0.0, ge=0.0, le=95.0, allow_inf_nan=False)
+    angular_velocity_deg_s: float = Field(default=0.0, allow_inf_nan=False)
+    state: BarrierArmState = BarrierArmState.LOWERED_CLOSED
+    safety_interlock_active: bool = False
+    obstruction_detected: bool = False
+
+
+class GateTransitEvent(BaseModel):
+    """Audit record capturing a complete or attempted transit cycle through a gateway."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    event_id: str = Field(min_length=1)
+    gate_id: str = Field(min_length=1)
+    vehicle_id: str = Field(min_length=1)
+    decision: GateAccessDecision
+    duration_s: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    tailgating_detected: bool = False
+    timestamp_s: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+
+
+class GateAuditReport(BaseModel):
+    """Aggregated operational and security metrics for a gateway portal."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    gate_id: str = Field(min_length=1)
+    total_transits: int = Field(default=0, ge=0)
+    granted_count: int = Field(default=0, ge=0)
+    rejected_count: int = Field(default=0, ge=0)
+    tailgating_incidents: int = Field(default=0, ge=0)
+    clearance_violations: int = Field(default=0, ge=0)
+    average_transit_duration_s: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
