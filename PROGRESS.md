@@ -2250,9 +2250,9 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 3. **Access Credential Validator & ALPR Optical Matcher (`src/nearfield360/gate/validator.py`):**
    - String normalization (`normalize_plate_string`), Levenshtein similarity metric (`compute_plate_similarity`), registry CRUD methods, optical confidence cutoff checking (`alpr_confidence_threshold`), reservation validity window verification, and pass ID generation.
 4. **Dimensional Clearance & Envelope Profiler (`src/nearfield360/gate/envelope.py`):**
-   - In progress (Task 4).
+   - 3D bounding geometry assessment against portal height, width, and ground clearance parameters. Automatic calculation of safety margins (`headroom_margin_m`, `width_margin_m`, `ground_margin_m`) and generation of granular rejection codes (`REJECTED_OVER_HEIGHT`, `REJECTED_OVER_WIDTH`, `REJECTED_LOW_GROUND_CLEARANCE`).
 5. **Inductive Loop & Anti-Tailgating Barrier Interlock Controller (`src/nearfield360/gate/controller.py`):**
-   - Planned (Task 5).
+   - In progress (Task 5).
 6. **Gateway BEV Tactical Map & Visualizer (`src/nearfield360/gate/viz.py`):**
    - Planned (Task 6).
 7. **Package Exports, CLI Command Group & Surround Pipeline Integration:**
@@ -2275,3 +2275,4 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | Gate Config Defaults & Overrides | `uv run pytest tests/unit/test_config.py` | 87 passed |
 | Gate Domain Models & Constraints | `uv run pytest tests/unit/gate/test_gate_models.py` | 6 passed |
 | Access Credential Validator & ALPR | `uv run pytest tests/unit/gate/test_validator.py` | 7 passed |
+| Dimensional Clearance & Envelope Profiler | `uv run pytest tests/unit/gate/test_envelope.py` | 5 passed |

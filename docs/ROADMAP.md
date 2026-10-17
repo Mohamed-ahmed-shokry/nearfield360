@@ -953,9 +953,9 @@ Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock,
    - [x] 3.2 `test(gate): verify ALPR confidence filtering, reservation matching, and credential expiry`
    - [x] 3.3 `docs(progress): mark Task 3 credential validator completed`
 4. **Task 4: Dimensional Clearance & Envelope Profiler**
-   - [ ] 4.1 `feat(gate): implement vehicle clearance envelope profiling and physical margin computation`
-   - [ ] 4.2 `test(gate): verify over-height, over-width, and ground clearance violation detection`
-   - [ ] 4.3 `docs(progress): mark Task 4 envelope profiler completed`
+   - [x] 4.1 `feat(gate): implement vehicle clearance envelope profiling and physical margin computation`
+   - [x] 4.2 `test(gate): verify over-height, over-width, and ground clearance violation detection`
+   - [x] 4.3 `docs(progress): mark Task 4 envelope profiler completed`
 5. **Task 5: Inductive Loop & Anti-Tailgating Barrier Interlock Controller**
    - [ ] 5.1 `feat(gate): implement inductive loop state sequencing and barrier arm kinematics`
    - [ ] 5.2 `feat(gate): implement anti-tailgating interlocks, safety reversal, and transit audit aggregation`
