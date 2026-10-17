@@ -44,6 +44,7 @@ the corresponding experiments have run.
 | Curbside drop-off/pick-up staging, dwell management & pedestrian safety interlocks | Implemented | Dedicated curbside staging bays, passenger egress/ingress dwell tracking, ISO 23374 Type 2 handover zone, safety interlocks inhibiting motion on open doors/trunks or pedestrian proximity, overstay tariff penalties, BEV safety circle visualization, `nearfield360 curbside`, and surround pipeline integration (`pipeline run --curbside`) |
 | Remote teleoperation assistance, video fallback & emergency MRM execution | Implemented | Remote operator assistance, guidance waypoints, RTT latency tracking, bandwidth-adaptive video throttling, fail-safe heartbeat watchdog, deterministic Minimum Risk Maneuvers (MRM), `nearfield360 teleop`, and surround pipeline integration (`pipeline run --teleop`) |
 | Multi-floor facility topology, spiral ramp kinematics & elevator dispatch | Implemented | Multi-level 3D graph routing, pitch dynamics ($F_g = mg \sin\theta$), spiral kinematics, single-lane ramp token arbiter, automated car lift scheduling with leveling interlocks, `nearfield360 floor`, and surround pipeline integration (`pipeline run --floor`) |
+| Facility access control, barrier gate interlocks & vehicle clearance enveloping | Implemented | ISO 23374 gateway operations, optical ALPR plate recognition, UWB digital credential validation, 3D vehicle clearance envelope profiling (headroom/width/ground clearance), 4-loop inductive safety interlocks ($0^\circ \to 90^\circ$ boom kinematics, UL 325 immediate safety reversal, anti-tailgating lockout), dual-panel BEV gateway map and HUD visualizer (`nearfield360 gate`), and surround pipeline integration (`pipeline run --gate`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -946,6 +947,41 @@ Perform a comprehensive facility life safety readiness and fire barrier complian
 
 ```powershell
 uv run nearfield360 emergency audit --output outputs/emergency_audit.json --png outputs/emergency_dashboard.png
+```
+
+### Facility Access Control, Barrier Gate Interlocks & ALPR Enveloping (ISO 23374 Gateway Operations)
+
+Inspect gateway portal geometry, clearance limits, boom kinematics, and ALPR threshold:
+
+```powershell
+uv run nearfield360 gate info
+uv run nearfield360 gate info --json
+```
+
+Validate vehicle license plate / credential token and evaluate 3D dimensional clearance envelope:
+
+```powershell
+uv run nearfield360 gate verify --plate ABC-1234 --height 1.65 --width 1.95 --output outputs/gate_verify.json
+```
+
+Simulate complete 4-loop inductive transit cycle with barrier arm kinematics and anti-tailgating interlocks:
+
+```powershell
+uv run nearfield360 gate transit --vehicle-id veh-001 --plate ABC-1234 --output outputs/transit.json
+uv run nearfield360 gate transit --tailgating --json
+uv run nearfield360 gate transit --obstruction --json
+```
+
+Render tactical 1280x720 BEV gateway map and situational HUD to PNG:
+
+```powershell
+uv run nearfield360 gate render --png outputs/gate_dashboard.png --barrier-angle 45.0 --loop loop_b_presence
+```
+
+Perform an operational security audit and analyze portal transit volumes and clearance violations:
+
+```powershell
+uv run nearfield360 gate audit --output outputs/gate_audit.json
 ```
 
 
