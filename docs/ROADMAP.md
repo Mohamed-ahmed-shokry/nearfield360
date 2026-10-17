@@ -847,3 +847,134 @@ Deliver an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuati
    - [x] 8.1 `docs: update README with Phase 32 emergency preemption capabilities and CLI usage`
    - [x] 8.2 `docs(progress): document completed Phase 32 milestone, Decision Log, and verification gates`
    - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+
+---
+
+## Phase 33: Facility Access Control, Barrier Gate Interlocks, License Plate Recognition (ALPR) & Vehicle Clearance Enveloping (ISO 23374 Gateway Operations)
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock, Automated License Plate Recognition (ALPR), and Vehicle Clearance Enveloping subsystem for NearField360, conforming to ISO 23374 (AVP Type 1 / Type 2 / Type 3 Gateway Interface and Physical Access Architecture). Phase 33 equips autonomous parking facilities with automated perimeter security and gateway transit management. The system authenticates approaching vehicles via optical ALPR plate recognition and encrypted digital keys (UWB/RFID tokens), evaluates 3D vehicle clearance envelopes (height, width, ground clearance, and approach angles) against structural portal limits to prevent structural collisions, orchestrates barrier arm kinematics ($0^\circ \to 90^\circ$ trapezoidal angular trajectory) with inductive safety loops (approach, presence, safety reversal, and departure), enforces anti-tailgating interlocks to halt unauthorized ingress, provides tactical BEV access gateway dashboards with real-time HUD telemetry, exposes a dedicated `nearfield360 gate` CLI command group, and integrates access control telemetry directly into the surround camera perception pipeline.
+
+### 2. Scope
+
+- **Configuration (`GateConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `portal_clearance_height_m`: Maximum vertical gateway portal clearance (e.g. 2.10 m).
+  - `portal_clearance_width_m`: Maximum horizontal gateway portal clearance (e.g. 2.60 m).
+  - `ground_clearance_min_m`: Minimum underbody clearance required to clear speed humps and ramps (e.g. 0.12 m).
+  - `barrier_arm_length_m`: Physical length of the barrier gate boom arm (e.g. 3.0 m).
+  - `barrier_opening_time_s`: Duration for barrier arm to actuate from $0^\circ$ to $90^\circ$ (e.g. 1.8 s).
+  - `barrier_holding_time_s`: Duration barrier arm remains raised before starting closure (e.g. 5.0 s).
+  - `barrier_closing_time_s`: Duration for barrier arm to lower from $90^\circ$ to $0^\circ$ (e.g. 2.2 s).
+  - `alpr_confidence_threshold`: Minimum optical character recognition confidence score for automated plate granting (e.g. 0.85).
+  - `anti_tailgating_timeout_s`: Window after departure loop clearance before secondary vehicle can claim passage (e.g. 2.0 s).
+  - `safety_loop_debounce_ms`: Inductive loop sensor debounce filter duration (e.g. 50.0 ms).
+  - `uwb_rssi_threshold_dbm`: Minimum signal strength for UWB digital key ranging validation (e.g. -75.0 dBm).
+- **Domain Models & Access Protocols (`src/nearfield360/gate/models.py`)**:
+  - `GateDirection` Enum: `ENTRY`, `EXIT`, `BIDIRECTIONAL`.
+  - `BarrierArmState` Enum: `LOWERED_CLOSED`, `OPENING`, `RAISED_OPEN`, `CLOSING`, `SAFETY_REVERSING`, `FAULT_LOCKED`.
+  - `CredentialType` Enum: `ALPR_PLATE`, `UWB_DIGITAL_KEY`, `RFID_BADGE`, `QR_BARCODE`, `V2X_DIRECT_AUTH`.
+  - `AccessDecisionStatus` Enum: `GRANTED`, `REJECTED_UNKNOWN_CREDENTIAL`, `REJECTED_OVER_HEIGHT`, `REJECTED_OVER_WIDTH`, `REJECTED_LOW_GROUND_CLEARANCE`, `REJECTED_EXPIRED_RESERVATION`, `TAILGATING_LOCKOUT`.
+  - `InductiveLoopId` Enum: `LOOP_A_APPROACH`, `LOOP_B_PRESENCE`, `LOOP_C_SAFETY`, `LOOP_D_DEPARTURE`.
+  - `VehicleDimensionEnvelope`: `length_m`, `width_m`, `height_m`, `ground_clearance_m`, `front_overhang_m`, `rear_overhang_m`.
+  - `VehicleCredential`: `credential_id`, `credential_type`, `plate_number`, `token_hash`, `valid_from`, `valid_until`, `tenant_id`, `vip_status`.
+  - `GateAccessRequest`: `request_id`, `gate_id`, `timestamp`, `vehicle_id`, `detected_plate`, `plate_confidence`, `credential`, `envelope`, `approach_speed_mps`.
+  - `GateAccessDecision`: `decision_id`, `request_id`, `status`, `granted`, `message`, `authorized_at`, `headroom_margin_m`, `width_margin_m`, `issued_pass_id`.
+  - `BarrierKinematicsState`: `barrier_angle_deg`, `angular_velocity_deg_s`, `state`, `safety_interlock_active`, `obstruction_detected`.
+  - `GateTransitEvent`: `event_id`, `gate_id`, `vehicle_id`, `decision`, `duration_s`, `tailgating_detected`, `timestamp`.
+  - `GateAuditReport`: `gate_id`, `total_transits`, `granted_count`, `rejected_count`, `tailgating_incidents`, `clearance_violations`, `average_transit_duration_s`.
+- **Access Credential Validator & ALPR Optical Matcher (`src/nearfield360/gate/validator.py`)**:
+  - Validates optical ALPR plate character strings against reservation registry with normalized distance scoring and confidence cutoff.
+  - Verifies digital cryptographic tokens (UWB / RFID), checking validity windows and tenant permissions.
+- **Dimensional Clearance & Envelope Profiler (`src/nearfield360/gate/envelope.py`)**:
+  - Evaluates vehicle 3D bounding envelope against physical portal limits.
+  - Computes exact safety margins (`headroom_margin_m`, `width_margin_m`) and rejects out-of-spec vehicles (e.g. over-height roof boxes or low ground clearance).
+- **Inductive Loop & Anti-Tailgating Barrier Interlock Controller (`src/nearfield360/gate/controller.py`)**:
+  - Sequentially manages four-loop sensor state transitions: Approach (Loop A), Presence/Scan (Loop B), Safety Reversal (Loop C), Departure (Loop D).
+  - Trapping and safety reversal: If Loop C is obstructed during barrier descent, immediately interrupts and executes `SAFETY_REVERSING` to $90^\circ$.
+  - Enforces anti-tailgating interlocks if a trailing vehicle enters Loop B/C without prior authorization, triggering alarm lockout.
+  - Aggregates operational transit events and exports `GateAuditReport`.
+- **Gateway BEV Tactical Map & Visualizer (`src/nearfield360/gate/viz.py`)**:
+  - Dual-panel layout:
+    - Left panel: BEV gateway map showing portal structural posts, lane boundaries, inductive loop pads color-coded by activation state, barrier boom arm rendered at instantaneous angle $\theta$, ALPR scanner cone, and vehicle bounding box with clearance callouts.
+    - Right panel: Access Gateway HUD showing gate ID, barrier state (`RAISED_OPEN`, etc.), angle gauge, access authorization badge, dimensional headroom and width margin indicators, safety loop sensors, and anti-tailgating status.
+- **Package Exports & Dedicated CLI Command Group (`src/nearfield360/gate/__init__.py`, `src/nearfield360/cli/gate.py`)**:
+  - Subcommands: `info`, `verify`, `transit`, `render`, `audit`.
+  - Register `gate` CLI group in `src/nearfield360/cli/app.py`.
+  - Update release audit in `src/nearfield360/cli/release.py` to expect 25 command groups.
+- **Pipeline Runner Integration (`src/nearfield360/cli/pipeline.py`)**:
+  - Support `--gate` option on `nearfield360 pipeline run` to integrate access control and barrier transit telemetry into perception pipeline summary.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, credential validator, envelope profiler, controller, visualizer, CLI, and pipeline integration.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `GateConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for barrier states, credentials, vehicle envelopes, loop states, access requests/decisions, and audit reports | `uv run pytest tests/unit/gate/test_gate_models.py` |
+| AC-3 | `AccessCredentialValidator` matches ALPR plates, verifies tokens, and enforces reservation time windows | `uv run pytest tests/unit/gate/test_validator.py` |
+| AC-4 | `VehicleEnvelopeProfiler` evaluates 3D dimensions against portal limits, computing safety margins and rejecting out-of-spec vehicles | `uv run pytest tests/unit/gate/test_envelope.py` |
+| AC-5 | `BarrierInterlockController` manages inductive loop sequencing, barrier arm kinematics ($0^\circ \to 90^\circ$), safety reversals, and anti-tailgating interlocks | `uv run pytest tests/unit/gate/test_controller.py` |
+| AC-6 | Tactical BEV gateway visualizer renders portal structure, loop sensor pads, barrier arm angle, clearance profiles, and status HUD to valid PNG | `uv run pytest tests/unit/gate/test_gate_viz.py` |
+| AC-7 | Dedicated CLI command group `nearfield360 gate` executes `info`, `verify`, `transit`, `render`, and `audit` | `uv run pytest tests/unit/test_gate_cli.py` |
+| AC-8 | Root CLI registers `gate` command group, passing release audit with 25 groups | `uv run nearfield360 release audit` |
+| AC-9 | Surround pipeline runner integrates `--gate` option and exports access control telemetry in report | `uv run pytest tests/unit/test_pipeline_gate.py` |
+| AC-10 | All local CI-parity checks and remote CI workflow runs pass 100% | `uv run pytest`, `uv run mypy`, `uv run ruff check .`, `uv build` |
+
+### 4. Validation Plan
+
+1. Unit tests covering config, models, validator, envelope profiler, controller, viz, CLI, and pipeline.
+2. CLI integration tests verifying `nearfield360 gate verify`, `gate transit`, `gate render`, `gate audit` with JSON/PNG outputs.
+3. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit: `uv run nearfield360 release audit`.
+5. Full test suite: `uv run pytest -q`.
+
+### 5. Exclusions
+
+- Direct physical relay RS-485/Wiegand wire protocol hardware interfacing.
+- High-voltage barrier motor inverter thermal runaway and phase-angle PWM drive control.
+- Toll tag microwave DSRC transponder RF frequency synthesis.
+
+### 6. Task List & Micro-Commit Plan
+
+1. **Task 1: Roadmap & Gateway Configuration Foundation**
+   - [ ] 1.1 `docs(roadmap): establish Phase 33 facility access control and barrier gate roadmap`
+   - [ ] 1.2 `feat(config): add GateConfig and update default yaml configuration`
+   - [ ] 1.3 `test(config): add unit tests for GateConfig validation and environment overrides`
+   - [ ] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
+2. **Task 2: Access Control Domain Models & Gateway Schemas**
+   - [ ] 2.1 `feat(gate): implement gate directions, barrier states, credential types, and envelope models`
+   - [ ] 2.2 `feat(gate): implement inductive loop state, access request, decision, and transit event models`
+   - [ ] 2.3 `test(gate): verify gateway domain models, serialization, and validation constraints`
+   - [ ] 2.4 `docs(progress): mark Task 2 domain models completed`
+3. **Task 3: Access Credential Validator & ALPR Optical Matcher**
+   - [ ] 3.1 `feat(gate): implement license plate string matching and credential token validation`
+   - [ ] 3.2 `test(gate): verify ALPR confidence filtering, reservation matching, and credential expiry`
+   - [ ] 3.3 `docs(progress): mark Task 3 credential validator completed`
+4. **Task 4: Dimensional Clearance & Envelope Profiler**
+   - [ ] 4.1 `feat(gate): implement vehicle clearance envelope profiling and physical margin computation`
+   - [ ] 4.2 `test(gate): verify over-height, over-width, and ground clearance violation detection`
+   - [ ] 4.3 `docs(progress): mark Task 4 envelope profiler completed`
+5. **Task 5: Inductive Loop & Anti-Tailgating Barrier Interlock Controller**
+   - [ ] 5.1 `feat(gate): implement inductive loop state sequencing and barrier arm kinematics`
+   - [ ] 5.2 `feat(gate): implement anti-tailgating interlocks, safety reversal, and transit audit aggregation`
+   - [ ] 5.3 `test(gate): verify loop transitions, barrier timing, anti-tailgating lockout, and safety reversals`
+   - [ ] 5.4 `docs(progress): mark Task 5 barrier controller completed`
+6. **Task 6: Gateway Tactical BEV Map & Visualizer**
+   - [ ] 6.1 `feat(gate): implement BEV access portal, inductive loop pads, barrier arm angle, and HUD rendering`
+   - [ ] 6.2 `test(gate): verify gateway visualizer exports valid PNG artifacts`
+   - [ ] 6.3 `docs(progress): mark Task 6 gateway visualizer completed`
+7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
+   - [ ] 7.1 `feat(gate): export public gate API from package init`
+   - [ ] 7.2 `feat(cli): implement nearfield360 gate command group (info, verify, transit, render, audit)`
+   - [ ] 7.3 `feat(cli): register gate CLI group and update release audit expected count to 25`
+   - [ ] 7.4 `feat(pipeline): integrate --gate options into surround pipeline runner`
+   - [ ] 7.5 `test(cli): verify gate CLI commands, JSON payloads, and visual outputs`
+   - [ ] 7.6 `test(pipeline): verify pipeline gate integration workflow`
+   - [ ] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
+8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
+   - [ ] 8.1 `docs: update README with Phase 33 facility access and barrier gate usage examples`
+   - [ ] 8.2 `docs(progress): document completed Phase 33 milestone, Decision Log, and verification gates`
+   - [ ] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [ ] 8.4 `docs(roadmap): mark Phase 33 fully completed and all acceptance criteria met`
