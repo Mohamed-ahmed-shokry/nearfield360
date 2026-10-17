@@ -615,6 +615,20 @@ def run_pipeline(
             help="Simulate multi-floor facility topology, vertical ramps, and vehicle elevators.",
         ),
     ] = False,
+    emergency: Annotated[
+        bool,
+        typer.Option(
+            "--emergency/--no-emergency",
+            help="Simulate emergency preemption, evacuation planning, and life safety dispatch.",
+        ),
+    ] = False,
+    gate: Annotated[
+        bool,
+        typer.Option(
+            "--gate/--no-gate",
+            help="Simulate facility access control, barrier gate interlocks, and ALPR enveloping.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -1163,6 +1177,130 @@ def run_pipeline(
         }
         timings["floor_ms"] = (time.perf_counter() - floor_stage_start) * 1000.0
 
+    emergency_payload: dict[str, Any] | None = None
+    if emergency:
+        emergency_stage_start = time.perf_counter()
+        from nearfield360.emergency.containment import HazardContainmentEngine
+        from nearfield360.emergency.evacuation import FacilityEvacuationPlanner
+        from nearfield360.emergency.models import (
+            EmergencySeverity,
+            EmergencyType,
+            EmergencyVehicle,
+            HazardZone,
+            LifeSafetyReport,
+            ResponderType,
+        )
+        from nearfield360.emergency.preemption import EmergencyPreemptionArbiter
+
+        e_arbiter = EmergencyPreemptionArbiter(config.emergency)
+        e_resp = EmergencyVehicle(
+            vehicle_id="fd-pipeline-01",
+            responder_type=ResponderType.FIRE_ENGINE,
+            x=0.0,
+            y=10.0,
+            target_x=40.0,
+            target_y=40.0,
+        )
+        e_arbiter.register_responder(e_resp)
+        e_contain = HazardContainmentEngine(config.emergency)
+        e_hz = HazardZone(
+            hazard_id="fire-zone-01",
+            emergency_type=EmergencyType.FIRE_ALARM,
+            severity=EmergencySeverity.FULL_FACILITY_EVACUATION,
+            center_x=40.0,
+            center_y=40.0,
+            radius_m=12.0,
+            floor_id="L1",
+            active=True,
+        )
+        e_contain.add_hazard(e_hz)
+        e_planner = FacilityEvacuationPlanner(e_contain, config.emergency)
+        e_vehicles = {
+            "veh-pipeline-01": ("bay-01", (15.0, 15.0)),
+            "veh-pipeline-02": ("bay-02", (38.0, 38.0)),
+        }
+        e_portals = {"Exit-North": (0.0, 90.0), "Exit-South": (0.0, -10.0)}
+        e_waves, e_routes = e_planner.plan_facility_evacuation(e_vehicles, e_portals)
+        e_report = LifeSafetyReport(
+            facility_name="Pipeline Multi-Camera Facility",
+            emergency_active=True,
+            incident_type=EmergencyType.FIRE_ALARM,
+            severity=EmergencySeverity.FULL_FACILITY_EVACUATION,
+            active_hazards=[e_hz],
+            emergency_responders=[e_resp],
+            total_vehicles=len(e_vehicles),
+            evacuating_count=len(e_vehicles),
+            evp_active=True,
+        )
+        emergency_payload = {
+            "report": e_report.model_dump(mode="json"),
+            "waves_count": len(e_waves),
+            "routes_count": len(e_routes),
+            "preemption_active": e_arbiter.is_preemption_active(),
+        }
+        timings["emergency_ms"] = (time.perf_counter() - emergency_stage_start) * 1000.0
+
+    gate_payload: dict[str, Any] | None = None
+    if gate:
+        gate_stage_start = time.perf_counter()
+        from nearfield360.gate.controller import BarrierInterlockController
+        from nearfield360.gate.envelope import VehicleEnvelopeProfiler
+        from nearfield360.gate.models import (
+            CredentialType,
+            GateAccessRequest,
+            GateDirection,
+            VehicleCredential,
+            VehicleDimensionEnvelope,
+        )
+        from nearfield360.gate.validator import AccessCredentialValidator
+
+        g_cred = VehicleCredential(
+            credential_id="cred-pipeline-01",
+            credential_type=CredentialType.ALPR_PLATE,
+            plate_number="ABC-1234",
+            valid_from_s=0.0,
+            valid_until_s=86400.0,
+            tenant_id="PUBLIC",
+        )
+        g_validator = AccessCredentialValidator(config.gate, initial_credentials=[g_cred])
+        g_profiler = VehicleEnvelopeProfiler(config.gate)
+        g_controller = BarrierInterlockController(
+            config=config.gate,
+            validator=g_validator,
+            envelope_profiler=g_profiler,
+            gate_id="GATE_ENTRY_01",
+            direction=GateDirection.ENTRY,
+        )
+
+        g_envelope = VehicleDimensionEnvelope(
+            length_m=config.slots.vehicle_length,
+            width_m=config.slots.vehicle_width,
+            height_m=1.65,
+            ground_clearance_m=0.15,
+        )
+        g_request = GateAccessRequest(
+            request_id="req-pipeline-gate",
+            gate_id="GATE_ENTRY_01",
+            vehicle_id="veh-pipeline",
+            detected_plate="ABC-1234",
+            plate_confidence=0.98,
+            envelope=g_envelope,
+        )
+        g_event = g_controller.simulate_transit(g_request)
+        g_report = g_controller.generate_audit_report()
+
+        gate_payload = {
+            "gate_id": g_event.gate_id,
+            "vehicle_id": g_event.vehicle_id,
+            "decision": g_event.decision.model_dump(mode="json"),
+            "transit_duration_s": g_event.duration_s,
+            "tailgating_detected": g_event.tailgating_detected,
+            "barrier_state": str(g_controller.barrier.state.value),
+            "barrier_angle_deg": g_controller.barrier.barrier_angle_deg,
+            "audit_report": g_report.model_dump(mode="json"),
+        }
+        timings["gate_ms"] = (time.perf_counter() - gate_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1198,6 +1336,10 @@ def run_pipeline(
         samples_payload["teleop"] = True
     if floor:
         samples_payload["floor"] = True
+    if emergency:
+        samples_payload["emergency"] = True
+    if gate:
+        samples_payload["gate"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1277,6 +1419,10 @@ def run_pipeline(
         payload["teleop"] = teleop_payload
     if floor_payload is not None:
         payload["floor"] = floor_payload
+    if emergency_payload is not None:
+        payload["emergency"] = emergency_payload
+    if gate_payload is not None:
+        payload["gate"] = gate_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
