@@ -2275,6 +2275,3 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | Gate Config Defaults & Overrides | `uv run pytest tests/unit/test_config.py` | 87 passed |
 | Gate Domain Models & Constraints | `uv run pytest tests/unit/gate/test_gate_models.py` | 6 passed |
 | Access Credential Validator & ALPR | `uv run pytest tests/unit/gate/test_validator.py` | 7 passed |
-
-
-
