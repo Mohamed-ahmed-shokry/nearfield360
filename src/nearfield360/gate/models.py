@@ -88,7 +88,7 @@ class InductiveLoopId(StrEnum):
 class InductiveLoopState(BaseModel):
     """Real-time detection state of an inductive loop sensor."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=False)
 
     loop_id: InductiveLoopId
     occupied: bool = False
@@ -131,7 +131,7 @@ class GateAccessDecision(BaseModel):
 class BarrierKinematicsState(BaseModel):
     """Instantaneous mechanical position and velocity of the barrier boom arm."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=False)
 
     barrier_angle_deg: float = Field(default=0.0, ge=0.0, le=95.0, allow_inf_nan=False)
     angular_velocity_deg_s: float = Field(default=0.0, allow_inf_nan=False)
