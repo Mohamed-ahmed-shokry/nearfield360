@@ -22,6 +22,7 @@ from nearfield360.cli.emergency import emergency_app
 from nearfield360.cli.eval import eval_app
 from nearfield360.cli.fleet import fleet_app
 from nearfield360.cli.floor import floor_app
+from nearfield360.cli.gate import gate_app
 from nearfield360.cli.geometry import geometry_app
 from nearfield360.cli.health import health_app
 from nearfield360.cli.infer import infer_app
@@ -68,6 +69,7 @@ app.add_typer(emergency_app, name="emergency")
 app.add_typer(eval_app, name="eval")
 app.add_typer(fleet_app, name="fleet")
 app.add_typer(floor_app, name="floor")
+app.add_typer(gate_app, name="gate")
 app.add_typer(geometry_app, name="geometry")
 app.add_typer(health_app, name="health")
 app.add_typer(infer_app, name="infer")
