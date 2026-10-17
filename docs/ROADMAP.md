@@ -834,8 +834,8 @@ Deliver an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuati
    - [x] 5.1 `feat(emergency): implement hazard-avoiding evacuation routing and prioritized wave scheduling`
    - [x] 5.2 `test(emergency): verify evacuation route clearance, egress wave staggering, and bottleneck avoidance`
 6. **Task 6: Life Safety BEV Tactical Map & Situational Visualizer**
-   - [ ] 6.1 `feat(emergency): implement BEV hazard zones, responder trajectory, fire doors, and life safety HUD rendering`
-   - [ ] 6.2 `test(emergency): verify emergency visualizer exports valid PNG artifacts`
+   - [x] 6.1 `feat(emergency): implement BEV hazard zones, responder trajectory, fire doors, and life safety HUD rendering`
+   - [x] 6.2 `test(emergency): verify emergency visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
    - [ ] 7.1 `feat(emergency): export public emergency API from package init`
    - [ ] 7.2 `feat(cli): implement nearfield360 emergency command group (info, preempt, evacuate, hazard, audit)`
