@@ -238,3 +238,16 @@ emergency:
   stagger_interval_s: 3.0
   emergency_heartbeat_timeout_s: 1.0
   thermal_runaway_temp_c: 70.0
+gate:
+  portal_clearance_height_m: 2.10
+  portal_clearance_width_m: 2.60
+  ground_clearance_min_m: 0.12
+  barrier_arm_length_m: 3.0
+  barrier_opening_time_s: 1.8
+  barrier_holding_time_s: 5.0
+  barrier_closing_time_s: 2.2
+  alpr_confidence_threshold: 0.85
+  anti_tailgating_timeout_s: 2.0
+  safety_loop_debounce_ms: 50.0
+  uwb_rssi_threshold_dbm: -75.0
+
