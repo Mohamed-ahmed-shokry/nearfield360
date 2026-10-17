@@ -2229,4 +2229,3 @@ Phase 32 delivers an end-to-end Emergency Vehicle Preemption (EVP), Facility Fir
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (24 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
-
