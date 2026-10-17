@@ -902,3 +902,50 @@ def test_emergency_config_rejects_excessive_temperature(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 250"):
         load_config(config_path)
+
+
+def test_gate_config_defaults() -> None:
+    config = load_config()
+
+    assert config.gate.portal_clearance_height_m == 2.10
+    assert config.gate.portal_clearance_width_m == 2.60
+    assert config.gate.ground_clearance_min_m == 0.12
+    assert config.gate.barrier_arm_length_m == 3.0
+    assert config.gate.barrier_opening_time_s == 1.8
+    assert config.gate.barrier_holding_time_s == 5.0
+    assert config.gate.barrier_closing_time_s == 2.2
+    assert config.gate.alpr_confidence_threshold == 0.85
+    assert config.gate.anti_tailgating_timeout_s == 2.0
+    assert config.gate.safety_loop_debounce_ms == 50.0
+    assert config.gate.uwb_rssi_threshold_dbm == -75.0
+
+
+def test_gate_config_environment_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("gate:\n  portal_clearance_height_m: 2.30\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_GATE__PORTAL_CLEARANCE_WIDTH_M", "3.0")
+    monkeypatch.setenv("NEARFIELD360_GATE__BARRIER_ARM_LENGTH_M", "3.5")
+    monkeypatch.setenv("NEARFIELD360_GATE__ALPR_CONFIDENCE_THRESHOLD", "0.90")
+
+    config = load_config(config_path)
+
+    assert config.gate.portal_clearance_height_m == 2.30
+    assert config.gate.portal_clearance_width_m == 3.0
+    assert config.gate.barrier_arm_length_m == 3.5
+    assert config.gate.alpr_confidence_threshold == 0.90
+
+
+def test_gate_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("gate:\n  portal_clearance_height_m: -1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
+
+
+def test_gate_config_rejects_excessive_clearance(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("gate:\n  portal_clearance_height_m: 15.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 10"):
+        load_config(config_path)
