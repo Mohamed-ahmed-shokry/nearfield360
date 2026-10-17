@@ -18,6 +18,7 @@ from nearfield360.cli.charging import charging_app
 from nearfield360.cli.control import control_app
 from nearfield360.cli.curbside import curbside_app
 from nearfield360.cli.data_commands import data_app
+from nearfield360.cli.emergency import emergency_app
 from nearfield360.cli.eval import eval_app
 from nearfield360.cli.fleet import fleet_app
 from nearfield360.cli.floor import floor_app
@@ -63,6 +64,7 @@ app.add_typer(config_app, name="config")
 app.add_typer(control_app, name="control")
 app.add_typer(curbside_app, name="curbside")
 app.add_typer(data_app, name="data")
+app.add_typer(emergency_app, name="emergency")
 app.add_typer(eval_app, name="eval")
 app.add_typer(fleet_app, name="fleet")
 app.add_typer(floor_app, name="floor")
