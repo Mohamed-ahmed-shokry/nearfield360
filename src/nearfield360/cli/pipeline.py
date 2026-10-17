@@ -1246,13 +1246,23 @@ def run_pipeline(
         from nearfield360.gate.controller import BarrierInterlockController
         from nearfield360.gate.envelope import VehicleEnvelopeProfiler
         from nearfield360.gate.models import (
+            CredentialType,
             GateAccessRequest,
             GateDirection,
+            VehicleCredential,
             VehicleDimensionEnvelope,
         )
         from nearfield360.gate.validator import AccessCredentialValidator
 
-        g_validator = AccessCredentialValidator(config.gate)
+        g_cred = VehicleCredential(
+            credential_id="cred-pipeline-01",
+            credential_type=CredentialType.ALPR_PLATE,
+            plate_number="ABC-1234",
+            valid_from_s=0.0,
+            valid_until_s=86400.0,
+            tenant_id="PUBLIC",
+        )
+        g_validator = AccessCredentialValidator(config.gate, initial_credentials=[g_cred])
         g_profiler = VehicleEnvelopeProfiler(config.gate)
         g_controller = BarrierInterlockController(
             config=config.gate,
