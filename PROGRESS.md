@@ -2245,9 +2245,10 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 1. **Configuration (`GateConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
    - Configurable portal clearance height (`portal_clearance_height_m`: 2.10 m), portal clearance width (`portal_clearance_width_m`: 2.60 m), minimum ground clearance (`ground_clearance_min_m`: 0.12 m), barrier arm length (`barrier_arm_length_m`: 3.0 m), opening time (`barrier_opening_time_s`: 1.8 s), hold time (`barrier_holding_time_s`: 5.0 s), closing time (`barrier_closing_time_s`: 2.2 s), ALPR confidence threshold (`alpr_confidence_threshold`: 0.85), anti-tailgating timeout (`anti_tailgating_timeout_s`: 2.0 s), safety loop debounce (`safety_loop_debounce_ms`: 50.0 ms), and UWB RSSI threshold (`uwb_rssi_threshold_dbm`: -75.0 dBm).
 2. **Domain Models & Access Protocols (`src/nearfield360/gate/models.py`):**
-   - In progress (Task 2).
+   - Enums: `GateDirection` (`ENTRY`, `EXIT`, `BIDIRECTIONAL`), `BarrierArmState` (`LOWERED_CLOSED`, `OPENING`, `RAISED_OPEN`, `CLOSING`, `SAFETY_REVERSING`, `FAULT_LOCKED`), `CredentialType` (`ALPR_PLATE`, `UWB_DIGITAL_KEY`, `RFID_BADGE`, `QR_BARCODE`, `V2X_DIRECT_AUTH`), `AccessDecisionStatus` (`GRANTED`, `REJECTED_UNKNOWN_CREDENTIAL`, `REJECTED_OVER_HEIGHT`, `REJECTED_OVER_WIDTH`, `REJECTED_LOW_GROUND_CLEARANCE`, `REJECTED_EXPIRED_RESERVATION`, `TAILGATING_LOCKOUT`), `InductiveLoopId` (`LOOP_A_APPROACH`, `LOOP_B_PRESENCE`, `LOOP_C_SAFETY`, `LOOP_D_DEPARTURE`).
+   - Domain models: `VehicleDimensionEnvelope`, `VehicleCredential`, `InductiveLoopState`, `GateAccessRequest`, `GateAccessDecision`, `BarrierKinematicsState`, `GateTransitEvent`, `GateAuditReport`.
 3. **Access Credential Validator & ALPR Optical Matcher (`src/nearfield360/gate/validator.py`):**
-   - Planned (Task 3).
+   - In progress (Task 3).
 4. **Dimensional Clearance & Envelope Profiler (`src/nearfield360/gate/envelope.py`):**
    - Planned (Task 4).
 5. **Inductive Loop & Anti-Tailgating Barrier Interlock Controller (`src/nearfield360/gate/controller.py`):**
@@ -2272,4 +2273,6 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | Check | Command | Result |
 | --- | --- | --- |
 | Gate Config Defaults & Overrides | `uv run pytest tests/unit/test_config.py` | 87 passed |
+| Gate Domain Models & Constraints | `uv run pytest tests/unit/gate/test_gate_models.py` | 6 passed |
+
 

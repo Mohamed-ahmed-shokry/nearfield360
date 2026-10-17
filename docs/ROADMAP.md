@@ -944,10 +944,10 @@ Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock,
    - [x] 1.3 `test(config): add unit tests for GateConfig validation and environment overrides`
    - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
 2. **Task 2: Access Control Domain Models & Gateway Schemas**
-   - [ ] 2.1 `feat(gate): implement gate directions, barrier states, credential types, and envelope models`
-   - [ ] 2.2 `feat(gate): implement inductive loop state, access request, decision, and transit event models`
-   - [ ] 2.3 `test(gate): verify gateway domain models, serialization, and validation constraints`
-   - [ ] 2.4 `docs(progress): mark Task 2 domain models completed`
+   - [x] 2.1 `feat(gate): implement gate directions, barrier states, credential types, and envelope models`
+   - [x] 2.2 `feat(gate): implement inductive loop state, access request, decision, and transit event models`
+   - [x] 2.3 `test(gate): verify gateway domain models, serialization, and validation constraints`
+   - [x] 2.4 `docs(progress): mark Task 2 domain models completed`
 3. **Task 3: Access Credential Validator & ALPR Optical Matcher**
    - [ ] 3.1 `feat(gate): implement license plate string matching and credential token validation`
    - [ ] 3.2 `test(gate): verify ALPR confidence filtering, reservation matching, and credential expiry`
