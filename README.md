@@ -927,19 +927,19 @@ uv run nearfield360 emergency info --json
 Simulate first responder (fire engine / ambulance / police) arrival, trajectory corridor projection, and fleet-wide yield holds:
 
 ```powershell
-uv run nearfield360 emergency preempt --responder-id fd-engine-99 --type fire_engine --x 0.0 --y 0.0 --target-x 60.0 --target-y 40.0 --output outputs/preempt.json --png outputs/preempt_tactical.png
+uv run nearfield360 emergency preempt --responder-id fd-engine-99 --type fire_engine --start-x 0.0 --start-y 0.0 --target-x 60.0 --target-y 40.0 --output outputs/preempt.json --png outputs/preempt_tactical.png
 ```
 
 Register dynamic hazard exclusion zones and detect EV lithium-ion battery thermal runaway:
 
 ```powershell
-uv run nearfield360 emergency hazard --hazard-id hz-battery-fire --temp-c 82.5 --x 35.0 --y 35.0 --output outputs/hazard.json --png outputs/hazard_tactical.png
+uv run nearfield360 emergency hazard --hazard-id hz-battery-fire --type ev_thermal_runaway --severity full_facility_evacuation --x 35.0 --y 35.0 --radius 12.0 --output outputs/hazard.json --png outputs/hazard_tactical.png
 ```
 
 Synthesize prioritized multi-wave facility evacuation schedules and hazard-avoiding egress routes:
 
 ```powershell
-uv run nearfield360 emergency evacuate --floor-id L1 --output outputs/evac_plan.json --png outputs/evac_tactical.png
+uv run nearfield360 emergency evacuate --output outputs/evac_plan.json --png outputs/evac_tactical.png
 ```
 
 Perform a comprehensive facility life safety readiness and fire barrier compliance audit:
@@ -953,4 +953,3 @@ uv run nearfield360 emergency audit --output outputs/emergency_audit.json --png 
 
 NearField360 source code is licensed under the [Apache License 2.0](LICENSE). External datasets,
 pretrained weights, and third-party components remain subject to their own licenses.
-
