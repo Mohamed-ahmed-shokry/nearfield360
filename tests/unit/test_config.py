@@ -857,3 +857,48 @@ def test_floor_config_rejects_excessive_floors(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 64"):
         load_config(config_path)
+
+
+def test_emergency_config_defaults() -> None:
+    config = load_config()
+
+    assert config.emergency.preemption_radius_m == 35.0
+    assert config.emergency.hazard_buffer_radius_m == 12.0
+    assert config.emergency.evacuation_speed_limit_mps == 4.0
+    assert config.emergency.fire_door_clearance_timeout_s == 15.0
+    assert config.emergency.stagger_interval_s == 3.0
+    assert config.emergency.emergency_heartbeat_timeout_s == 1.0
+    assert config.emergency.thermal_runaway_temp_c == 70.0
+
+
+def test_emergency_config_environment_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("emergency:\n  preemption_radius_m: 45.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_EMERGENCY__HAZARD_BUFFER_RADIUS_M", "16.0")
+    monkeypatch.setenv("NEARFIELD360_EMERGENCY__EVACUATION_SPEED_LIMIT_MPS", "5.0")
+    monkeypatch.setenv("NEARFIELD360_EMERGENCY__THERMAL_RUNAWAY_TEMP_C", "85.0")
+
+    config = load_config(config_path)
+
+    assert config.emergency.preemption_radius_m == 45.0
+    assert config.emergency.hazard_buffer_radius_m == 16.0
+    assert config.emergency.evacuation_speed_limit_mps == 5.0
+    assert config.emergency.thermal_runaway_temp_c == 85.0
+
+
+def test_emergency_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("emergency:\n  preemption_radius_m: -10.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
+
+
+def test_emergency_config_rejects_excessive_temperature(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("emergency:\n  thermal_runaway_temp_c: 350.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 250"):
+        load_config(config_path)

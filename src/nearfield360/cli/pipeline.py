@@ -615,6 +615,13 @@ def run_pipeline(
             help="Simulate multi-floor facility topology, vertical ramps, and vehicle elevators.",
         ),
     ] = False,
+    emergency: Annotated[
+        bool,
+        typer.Option(
+            "--emergency/--no-emergency",
+            help="Simulate emergency preemption, evacuation planning, and life safety dispatch.",
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -1163,6 +1170,69 @@ def run_pipeline(
         }
         timings["floor_ms"] = (time.perf_counter() - floor_stage_start) * 1000.0
 
+    emergency_payload: dict[str, Any] | None = None
+    if emergency:
+        emergency_stage_start = time.perf_counter()
+        from nearfield360.emergency.containment import HazardContainmentEngine
+        from nearfield360.emergency.evacuation import FacilityEvacuationPlanner
+        from nearfield360.emergency.models import (
+            EmergencySeverity,
+            EmergencyType,
+            EmergencyVehicle,
+            HazardZone,
+            LifeSafetyReport,
+            ResponderType,
+        )
+        from nearfield360.emergency.preemption import EmergencyPreemptionArbiter
+
+        e_arbiter = EmergencyPreemptionArbiter(config.emergency)
+        e_resp = EmergencyVehicle(
+            vehicle_id="fd-pipeline-01",
+            responder_type=ResponderType.FIRE_ENGINE,
+            x=0.0,
+            y=10.0,
+            target_x=40.0,
+            target_y=40.0,
+        )
+        e_arbiter.register_responder(e_resp)
+        e_contain = HazardContainmentEngine(config.emergency)
+        e_hz = HazardZone(
+            hazard_id="fire-zone-01",
+            emergency_type=EmergencyType.FIRE_ALARM,
+            severity=EmergencySeverity.FULL_FACILITY_EVACUATION,
+            center_x=40.0,
+            center_y=40.0,
+            radius_m=12.0,
+            floor_id="L1",
+            active=True,
+        )
+        e_contain.add_hazard(e_hz)
+        e_planner = FacilityEvacuationPlanner(e_contain, config.emergency)
+        e_vehicles = {
+            "veh-pipeline-01": ("bay-01", (15.0, 15.0)),
+            "veh-pipeline-02": ("bay-02", (38.0, 38.0)),
+        }
+        e_portals = {"Exit-North": (0.0, 90.0), "Exit-South": (0.0, -10.0)}
+        e_waves, e_routes = e_planner.plan_facility_evacuation(e_vehicles, e_portals)
+        e_report = LifeSafetyReport(
+            facility_name="Pipeline Multi-Camera Facility",
+            emergency_active=True,
+            incident_type=EmergencyType.FIRE_ALARM,
+            severity=EmergencySeverity.FULL_FACILITY_EVACUATION,
+            active_hazards=[e_hz],
+            emergency_responders=[e_resp],
+            total_vehicles=len(e_vehicles),
+            evacuating_count=len(e_vehicles),
+            evp_active=True,
+        )
+        emergency_payload = {
+            "report": e_report.model_dump(mode="json"),
+            "waves_count": len(e_waves),
+            "routes_count": len(e_routes),
+            "preemption_active": e_arbiter.is_preemption_active(),
+        }
+        timings["emergency_ms"] = (time.perf_counter() - emergency_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1198,6 +1268,8 @@ def run_pipeline(
         samples_payload["teleop"] = True
     if floor:
         samples_payload["floor"] = True
+    if emergency:
+        samples_payload["emergency"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1277,6 +1349,8 @@ def run_pipeline(
         payload["teleop"] = teleop_payload
     if floor_payload is not None:
         payload["floor"] = floor_payload
+    if emergency_payload is not None:
+        payload["emergency"] = emergency_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 

@@ -230,3 +230,11 @@ floor:
   elevator_leveling_tolerance_m: 0.015
   ramp_token_timeout_s: 30.0
   max_floors_supported: 16
+emergency:
+  preemption_radius_m: 35.0
+  hazard_buffer_radius_m: 12.0
+  evacuation_speed_limit_mps: 4.0
+  fire_door_clearance_timeout_s: 15.0
+  stagger_interval_s: 3.0
+  emergency_heartbeat_timeout_s: 1.0
+  thermal_runaway_temp_c: 70.0

@@ -915,6 +915,39 @@ Perform a comprehensive facility structural audit and vertical transit telemetry
 uv run nearfield360 floor audit --output outputs/floor_audit.json --png outputs/floor_dashboard.png
 ```
 
+### Emergency Vehicle Preemption, Fire Evacuation & Life Safety Dispatch (ISO 23374 / NFPA 88A)
+
+Inspect emergency vehicle preemption radius, hazard buffers, and egress thresholds:
+
+```powershell
+uv run nearfield360 emergency info
+uv run nearfield360 emergency info --json
+```
+
+Simulate first responder (fire engine / ambulance / police) arrival, trajectory corridor projection, and fleet-wide yield holds:
+
+```powershell
+uv run nearfield360 emergency preempt --responder-id fd-engine-99 --type fire_engine --start-x 0.0 --start-y 0.0 --target-x 60.0 --target-y 40.0 --output outputs/preempt.json --png outputs/preempt_tactical.png
+```
+
+Register dynamic hazard exclusion zones and detect EV lithium-ion battery thermal runaway:
+
+```powershell
+uv run nearfield360 emergency hazard --hazard-id hz-battery-fire --type ev_thermal_runaway --severity full_facility_evacuation --x 35.0 --y 35.0 --radius 12.0 --output outputs/hazard.json --png outputs/hazard_tactical.png
+```
+
+Synthesize prioritized multi-wave facility evacuation schedules and hazard-avoiding egress routes:
+
+```powershell
+uv run nearfield360 emergency evacuate --output outputs/evac_plan.json --png outputs/evac_tactical.png
+```
+
+Perform a comprehensive facility life safety readiness and fire barrier compliance audit:
+
+```powershell
+uv run nearfield360 emergency audit --output outputs/emergency_audit.json --png outputs/emergency_dashboard.png
+```
+
 
 ## License
 
