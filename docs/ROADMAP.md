@@ -837,12 +837,12 @@ Deliver an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuati
    - [x] 6.1 `feat(emergency): implement BEV hazard zones, responder trajectory, fire doors, and life safety HUD rendering`
    - [x] 6.2 `test(emergency): verify emergency visualizer exports valid PNG artifacts`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 7.1 `feat(emergency): export public emergency API from package init`
-   - [ ] 7.2 `feat(cli): implement nearfield360 emergency command group (info, preempt, evacuate, hazard, audit)`
-   - [ ] 7.3 `feat(cli): register emergency CLI group and update release audit expected count to 24`
-   - [ ] 7.4 `feat(pipeline): integrate --emergency options into surround pipeline runner`
-   - [ ] 7.5 `test(cli): verify emergency CLI commands, JSON payloads, and visual outputs`
-   - [ ] 7.6 `test(pipeline): verify pipeline emergency integration workflow`
+   - [x] 7.1 `feat(emergency): export public emergency API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 emergency command group (info, preempt, evacuate, hazard, audit)`
+   - [x] 7.3 `feat(cli): register emergency CLI group and update release audit expected count to 24`
+   - [x] 7.4 `feat(pipeline): integrate --emergency options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify emergency CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline emergency integration workflow`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 8.1 `docs: update README with Phase 32 emergency preemption capabilities and CLI usage`
    - [ ] 8.2 `docs(progress): document completed Phase 32 milestone, Decision Log, and verification gates`
