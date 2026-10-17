@@ -54,6 +54,37 @@ PngOption = Annotated[
 ]
 
 
+def _build_default_credentials() -> list[VehicleCredential]:
+    """Default authorized whitelist credentials for CLI operations."""
+    return [
+        VehicleCredential(
+            credential_id="cred-default-01",
+            credential_type=CredentialType.ALPR_PLATE,
+            plate_number="ABC-1234",
+            valid_from_s=0.0,
+            valid_until_s=86400.0,
+            tenant_id="PUBLIC",
+        ),
+        VehicleCredential(
+            credential_id="cred-default-02",
+            credential_type=CredentialType.ALPR_PLATE,
+            plate_number="XYZ-7890",
+            valid_from_s=0.0,
+            valid_until_s=86400.0,
+            tenant_id="RESERVED",
+        ),
+        VehicleCredential(
+            credential_id="cred-default-03",
+            credential_type=CredentialType.UWB_DIGITAL_KEY,
+            token_hash="uwb-valid-hash",  # noqa: S106
+            valid_from_s=0.0,
+            valid_until_s=86400.0,
+            tenant_id="FLEET_ALPHA",
+            vip_status=True,
+        ),
+    ]
+
+
 @gate_app.command("info")
 def gate_info(
     context: typer.Context,
@@ -164,7 +195,7 @@ def gate_verify(
         envelope=envelope,
     )
 
-    validator = AccessCredentialValidator(cfg)
+    validator = AccessCredentialValidator(cfg, initial_credentials=_build_default_credentials())
     profiler = VehicleEnvelopeProfiler(cfg)
 
     # 1. Credential validation
@@ -235,7 +266,7 @@ def gate_transit(
 ) -> None:
     """Execute complete 4-loop transit cycle with barrier kinematics and safety interlocks."""
     cfg = get_state(context).config.gate
-    validator = AccessCredentialValidator(cfg)
+    validator = AccessCredentialValidator(cfg, initial_credentials=_build_default_credentials())
     profiler = VehicleEnvelopeProfiler(cfg)
     controller = BarrierInterlockController(
         config=cfg,
@@ -257,17 +288,11 @@ def gate_transit(
         envelope=envelope,
     )
 
-    if simulate_tailgating:
-        # Pre-trigger tailgating: occupy loop C without prior authorization
-        controller.set_loop_state(InductiveLoopId.LOOP_C_SAFETY, True, timestamp_s=0.5)
-
-    if simulate_obstruction:
-        # Cause safety reversal on downward closing arm
-        controller.process_access_request(request)
-        controller.command_close()
-        controller.set_loop_state(InductiveLoopId.LOOP_C_SAFETY, True, timestamp_s=2.0)
-
-    event = controller.simulate_transit(request=request)
+    event = controller.simulate_transit(
+        request=request,
+        simulate_tailgating=simulate_tailgating,
+        simulate_obstruction=simulate_obstruction,
+    )
 
     result_payload = {
         "event_id": event.event_id,
@@ -398,7 +423,7 @@ def gate_audit(
 ) -> None:
     """Display aggregated security metrics, transit volumes, and clearance audit stats."""
     cfg = get_state(context).config.gate
-    validator = AccessCredentialValidator(cfg)
+    validator = AccessCredentialValidator(cfg, initial_credentials=_build_default_credentials())
     profiler = VehicleEnvelopeProfiler(cfg)
     controller = BarrierInterlockController(
         config=cfg,

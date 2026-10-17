@@ -235,7 +235,12 @@ class BarrierInterlockController:
         return combined_decision
 
     def simulate_transit(
-        self, request: GateAccessRequest, step_dt_s: float = 0.1
+        self,
+        request: GateAccessRequest,
+        step_dt_s: float = 0.1,
+        *,
+        simulate_tailgating: bool = False,
+        simulate_obstruction: bool = False,
     ) -> GateTransitEvent:
         """Simulate an end-to-end discrete gateway approach, clearance, and barrier cycle."""
         sim_time = request.timestamp_s
@@ -284,13 +289,23 @@ class BarrierInterlockController:
         self.set_loop_state(InductiveLoopId.LOOP_D_DEPARTURE, False, sim_time)
         self._authorized_vehicle_id = None  # Authorization completed
 
+        if simulate_tailgating:
+            # Trailing unauthorized vehicle cuts in on Loop B while arm is still open
+            self.set_loop_state(InductiveLoopId.LOOP_B_PRESENCE, True, sim_time)
+
         # Step 6: Close barrier
         self.command_close()
-        for _ in range(500):
-            if self._barrier.state == BarrierArmState.LOWERED_CLOSED:
-                break
+        if simulate_obstruction:
+            # An obstacle obstructs Loop C during closing descent
             sim_time += step_dt_s
             self.step_kinematics(step_dt_s, sim_time)
+            self.set_loop_state(InductiveLoopId.LOOP_C_SAFETY, True, sim_time)
+        else:
+            for _ in range(500):
+                if self._barrier.state == BarrierArmState.LOWERED_CLOSED:
+                    break
+                sim_time += step_dt_s
+                self.step_kinematics(step_dt_s, sim_time)
 
         total_duration = round(sim_time - request.timestamp_s, 2)
         event = GateTransitEvent(
