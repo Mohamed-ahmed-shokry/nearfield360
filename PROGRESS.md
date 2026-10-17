@@ -2254,9 +2254,9 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 5. **Inductive Loop & Anti-Tailgating Barrier Interlock Controller (`src/nearfield360/gate/controller.py`):**
    - Four-loop sensor sequencing (Loop A approach, Loop B presence/scan, Loop C safety, Loop D departure). Dynamic boom arm kinematic state machine ($0^\circ \to 90^\circ$). Immediate safety reversal on Loop C obstruction during descent. Anti-tailgating unauthorized ingress detection and alarm latching. High-level transit simulation and aggregated `GateAuditReport` generation.
 6. **Gateway BEV Tactical Map & Visualizer (`src/nearfield360/gate/viz.py`):**
-   - In progress (Task 6).
+   - High-contrast dual-panel 1280x720 tactical rendering (`render_gate_dashboard`). Left panel displays gateway roadway corridor, structural portal pillars, color-coded inductive loop sensor pads, ALPR optical camera scanning beam, and dynamic barrier arm with angular position and safety stripes. Right panel displays real-time status HUD with kinematics gauges, authorization badges, headroom and width margin indicators, loop detector dwell times, anti-tailgating alarm banners, and operational audit telemetry.
 7. **Package Exports, CLI Command Group & Surround Pipeline Integration:**
-   - Planned (Task 7).
+   - In progress (Task 7).
 
 ---
 
@@ -2280,3 +2280,4 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | Access Credential Validator & ALPR | `uv run pytest tests/unit/gate/test_validator.py` | 7 passed |
 | Dimensional Clearance & Envelope Profiler | `uv run pytest tests/unit/gate/test_envelope.py` | 5 passed |
 | Barrier Controller & Safety Interlocks | `uv run pytest tests/unit/gate/test_controller.py` | 6 passed |
+| Tactical BEV Gateway Visualizer | `uv run pytest tests/unit/gate/test_gate_viz.py` | 3 passed |

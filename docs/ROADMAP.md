@@ -962,9 +962,9 @@ Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock,
    - [x] 5.3 `test(gate): verify loop transitions, barrier timing, anti-tailgating lockout, and safety reversals`
    - [x] 5.4 `docs(progress): mark Task 5 barrier controller completed`
 6. **Task 6: Gateway Tactical BEV Map & Visualizer**
-   - [ ] 6.1 `feat(gate): implement BEV access portal, inductive loop pads, barrier arm angle, and HUD rendering`
-   - [ ] 6.2 `test(gate): verify gateway visualizer exports valid PNG artifacts`
-   - [ ] 6.3 `docs(progress): mark Task 6 gateway visualizer completed`
+   - [x] 6.1 `feat(gate): implement BEV access portal, inductive loop pads, barrier arm angle, and HUD rendering`
+   - [x] 6.2 `test(gate): verify gateway visualizer exports valid PNG artifacts`
+   - [x] 6.3 `docs(progress): mark Task 6 gateway visualizer completed`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
    - [ ] 7.1 `feat(gate): export public gate API from package init`
    - [ ] 7.2 `feat(cli): implement nearfield360 gate command group (info, verify, transit, render, audit)`
