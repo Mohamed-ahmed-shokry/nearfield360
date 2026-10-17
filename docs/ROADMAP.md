@@ -939,10 +939,10 @@ Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock,
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Gateway Configuration Foundation**
-   - [ ] 1.1 `docs(roadmap): establish Phase 33 facility access control and barrier gate roadmap`
-   - [ ] 1.2 `feat(config): add GateConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for GateConfig validation and environment overrides`
-   - [ ] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
+   - [x] 1.1 `docs(roadmap): establish Phase 33 facility access control and barrier gate roadmap`
+   - [x] 1.2 `feat(config): add GateConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for GateConfig validation and environment overrides`
+   - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
 2. **Task 2: Access Control Domain Models & Gateway Schemas**
    - [ ] 2.1 `feat(gate): implement gate directions, barrier states, credential types, and envelope models`
    - [ ] 2.2 `feat(gate): implement inductive loop state, access request, decision, and transit event models`

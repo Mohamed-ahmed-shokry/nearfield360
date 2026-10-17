@@ -2229,3 +2229,47 @@ Phase 32 delivers an end-to-end Emergency Vehicle Preemption (EVP), Facility Fir
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (24 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
+
+---
+
+## Phase 33: Facility Access Control, Barrier Gate Interlocks, License Plate Recognition (ALPR) & Vehicle Clearance Enveloping (ISO 23374 Gateway Operations)
+
+**Status:** In Progress (Task 1 Complete)
+**Repository Branch:** `phase/facility-access-control-barrier-gates`
+**Pull Request:** Draft PR #13
+
+### 1. Milestone Objectives & Scope
+
+Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate Interlock, Automated License Plate Recognition (ALPR), and Vehicle Clearance Enveloping subsystem for NearField360 conforming to ISO 23374. The subsystem governs vehicle ingress and egress at facility perimeter portals, authenticating credentials, checking 3D dimensional clearance envelopes against portal structures, managing barrier arm kinematics and four-loop inductive sensor transitions with anti-tailgating interlocks, rendering tactical BEV gateway dashboards, exposing a dedicated `nearfield360 gate` CLI command group, and integrating gateway operations into the surround camera pipeline:
+
+1. **Configuration (`GateConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Configurable portal clearance height (`portal_clearance_height_m`: 2.10 m), portal clearance width (`portal_clearance_width_m`: 2.60 m), minimum ground clearance (`ground_clearance_min_m`: 0.12 m), barrier arm length (`barrier_arm_length_m`: 3.0 m), opening time (`barrier_opening_time_s`: 1.8 s), hold time (`barrier_holding_time_s`: 5.0 s), closing time (`barrier_closing_time_s`: 2.2 s), ALPR confidence threshold (`alpr_confidence_threshold`: 0.85), anti-tailgating timeout (`anti_tailgating_timeout_s`: 2.0 s), safety loop debounce (`safety_loop_debounce_ms`: 50.0 ms), and UWB RSSI threshold (`uwb_rssi_threshold_dbm`: -75.0 dBm).
+2. **Domain Models & Access Protocols (`src/nearfield360/gate/models.py`):**
+   - In progress (Task 2).
+3. **Access Credential Validator & ALPR Optical Matcher (`src/nearfield360/gate/validator.py`):**
+   - Planned (Task 3).
+4. **Dimensional Clearance & Envelope Profiler (`src/nearfield360/gate/envelope.py`):**
+   - Planned (Task 4).
+5. **Inductive Loop & Anti-Tailgating Barrier Interlock Controller (`src/nearfield360/gate/controller.py`):**
+   - Planned (Task 5).
+6. **Gateway BEV Tactical Map & Visualizer (`src/nearfield360/gate/viz.py`):**
+   - Planned (Task 6).
+7. **Package Exports, CLI Command Group & Surround Pipeline Integration:**
+   - Planned (Task 7).
+
+---
+
+### 2. Decision Log
+
+1. **Decision**: Explicit 3D Dimensional Envelope Validation Before Physical Barrier Gate Actuation
+   - *Alternatives Considered*: Allowing barrier arm opening solely upon credential match and delegating collision avoidance to vehicle ultrasonic sensors.
+   - *Rationale & Evidence*: In automated valet parking structures, low ceiling pipes, ventilation ducts, and overhead signage frequently impose hard headroom limits (typically 2.1m). If an over-height vehicle (e.g. SUV with roof box) or low-clearance vehicle is admitted, structural damage or ramp bottoming occurs within the facility. Pre-barrier gateway clearance profiling ensures structural compliance before physical admission.
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Gate Config Defaults & Overrides | `uv run pytest tests/unit/test_config.py` | 87 passed |
+
