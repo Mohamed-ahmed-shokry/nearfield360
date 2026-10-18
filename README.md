@@ -45,6 +45,7 @@ the corresponding experiments have run.
 | Remote teleoperation assistance, video fallback & emergency MRM execution | Implemented | Remote operator assistance, guidance waypoints, RTT latency tracking, bandwidth-adaptive video throttling, fail-safe heartbeat watchdog, deterministic Minimum Risk Maneuvers (MRM), `nearfield360 teleop`, and surround pipeline integration (`pipeline run --teleop`) |
 | Multi-floor facility topology, spiral ramp kinematics & elevator dispatch | Implemented | Multi-level 3D graph routing, pitch dynamics ($F_g = mg \sin\theta$), spiral kinematics, single-lane ramp token arbiter, automated car lift scheduling with leveling interlocks, `nearfield360 floor`, and surround pipeline integration (`pipeline run --floor`) |
 | Facility access control, barrier gate interlocks & vehicle clearance enveloping | Implemented | ISO 23374 gateway operations, optical ALPR plate recognition, UWB digital credential validation, 3D vehicle clearance envelope profiling (headroom/width/ground clearance), 4-loop inductive safety interlocks ($0^\circ \to 90^\circ$ boom kinematics, UL 325 immediate safety reversal, anti-tailgating lockout), dual-panel BEV gateway map and HUD visualizer (`nearfield360 gate`), and surround pipeline integration (`pipeline run --gate`) |
+| Infrastructure cooperative perception, ETSI CPM dispatch & blind-spot fusion | Implemented | ISO 23374 Type 2/3 and ETSI TR 103 562 Collective Perception Service (CPM), stationary Roadside Perception Units (RPUs) with 3D LiDAR/radar/fisheye, kinematic latency extrapolation, track-to-track Covariance Intersection (CI), line-of-sight raycasting & pillar occlusion shadows, preemptive collision warnings, dual-panel tactical BEV/HUD dashboard (`nearfield360 coop`), and surround pipeline runner integration (`pipeline run --coop`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -983,6 +984,48 @@ Perform an operational security audit and analyze portal transit volumes and cle
 ```powershell
 uv run nearfield360 gate audit --output outputs/gate_audit.json
 ```
+
+### Infrastructure Cooperative Perception, ETSI CPM Dispatch & Blind-Spot Occlusion Fusion (ISO 23374 Type 2/3)
+
+Inspect cooperative perception configuration parameters, standards compliance, and roadside perception network:
+
+```powershell
+uv run nearfield360 coop info
+uv run nearfield360 coop info --json
+```
+
+Inspect stationary Roadside Perception Units (RPUs) and generate compliant ETSI Collective Perception Messages (CPM):
+
+```powershell
+uv run nearfield360 coop rpu
+uv run nearfield360 coop rpu --station-id RPU-BLIND-CORNER-1
+uv run nearfield360 coop rpu --json --output outputs/rpu_dispatch.json
+```
+
+Simulate track-to-track cooperative fusion cycle with kinematic latency compensation and Covariance Intersection (CI):
+
+```powershell
+uv run nearfield360 coop fuse --timestamp 10.0 --latency-s 0.08 --output outputs/coop_fusion.json
+```
+
+Render dual-panel tactical BEV cooperative perception map and telemetry HUD:
+
+```powershell
+uv run nearfield360 coop render --vehicle-x 12.0 --vehicle-y 15.0 --vehicle-speed 3.5 --png outputs/coop_dashboard.png
+```
+
+Run comprehensive ISO 23374 / ETSI CPM operational safety, blind-spot mitigation, and telemetry audit:
+
+```powershell
+uv run nearfield360 coop audit --output outputs/coop_audit.json
+```
+
+Execute the integrated four-camera surround perception pipeline with cooperative perception and blind-spot fusion:
+
+```powershell
+uv run nearfield360 pipeline run --root data/woodscape --output outputs/pipeline_coop.json --coop
+```
+
 
 
 ## License
