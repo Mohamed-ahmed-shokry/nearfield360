@@ -5,7 +5,11 @@ from __future__ import annotations
 import math
 
 from nearfield360.coop.models import (
+    CollectivePerceptionMessage,
+    CPMPerceivedObject,
+    CPMStationType,
     RPUSensorState,
+    RPUSensorType,
 )
 
 
@@ -15,6 +19,7 @@ class RPUSensorManager:
     def __init__(self) -> None:
         self._stations: dict[str, RPUSensorState] = {}
         self._sequence_counters: dict[str, int] = {}
+        self._perceived_objects: dict[str, list[CPMPerceivedObject]] = {}
 
     def register_station(self, station: RPUSensorState) -> None:
         """Register or update a stationary roadside perception station."""
@@ -82,3 +87,97 @@ class RPUSensorManager:
             polygon.append((rx, ry))
 
         return polygon
+
+    def add_perceived_object(self, station_id: str, obj: CPMPerceivedObject) -> None:
+        """Register an observed object detected by a specific RPU station."""
+        if station_id not in self._stations:
+            raise KeyError(f"RPU station '{station_id}' is not registered.")
+        if obj.station_id != station_id:
+            msg = (
+                f"Object station_id '{obj.station_id}' does not match "
+                f"target station '{station_id}'."
+            )
+            raise ValueError(msg)
+        self._perceived_objects.setdefault(station_id, []).append(obj)
+
+    def get_perceived_objects(self, station_id: str) -> list[CPMPerceivedObject]:
+        """Return all active perceived objects registered for a station."""
+        return list(self._perceived_objects.get(station_id, []))
+
+    def clear_perceptions(self, station_id: str | None = None) -> None:
+        """Clear active perceptions for one station or all stations if None."""
+        if station_id is None:
+            self._perceived_objects.clear()
+        elif station_id in self._perceived_objects:
+            self._perceived_objects[station_id].clear()
+
+    def generate_cpm(
+        self, station_id: str, timestamp_s: float, filter_fov: bool = False
+    ) -> CollectivePerceptionMessage:
+        """Construct an ETSI Collective Perception Message (CPM) for a given station."""
+        station = self.get_station(station_id)
+        current_seq = self._sequence_counters.get(station_id, 0)
+        self._sequence_counters[station_id] = current_seq + 1
+
+        raw_objects = self._perceived_objects.get(station_id, [])
+        if filter_fov:
+            perceptions = [
+                obj for obj in raw_objects if self.is_point_in_fov(station_id, (obj.x_m, obj.y_m))
+            ]
+        else:
+            perceptions = list(raw_objects)
+
+        sx, sy, sz = station.position_m
+        return CollectivePerceptionMessage(
+            station_id=station_id,
+            station_type=CPMStationType.INFRASTRUCTURE_RPU,
+            sequence_number=current_seq,
+            timestamp_s=timestamp_s,
+            reference_x_m=sx,
+            reference_y_m=sy,
+            reference_z_m=sz,
+            perceived_objects=perceptions,
+        )
+
+    @classmethod
+    def create_default_demonstrator_network(cls) -> RPUSensorManager:
+        """Factory creating a realistic multi-station cooperative facility network."""
+        mgr = cls()
+
+        # Station 1: LiDAR monitoring 90-degree blind corner between Main Aisle and West Corridor
+        mgr.register_station(
+            RPUSensorState(
+                station_id="RPU-BLIND-CORNER-1",
+                sensor_type=RPUSensorType.LIDAR,
+                position_m=(20.0, 15.0, 4.0),
+                yaw_deg=225.0,
+                range_max_m=35.0,
+                fov_azimuth_deg=120.0,
+            )
+        )
+
+        # Station 2: Radar monitoring spiral ramp crest and floor transition
+        mgr.register_station(
+            RPUSensorState(
+                station_id="RPU-RAMP-CREST-1",
+                sensor_type=RPUSensorType.RADAR,
+                position_m=(35.0, 40.0, 3.5),
+                yaw_deg=180.0,
+                range_max_m=45.0,
+                fov_azimuth_deg=90.0,
+            )
+        )
+
+        # Station 3: Overhead Fisheye Camera monitoring facility access gateway
+        mgr.register_station(
+            RPUSensorState(
+                station_id="RPU-GATE-OVERHEAD-1",
+                sensor_type=RPUSensorType.FISHEYE_CAMERA,
+                position_m=(0.0, 10.0, 4.5),
+                yaw_deg=0.0,
+                range_max_m=25.0,
+                fov_azimuth_deg=180.0,
+            )
+        )
+
+        return mgr
