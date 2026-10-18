@@ -2355,7 +2355,14 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
   - [x] 7.2 `feat(coop): implement cooperative perception HUD with latency, tracks, and TTC risk gauges`
   - [x] 7.3 `test(coop): verify cooperative perception visualizer exports valid PNG artifacts`
   - [x] 7.4 `docs(progress): mark Task 7 cooperative visualizer completed`
-- [ ] Task 8: Package Exports, CLI Command Group & Pipeline Integration
+- [x] Task 8: Package Exports, CLI Command Group & Pipeline Integration
+  - [x] 8.1 `feat(coop): export public cooperative perception API from package init`
+  - [x] 8.2 `feat(cli): implement nearfield360 coop command group (info, rpu, fuse, render, audit)`
+  - [x] 8.3 `feat(cli): register coop CLI group and update release audit expected count to 26`
+  - [x] 8.4 `feat(pipeline): integrate --coop options into surround pipeline runner`
+  - [x] 8.5 `test(cli): verify coop CLI commands, JSON payloads, and visual outputs`
+  - [x] 8.6 `test(pipeline): verify pipeline coop integration workflow`
+  - [x] 8.7 `docs(progress): mark Task 8 package exports and CLI integration completed`
 - [ ] Task 9: End-to-End Documentation, Self-Review & Delivery
 
 ### 3. Decision Log
@@ -2381,3 +2388,6 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 7. **Decision**: Dual-Panel Tactical BEV and Real-Time HUD Visualization
    - *Alternatives Considered*: Single-view BEV overlay without telemetry or tabular-only console logs.
    - *Rationale & Evidence*: Cooperative perception involves multi-modal, multi-perspective data (onboard 360-degree coverage, infrastructure sensor cones, shadow polygons, and track covariance ellipses). A dual-panel display separating spatial situational awareness (left) from telemetry metrics, association status, and urgent blind-spot conflict alarms (right) enables immediate operator auditing and diagnostics during automated valet operations.
+8. **Decision**: Unified Pipeline `--coop` Flag and Release Audit Surface Expansion
+   - *Alternatives Considered*: Standalone cooperative perception script without pipeline integration or separate CLI runner.
+   - *Rationale & Evidence*: Integrating `--coop/--no-coop` directly into `nearfield360 pipeline run` allows four-camera surround perception tracks to be injected directly into the cooperative fusion engine alongside roadside CPM telemetry. Expanding the release audit to enforce 26 CLI groups guarantees release readiness and prevents surface regressions.

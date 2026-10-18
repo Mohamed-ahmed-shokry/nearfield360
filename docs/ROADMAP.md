@@ -1103,13 +1103,13 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
    - [x] 7.3 `test(coop): verify cooperative perception visualizer exports valid PNG artifacts`
    - [x] 7.4 `docs(progress): mark Task 7 cooperative visualizer completed`
 8. **Task 8: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 8.1 `feat(coop): export public cooperative perception API from package init`
-   - [ ] 8.2 `feat(cli): implement nearfield360 coop command group (info, rpu, fuse, render, audit)`
-   - [ ] 8.3 `feat(cli): register coop CLI group and update release audit expected count to 26`
-   - [ ] 8.4 `feat(pipeline): integrate --coop options into surround pipeline runner`
-   - [ ] 8.5 `test(cli): verify coop CLI commands, JSON payloads, and visual outputs`
-   - [ ] 8.6 `test(pipeline): verify pipeline coop integration workflow`
-   - [ ] 8.7 `docs(progress): mark Task 8 package exports and CLI integration completed`
+   - [x] 8.1 `feat(coop): export public cooperative perception API from package init`
+   - [x] 8.2 `feat(cli): implement nearfield360 coop command group (info, rpu, fuse, render, audit)`
+   - [x] 8.3 `feat(cli): register coop CLI group and update release audit expected count to 26`
+   - [x] 8.4 `feat(pipeline): integrate --coop options into surround pipeline runner`
+   - [x] 8.5 `test(cli): verify coop CLI commands, JSON payloads, and visual outputs`
+   - [x] 8.6 `test(pipeline): verify pipeline coop integration workflow`
+   - [x] 8.7 `docs(progress): mark Task 8 package exports and CLI integration completed`
 9. **Task 9: End-to-End Documentation, Self-Review & Delivery**
    - [ ] 9.1 `docs: update README with Phase 34 cooperative perception usage examples`
    - [ ] 9.2 `docs(progress): document completed Phase 34 milestone, Decision Log, and verification gates`
