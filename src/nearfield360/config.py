@@ -509,6 +509,20 @@ class GateConfig(BaseModel):
     uwb_rssi_threshold_dbm: float = Field(default=-75.0, le=0.0, ge=-120.0, allow_inf_nan=False)
 
 
+class CoopConfig(BaseModel):
+    """Parameters for infrastructure cooperative perception, ETSI CPM, and blind-spot fusion."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    max_latency_compensation_s: float = Field(default=0.50, gt=0.0, le=5.0, allow_inf_nan=False)
+    association_gate_mahalanobis: float = Field(default=3.0, gt=0.0, le=10.0, allow_inf_nan=False)
+    min_cpm_confidence: float = Field(default=0.60, ge=0.0, le=1.0, allow_inf_nan=False)
+    blind_spot_warning_ttc_s: float = Field(default=2.5, gt=0.0, le=10.0, allow_inf_nan=False)
+    occlusion_grid_resolution_m: float = Field(default=0.25, gt=0.0, le=2.0, allow_inf_nan=False)
+    rpu_broadcast_frequency_hz: float = Field(default=10.0, gt=0.0, le=100.0, allow_inf_nan=False)
+    track_covariance_inflation_factor: float = Field(default=1.25, ge=1.0, le=5.0, allow_inf_nan=False)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -551,6 +565,7 @@ class ProjectConfig(BaseSettings):
     floor: MultiFloorConfig = Field(default_factory=MultiFloorConfig)
     emergency: EmergencyConfig = Field(default_factory=EmergencyConfig)
     gate: GateConfig = Field(default_factory=GateConfig)
+    coop: CoopConfig = Field(default_factory=CoopConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -601,6 +616,7 @@ __all__ = [
     "CameraHealthConfig",
     "ChargingConfig",
     "ConfigurationError",
+    "CoopConfig",
     "CurbsideConfig",
     "EmergencyConfig",
     "FleetConfig",
