@@ -1071,11 +1071,11 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
    - [x] 1.3 `test(config): add unit tests for CoopConfig validation and environment overrides`
    - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
 2. **Task 2: Cooperative Perception Domain Models & CPM Protocols**
-   - [ ] 2.1 `feat(coop): implement RPU sensor types, station types, and risk level enums`
-   - [ ] 2.2 `feat(coop): implement RPU state, CPM object, CPM message, and cooperative track models`
-   - [ ] 2.3 `feat(coop): implement blind spot warning and cooperative telemetry report models`
-   - [ ] 2.4 `test(coop): verify cooperative domain models, validation, and JSON serialization`
-   - [ ] 2.5 `docs(progress): mark Task 2 domain models completed`
+   - [x] 2.1 `feat(coop): implement RPU sensor types, station types, and risk level enums`
+   - [x] 2.2 `feat(coop): implement RPU state, CPM object, CPM message, and cooperative track models`
+   - [x] 2.3 `feat(coop): implement blind spot warning and cooperative telemetry report models`
+   - [x] 2.4 `test(coop): verify cooperative domain models, validation, and JSON serialization`
+   - [x] 2.5 `docs(progress): mark Task 2 domain models completed`
 3. **Task 3: Roadside Perception Unit (RPU) Manager & CPM Dispatcher**
    - [ ] 3.1 `feat(coop): implement RPU sensor station management and FOV coverage geometry`
    - [ ] 3.2 `feat(coop): implement CPM message generation and station payload dispatch`

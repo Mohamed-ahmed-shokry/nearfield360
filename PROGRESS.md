@@ -2323,7 +2323,12 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
   - [x] 1.2 `feat(config): add CoopConfig and update default yaml configuration`
   - [x] 1.3 `test(config): add unit tests for CoopConfig validation and environment overrides`
   - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
-- [ ] Task 2: Cooperative Perception Domain Models & CPM Protocols
+- [x] Task 2: Cooperative Perception Domain Models & CPM Protocols
+  - [x] 2.1 `feat(coop): implement RPU sensor types, station types, and risk level enums`
+  - [x] 2.2 `feat(coop): implement RPU state, CPM object, CPM message, and cooperative track models`
+  - [x] 2.3 `feat(coop): implement blind spot warning and cooperative telemetry report models`
+  - [x] 2.4 `test(coop): verify cooperative domain models, validation, and JSON serialization`
+  - [x] 2.5 `docs(progress): mark Task 2 domain models completed`
 - [ ] Task 3: Roadside Perception Unit (RPU) Manager & CPM Dispatcher
 - [ ] Task 4: Spatiotemporal Alignment & Wireless Latency Extrapolation
 - [ ] Task 5: Track-to-Track Cooperative Fusion Engine
@@ -2337,3 +2342,7 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 1. **Decision**: Explicit `CoopConfig` with Strict Bounds and Safe Defaults
    - *Alternatives Considered*: Reusing existing `FleetConfig` or hardcoding parameters in fusion modules.
    - *Rationale & Evidence*: Cooperative perception under ISO 23374 Type 2/3 operates at the sensor fusion level (sub-second kinematic extrapolation, Mahalanobis gating, raycasting), whereas fleet coordination operates at the mission/dispatch level. Isolating `CoopConfig` maintains clean separation of concerns and allows deterministic fine-tuning of safety thresholds.
+2. **Decision**: ETSI TR 103 562 / SAE J3224 CPM Compliant Data Structure
+   - *Alternatives Considered*: Defining custom proprietary dictionary structures for infrastructure perception sharing.
+   - *Rationale & Evidence*: Standardized V2X Collective Perception Services (CPS) define perception containers including station IDs, reference poses, sequence numbers, timestamps, and perceived object kinematics with explicit 2D covariance matrices. Conforming to ETSI/SAE models ensures interoperability across heterogeneous roadside perception stations (LiDAR, camera, radar).
+
