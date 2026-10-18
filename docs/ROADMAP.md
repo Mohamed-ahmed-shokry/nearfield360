@@ -1077,10 +1077,10 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
    - [x] 2.4 `test(coop): verify cooperative domain models, validation, and JSON serialization`
    - [x] 2.5 `docs(progress): mark Task 2 domain models completed`
 3. **Task 3: Roadside Perception Unit (RPU) Manager & CPM Dispatcher**
-   - [ ] 3.1 `feat(coop): implement RPU sensor station management and FOV coverage geometry`
-   - [ ] 3.2 `feat(coop): implement CPM message generation and station payload dispatch`
-   - [ ] 3.3 `test(coop): verify RPU registration, FOV filtering, and CPM dispatch`
-   - [ ] 3.4 `docs(progress): mark Task 3 RPU manager completed`
+   - [x] 3.1 `feat(coop): implement RPU sensor station management and FOV coverage geometry`
+   - [x] 3.2 `feat(coop): implement CPM message generation and station payload dispatch`
+   - [x] 3.3 `test(coop): verify RPU registration, FOV filtering, and CPM dispatch`
+   - [x] 3.4 `docs(progress): mark Task 3 RPU manager completed`
 4. **Task 4: Spatiotemporal Alignment & Wireless Latency Extrapolation**
    - [ ] 4.1 `feat(coop): implement coordinate frame transformations between RPU, facility, and vehicle`
    - [ ] 4.2 `feat(coop): implement kinematic extrapolation and latency compensation for CPM objects`

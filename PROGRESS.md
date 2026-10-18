@@ -2329,7 +2329,11 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
   - [x] 2.3 `feat(coop): implement blind spot warning and cooperative telemetry report models`
   - [x] 2.4 `test(coop): verify cooperative domain models, validation, and JSON serialization`
   - [x] 2.5 `docs(progress): mark Task 2 domain models completed`
-- [ ] Task 3: Roadside Perception Unit (RPU) Manager & CPM Dispatcher
+- [x] Task 3: Roadside Perception Unit (RPU) Manager & CPM Dispatcher
+  - [x] 3.1 `feat(coop): implement RPU sensor station management and FOV coverage geometry`
+  - [x] 3.2 `feat(coop): implement CPM message generation and station payload dispatch`
+  - [x] 3.3 `test(coop): verify RPU registration, FOV filtering, and CPM dispatch`
+  - [x] 3.4 `docs(progress): mark Task 3 RPU manager completed`
 - [ ] Task 4: Spatiotemporal Alignment & Wireless Latency Extrapolation
 - [ ] Task 5: Track-to-Track Cooperative Fusion Engine
 - [ ] Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor
@@ -2345,4 +2349,8 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 2. **Decision**: ETSI TR 103 562 / SAE J3224 CPM Compliant Data Structure
    - *Alternatives Considered*: Defining custom proprietary dictionary structures for infrastructure perception sharing.
    - *Rationale & Evidence*: Standardized V2X Collective Perception Services (CPS) define perception containers including station IDs, reference poses, sequence numbers, timestamps, and perceived object kinematics with explicit 2D covariance matrices. Conforming to ETSI/SAE models ensures interoperability across heterogeneous roadside perception stations (LiDAR, camera, radar).
+3. **Decision**: Pre-Configured Multi-Station Demonstrator Network
+   - *Alternatives Considered*: Requiring external JSON/YAML configuration for all RPU setups.
+   - *Rationale & Evidence*: Providing `RPUSensorManager.create_default_demonstrator_network()` provides instant, deterministic coverage across representative facility bottlenecks (blind corner intersection, ramp crest, and access portal) without boilerplate file parsing, while allowing complete programmatic and CLI overrides.
+
 
