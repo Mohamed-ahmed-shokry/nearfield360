@@ -1111,7 +1111,7 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
    - [x] 8.6 `test(pipeline): verify pipeline coop integration workflow`
    - [x] 8.7 `docs(progress): mark Task 8 package exports and CLI integration completed`
 9. **Task 9: End-to-End Documentation, Self-Review & Delivery**
-   - [ ] 9.1 `docs: update README with Phase 34 cooperative perception usage examples`
-   - [ ] 9.2 `docs(progress): document completed Phase 34 milestone, Decision Log, and verification gates`
-   - [ ] 9.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
-   - [ ] 9.4 `docs(roadmap): mark Phase 34 fully completed and all acceptance criteria met`
+   - [x] 9.1 `docs: update README with Phase 34 cooperative perception usage examples`
+   - [x] 9.2 `docs(progress): document completed Phase 34 milestone, Decision Log, and verification gates`
+   - [x] 9.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [x] 9.4 `docs(roadmap): mark Phase 34 fully completed and all acceptance criteria met`
