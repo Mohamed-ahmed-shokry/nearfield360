@@ -1087,11 +1087,11 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
    - [x] 4.3 `test(coop): verify coordinate transformation accuracy and kinematic time-extrapolation`
    - [x] 4.4 `docs(progress): mark Task 4 alignment and extrapolation completed`
 5. **Task 5: Track-to-Track Cooperative Fusion Engine**
-   - [ ] 5.1 `feat(coop): implement Mahalanobis distance association and gated track matching`
-   - [ ] 5.2 `feat(coop): implement Covariance Intersection (CI) track state and covariance update`
-   - [ ] 5.3 `feat(coop): implement cooperative track manager with track lifecycle management`
-   - [ ] 5.4 `test(coop): verify track association, Covariance Intersection fusion, and lifecycle`
-   - [ ] 5.5 `docs(progress): mark Task 5 cooperative fusion completed`
+   - [x] 5.1 `feat(coop): implement Mahalanobis distance association and gated track matching`
+   - [x] 5.2 `feat(coop): implement Covariance Intersection (CI) track state and covariance update`
+   - [x] 5.3 `feat(coop): implement cooperative track manager with track lifecycle management`
+   - [x] 5.4 `test(coop): verify track association, Covariance Intersection fusion, and lifecycle`
+   - [x] 5.5 `docs(progress): mark Task 5 cooperative fusion completed`
 6. **Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor**
    - [ ] 6.1 `feat(coop): implement line-of-sight raycasting and pillar occlusion shadow computation`
    - [ ] 6.2 `feat(coop): implement blind-spot hazard detection and TTC warning generation`

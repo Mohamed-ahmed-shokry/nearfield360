@@ -2339,7 +2339,12 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
   - [x] 4.2 `feat(coop): implement kinematic extrapolation and latency compensation for CPM objects`
   - [x] 4.3 `test(coop): verify coordinate transformation accuracy and kinematic time-extrapolation`
   - [x] 4.4 `docs(progress): mark Task 4 alignment and extrapolation completed`
-- [ ] Task 5: Track-to-Track Cooperative Fusion Engine
+- [x] Task 5: Track-to-Track Cooperative Fusion Engine
+  - [x] 5.1 `feat(coop): implement Mahalanobis distance association and gated track matching`
+  - [x] 5.2 `feat(coop): implement Covariance Intersection (CI) track state and covariance update`
+  - [x] 5.3 `feat(coop): implement cooperative track manager with track lifecycle management`
+  - [x] 5.4 `test(coop): verify track association, Covariance Intersection fusion, and lifecycle`
+  - [x] 5.5 `docs(progress): mark Task 5 cooperative fusion completed`
 - [ ] Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor
 - [ ] Task 7: Tactical BEV Cooperative Map & Visualizer
 - [ ] Task 8: Package Exports, CLI Command Group & Pipeline Integration
@@ -2359,3 +2364,7 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 4. **Decision**: Bounded Kinematic Extrapolation with Confidence Penalty for Latency Compensation
    - *Alternatives Considered*: Dropping all delayed CPM messages immediately or extrapolating indefinitely without covariance inflation.
    - *Rationale & Evidence*: Real-world wireless V2X transmission incurs 50–200 ms jitter. Constant-velocity kinematic extrapolation with discrete process noise covariance growth accounts for object motion during transit. If latency exceeds the 0.5s safety horizon, confidence is penalized progressively, preventing stale infrastructure ghost tracks from overriding fresh onboard sensor observations.
+5. **Decision**: Covariance Intersection (CI) with Configurable Inflation Over Standard Kalman Fusion
+   - *Alternatives Considered*: Standard linear Kalman filter track-to-track state fusion.
+   - *Rationale & Evidence*: In decentralized cooperative perception, unknown cross-correlations exist between vehicle and infrastructure sensors (e.g. shared prior maps, overlapping tracking histories, correlated weather/lighting artifacts). Standard Kalman fusion erroneously underestimates covariance, causing filter divergence. Covariance Intersection guarantees consistent, conservative uncertainty bounds regardless of mutual correlation.
+
