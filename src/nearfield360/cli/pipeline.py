@@ -629,6 +629,16 @@ def run_pipeline(
             help="Simulate facility access control, barrier gate interlocks, and ALPR enveloping.",
         ),
     ] = False,
+    coop: Annotated[
+        bool,
+        typer.Option(
+            "--coop/--no-coop",
+            help=(
+                "Simulate infrastructure cooperative perception, ETSI CPM fusion, "
+                "and blind-spot occlusion warnings (ISO 23374 Type 2/3)."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -1301,6 +1311,93 @@ def run_pipeline(
         }
         timings["gate_ms"] = (time.perf_counter() - gate_stage_start) * 1000.0
 
+    coop_payload: dict[str, Any] | None = None
+    if coop:
+        coop_stage_start = time.perf_counter()
+        from nearfield360.coop.alignment import Pose2D
+        from nearfield360.coop.blind_spot import BlindSpotAssessor
+        from nearfield360.coop.fusion import CooperativeTrackManager
+        from nearfield360.coop.models import (
+            CooperativeTrack,
+            CoopTelemetryReport,
+            CoopTrackSource,
+            CPMPerceivedObject,
+            PerceivedObjectClass,
+        )
+        from nearfield360.coop.rpu import RPUSensorManager
+
+        c_network = RPUSensorManager.create_default_demonstrator_network()
+        c_stations = c_network.list_stations()
+
+        # Convert active obstacles from surround pipeline into CooperativeTrack objects
+        c_onboard: list[CooperativeTrack | dict[str, Any]] = [
+            CooperativeTrack(
+                track_id=f"ONBOARD-{obs.track_id}",
+                source=CoopTrackSource.ONBOARD_ONLY,
+                x_m=obs.position[0],
+                y_m=obs.position[1],
+                vx_mps=obs.velocity[0],
+                vy_mps=obs.velocity[1],
+                category=PerceivedObjectClass.VEHICLE,
+                confidence=min(0.99, 0.5 + 0.1 * obs.hits),
+                onboard_track_id=str(obs.track_id),
+            )
+            for obs in active_obstacles
+        ]
+
+        # Simulated roadside perception unit observation (blind corner)
+        c_hidden = CPMPerceivedObject(
+            object_id="RPU-BLIND-OBJ-01",
+            station_id="RPU-BLIND-CORNER-1",
+            timestamp_s=0.0,
+            category=PerceivedObjectClass.PEDESTRIAN,
+            x_m=20.0,
+            y_m=25.0,
+            vx_mps=0.0,
+            vy_mps=-1.5,
+            confidence=0.92,
+        )
+        c_network.add_perceived_object("RPU-BLIND-CORNER-1", c_hidden)
+        c_cpm_messages = [c_network.generate_cpm(s.station_id, timestamp_s=0.0) for s in c_stations]
+
+        c_fusion = CooperativeTrackManager()
+        c_fused_tracks = c_fusion.fuse_cycle(
+            onboard_tracks=c_onboard,
+            cpm_messages=c_cpm_messages,
+            timestamp_s=0.0,
+            config=config.coop,
+        )
+
+        c_assessor = BlindSpotAssessor()
+        c_ego_pose = Pose2D(x_m=12.0, y_m=15.0, yaw_deg=0.0)
+        c_warnings = c_assessor.assess_tracks(
+            vehicle_id="EGO-SURROUND",
+            vehicle_pose=c_ego_pose,
+            vehicle_speed_mps=2.5,
+            tracks=c_fused_tracks,
+            timestamp_s=0.0,
+            config=config.coop,
+        )
+
+        c_telemetry = CoopTelemetryReport(
+            active_rpus=len(c_stations),
+            cpm_message_count=len(c_cpm_messages),
+            onboard_track_count=len(c_onboard),
+            fused_track_count=len(c_fused_tracks),
+            blind_spot_hazard_count=len(c_warnings),
+            warnings=c_warnings,
+            mean_fusion_latency_ms=(time.perf_counter() - coop_stage_start) * 1000.0,
+            timestamp_s=0.0,
+        )
+
+        coop_payload = {
+            "telemetry": c_telemetry.model_dump(mode="json"),
+            "active_rpus": [s.station_id for s in c_stations],
+            "fused_tracks": [t.model_dump(mode="json") for t in c_fused_tracks],
+            "warnings": [w.model_dump(mode="json") for w in c_warnings],
+        }
+        timings["coop_ms"] = (time.perf_counter() - coop_stage_start) * 1000.0
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1340,6 +1437,8 @@ def run_pipeline(
         samples_payload["emergency"] = True
     if gate:
         samples_payload["gate"] = True
+    if coop:
+        samples_payload["coop"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1423,6 +1522,8 @@ def run_pipeline(
         payload["emergency"] = emergency_payload
     if gate_payload is not None:
         payload["gate"] = gate_payload
+    if coop_payload is not None:
+        payload["coop"] = coop_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
@@ -1480,6 +1581,13 @@ def run_pipeline(
             f"steps={evaluated_mission.total_steps}, "
             f"replans={evaluated_mission.replan_count}, "
             f"docked={'YES' if evaluated_mission.is_success else 'NO'}."
+        )
+    if coop and coop_payload is not None:
+        c_telem = coop_payload["telemetry"]
+        typer.echo(
+            f"Coop complete: {c_telem['active_rpus']} RPUs active, "
+            f"{c_telem['fused_track_count']} fused tracks, "
+            f"{c_telem['blind_spot_hazard_count']} blind spot hazards."
         )
     if summary["intrusions_detected"]:
         typer.secho(
