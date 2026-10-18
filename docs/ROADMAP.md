@@ -1093,10 +1093,10 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
    - [x] 5.4 `test(coop): verify track association, Covariance Intersection fusion, and lifecycle`
    - [x] 5.5 `docs(progress): mark Task 5 cooperative fusion completed`
 6. **Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor**
-   - [ ] 6.1 `feat(coop): implement line-of-sight raycasting and pillar occlusion shadow computation`
-   - [ ] 6.2 `feat(coop): implement blind-spot hazard detection and TTC warning generation`
-   - [ ] 6.3 `test(coop): verify occlusion polygon calculation, blind-spot hazard detection, and TTC warnings`
-   - [ ] 6.4 `docs(progress): mark Task 6 blind-spot assessor completed`
+   - [x] 6.1 `feat(coop): implement line-of-sight raycasting and pillar occlusion shadow computation`
+   - [x] 6.2 `feat(coop): implement blind-spot hazard detection and TTC warning generation`
+   - [x] 6.3 `test(coop): verify occlusion polygon calculation, blind-spot hazard detection, and TTC warnings`
+   - [x] 6.4 `docs(progress): mark Task 6 blind-spot assessor completed`
 7. **Task 7: Tactical BEV Cooperative Map & Visualizer**
    - [ ] 7.1 `feat(coop): implement dual-panel BEV layout with onboard FOV, RPU cones, and blind shadows`
    - [ ] 7.2 `feat(coop): implement cooperative perception HUD with latency, tracks, and TTC risk gauges`

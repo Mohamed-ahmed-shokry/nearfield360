@@ -2345,7 +2345,11 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
   - [x] 5.3 `feat(coop): implement cooperative track manager with track lifecycle management`
   - [x] 5.4 `test(coop): verify track association, Covariance Intersection fusion, and lifecycle`
   - [x] 5.5 `docs(progress): mark Task 5 cooperative fusion completed`
-- [ ] Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor
+- [x] Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor
+  - [x] 6.1 `feat(coop): implement line-of-sight raycasting and pillar occlusion shadow computation`
+  - [x] 6.2 `feat(coop): implement blind-spot hazard detection and TTC warning generation`
+  - [x] 6.3 `test(coop): verify occlusion polygon calculation, blind-spot hazard detection, and TTC warnings`
+  - [x] 6.4 `docs(progress): mark Task 6 blind-spot assessor completed`
 - [ ] Task 7: Tactical BEV Cooperative Map & Visualizer
 - [ ] Task 8: Package Exports, CLI Command Group & Pipeline Integration
 - [ ] Task 9: End-to-End Documentation, Self-Review & Delivery
@@ -2367,4 +2371,8 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 5. **Decision**: Covariance Intersection (CI) with Configurable Inflation Over Standard Kalman Fusion
    - *Alternatives Considered*: Standard linear Kalman filter track-to-track state fusion.
    - *Rationale & Evidence*: In decentralized cooperative perception, unknown cross-correlations exist between vehicle and infrastructure sensors (e.g. shared prior maps, overlapping tracking histories, correlated weather/lighting artifacts). Standard Kalman fusion erroneously underestimates covariance, causing filter divergence. Covariance Intersection guarantees consistent, conservative uncertainty bounds regardless of mutual correlation.
+6. **Decision**: Preemptive Closest-Point-of-Approach (CPA) Warning for Occluded Corridor Hazards
+   - *Alternatives Considered*: Warning only when a hazard crosses into the physical aisle or after direct onboard sensor acquisition.
+   - *Rationale & Evidence*: In indoor parking structures with narrow 6m aisles, waiting until a cross-traffic vehicle emerges from behind a structural pillar leaves insufficient braking distance ($< 1.0$ s reaction time). Computing projected CPA using infrastructure CPM observations enables preemptive slowing and emergency stopping before visual exposure.
+
 
