@@ -1351,10 +1351,10 @@ def run_pipeline(
             station_id="RPU-BLIND-CORNER-1",
             timestamp_s=0.0,
             category=PerceivedObjectClass.PEDESTRIAN,
-            x_m=20.0,
-            y_m=25.0,
+            x_m=15.0,
+            y_m=20.0,
             vx_mps=0.0,
-            vy_mps=-1.5,
+            vy_mps=-2.0,
             confidence=0.92,
         )
         c_network.add_perceived_object("RPU-BLIND-CORNER-1", c_hidden)
@@ -1368,12 +1368,14 @@ def run_pipeline(
             config=config.coop,
         )
 
-        c_assessor = BlindSpotAssessor()
-        c_ego_pose = Pose2D(x_m=12.0, y_m=15.0, yaw_deg=0.0)
+        from nearfield360.coop.blind_spot import DEFAULT_FACILITY_PILLARS
+
+        c_assessor = BlindSpotAssessor(pillars=[(10.0, 17.5, 1.0), *DEFAULT_FACILITY_PILLARS])
+        c_ego_pose = Pose2D(x_m=5.0, y_m=15.0, yaw_deg=0.0)
         c_warnings = c_assessor.assess_tracks(
             vehicle_id="EGO-SURROUND",
             vehicle_pose=c_ego_pose,
-            vehicle_speed_mps=2.5,
+            vehicle_speed_mps=4.0,
             tracks=c_fused_tracks,
             timestamp_s=0.0,
             config=config.coop,
