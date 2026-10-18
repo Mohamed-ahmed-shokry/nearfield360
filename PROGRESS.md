@@ -2295,3 +2295,124 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | Mypy Strict Typing | `uv run mypy` | Success |
 | Package Build Artifacts | `uv build` | Wheel & sdist built |
 | Remote GitHub Actions CI | `gh run list --branch phase/facility-access-control-barrier-gates` | 100% Green |
+
+---
+
+## Phase 34: Infrastructure Cooperative Perception, ETSI Collective Perception Service (CPM) & Blind-Spot Occlusion Fusion (ISO 23374 Type 2/3)
+
+**Status:** Completed
+**Repository Branch:** `phase/cooperative-perception-infrastructure-cpm`
+**PR:** Draft PR #14
+
+### 1. Milestone Objectives & Scope
+
+Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlusion Fusion subsystem for NearField360, conforming to ISO 23374 (AVP Type 2 / Type 3 Infrastructure-to-Vehicle / I2V Cooperative Perception) and ETSI TR 103 562 / SAE J3224 Collective Perception Message (CPM) standards:
+1. **Configuration (`CoopConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+   - `max_latency_compensation_s`: 0.50 s maximum wireless age for kinematic extrapolation.
+   - `association_gate_mahalanobis`: 3.0 gating threshold for track-to-track association.
+   - `min_cpm_confidence`: 0.60 minimum confidence score for CPM objects.
+   - `blind_spot_warning_ttc_s`: 2.5 s time-to-collision warning threshold.
+   - `occlusion_grid_resolution_m`: 0.25 m grid cell resolution for line-of-sight raytracing.
+   - `rpu_broadcast_frequency_hz`: 10.0 Hz transmission frequency.
+   - `track_covariance_inflation_factor`: 1.25 inflation factor for cross-correlation handling.
+
+### 2. Task Progress
+
+- [x] Task 1: Roadmap & Cooperative Perception Configuration Foundation
+  - [x] 1.1 `docs(roadmap): establish Phase 34 cooperative perception and infrastructure CPM roadmap`
+  - [x] 1.2 `feat(config): add CoopConfig and update default yaml configuration`
+  - [x] 1.3 `test(config): add unit tests for CoopConfig validation and environment overrides`
+  - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
+- [x] Task 2: Cooperative Perception Domain Models & CPM Protocols
+  - [x] 2.1 `feat(coop): implement RPU sensor types, station types, and risk level enums`
+  - [x] 2.2 `feat(coop): implement RPU state, CPM object, CPM message, and cooperative track models`
+  - [x] 2.3 `feat(coop): implement blind spot warning and cooperative telemetry report models`
+  - [x] 2.4 `test(coop): verify cooperative domain models, validation, and JSON serialization`
+  - [x] 2.5 `docs(progress): mark Task 2 domain models completed`
+- [x] Task 3: Roadside Perception Unit (RPU) Manager & CPM Dispatcher
+  - [x] 3.1 `feat(coop): implement RPU sensor station management and FOV coverage geometry`
+  - [x] 3.2 `feat(coop): implement CPM message generation and station payload dispatch`
+  - [x] 3.3 `test(coop): verify RPU registration, FOV filtering, and CPM dispatch`
+  - [x] 3.4 `docs(progress): mark Task 3 RPU manager completed`
+- [x] Task 4: Spatiotemporal Alignment & Wireless Latency Extrapolation
+  - [x] 4.1 `feat(coop): implement coordinate frame transformations between RPU, facility, and vehicle`
+  - [x] 4.2 `feat(coop): implement kinematic extrapolation and latency compensation for CPM objects`
+  - [x] 4.3 `test(coop): verify coordinate transformation accuracy and kinematic time-extrapolation`
+  - [x] 4.4 `docs(progress): mark Task 4 alignment and extrapolation completed`
+- [x] Task 5: Track-to-Track Cooperative Fusion Engine
+  - [x] 5.1 `feat(coop): implement Mahalanobis distance association and gated track matching`
+  - [x] 5.2 `feat(coop): implement Covariance Intersection (CI) track state and covariance update`
+  - [x] 5.3 `feat(coop): implement cooperative track manager with track lifecycle management`
+  - [x] 5.4 `test(coop): verify track association, Covariance Intersection fusion, and lifecycle`
+  - [x] 5.5 `docs(progress): mark Task 5 cooperative fusion completed`
+- [x] Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor
+  - [x] 6.1 `feat(coop): implement line-of-sight raycasting and pillar occlusion shadow computation`
+  - [x] 6.2 `feat(coop): implement blind-spot hazard detection and TTC warning generation`
+  - [x] 6.3 `test(coop): verify occlusion polygon calculation, blind-spot hazard detection, and TTC warnings`
+  - [x] 6.4 `docs(progress): mark Task 6 blind-spot assessor completed`
+- [x] Task 7: Tactical BEV Cooperative Map & Visualizer
+  - [x] 7.1 `feat(coop): implement dual-panel BEV layout with onboard FOV, RPU cones, and blind shadows`
+  - [x] 7.2 `feat(coop): implement cooperative perception HUD with latency, tracks, and TTC risk gauges`
+  - [x] 7.3 `test(coop): verify cooperative perception visualizer exports valid PNG artifacts`
+  - [x] 7.4 `docs(progress): mark Task 7 cooperative visualizer completed`
+- [x] Task 8: Package Exports, CLI Command Group & Pipeline Integration
+  - [x] 8.1 `feat(coop): export public cooperative perception API from package init`
+  - [x] 8.2 `feat(cli): implement nearfield360 coop command group (info, rpu, fuse, render, audit)`
+  - [x] 8.3 `feat(cli): register coop CLI group and update release audit expected count to 26`
+  - [x] 8.4 `feat(pipeline): integrate --coop options into surround pipeline runner`
+  - [x] 8.5 `test(cli): verify coop CLI commands, JSON payloads, and visual outputs`
+  - [x] 8.6 `test(pipeline): verify pipeline coop integration workflow`
+  - [x] 8.7 `docs(progress): mark Task 8 package exports and CLI integration completed`
+- [x] Task 9: End-to-End Documentation, Self-Review & Delivery
+  - [x] 9.1 `docs: update README with Phase 34 cooperative perception usage examples`
+  - [x] 9.2 `docs(progress): document completed Phase 34 milestone, Decision Log, and verification gates`
+  - [x] 9.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+  - [x] 9.4 `docs(roadmap): mark Phase 34 fully completed and all acceptance criteria met`
+
+### 3. Decision Log
+
+1. **Decision**: Explicit `CoopConfig` with Strict Bounds and Safe Defaults
+   - *Alternatives Considered*: Reusing existing `FleetConfig` or hardcoding parameters in fusion modules.
+   - *Rationale & Evidence*: Cooperative perception under ISO 23374 Type 2/3 operates at the sensor fusion level (sub-second kinematic extrapolation, Mahalanobis gating, raycasting), whereas fleet coordination operates at the mission/dispatch level. Isolating `CoopConfig` maintains clean separation of concerns and allows deterministic fine-tuning of safety thresholds.
+2. **Decision**: ETSI TR 103 562 / SAE J3224 CPM Compliant Data Structure
+   - *Alternatives Considered*: Defining custom proprietary dictionary structures for infrastructure perception sharing.
+   - *Rationale & Evidence*: Standardized V2X Collective Perception Services (CPS) define perception containers including station IDs, reference poses, sequence numbers, timestamps, and perceived object kinematics with explicit 2D covariance matrices. Conforming to ETSI/SAE models ensures interoperability across heterogeneous roadside perception stations (LiDAR, camera, radar).
+3. **Decision**: Pre-Configured Multi-Station Demonstrator Network
+   - *Alternatives Considered*: Requiring external JSON/YAML configuration for all RPU setups.
+   - *Rationale & Evidence*: Providing `RPUSensorManager.create_default_demonstrator_network()` provides instant, deterministic coverage across representative facility bottlenecks (blind corner intersection, ramp crest, and access portal) without boilerplate file parsing, while allowing complete programmatic and CLI overrides.
+4. **Decision**: Bounded Kinematic Extrapolation with Confidence Penalty for Latency Compensation
+   - *Alternatives Considered*: Dropping all delayed CPM messages immediately or extrapolating indefinitely without covariance inflation.
+   - *Rationale & Evidence*: Real-world wireless V2X transmission incurs 50–200 ms jitter. Constant-velocity kinematic extrapolation with discrete process noise covariance growth accounts for object motion during transit. If latency exceeds the 0.5s safety horizon, confidence is penalized progressively, preventing stale infrastructure ghost tracks from overriding fresh onboard sensor observations.
+5. **Decision**: Covariance Intersection (CI) with Configurable Inflation Over Standard Kalman Fusion
+   - *Alternatives Considered*: Standard linear Kalman filter track-to-track state fusion.
+   - *Rationale & Evidence*: In decentralized cooperative perception, unknown cross-correlations exist between vehicle and infrastructure sensors (e.g. shared prior maps, overlapping tracking histories, correlated weather/lighting artifacts). Standard Kalman fusion erroneously underestimates covariance, causing filter divergence. Covariance Intersection guarantees consistent, conservative uncertainty bounds regardless of mutual correlation.
+6. **Decision**: Preemptive Closest-Point-of-Approach (CPA) Warning for Occluded Corridor Hazards
+   - *Alternatives Considered*: Warning only when a hazard crosses into the physical aisle or after direct onboard sensor acquisition.
+   - *Rationale & Evidence*: In indoor parking structures with narrow 6m aisles, waiting until a cross-traffic vehicle emerges from behind a structural pillar leaves insufficient braking distance ($< 1.0$ s reaction time). Computing projected CPA using infrastructure CPM observations enables preemptive slowing and emergency stopping before visual exposure.
+7. **Decision**: Dual-Panel Tactical BEV and Real-Time HUD Visualization
+   - *Alternatives Considered*: Single-view BEV overlay without telemetry or tabular-only console logs.
+   - *Rationale & Evidence*: Cooperative perception involves multi-modal, multi-perspective data (onboard 360-degree coverage, infrastructure sensor cones, shadow polygons, and track covariance ellipses). A dual-panel display separating spatial situational awareness (left) from telemetry metrics, association status, and urgent blind-spot conflict alarms (right) enables immediate operator auditing and diagnostics during automated valet operations.
+8. **Decision**: Unified Pipeline `--coop` Flag and Release Audit Surface Expansion
+   - *Alternatives Considered*: Standalone cooperative perception script without pipeline integration or separate CLI runner.
+   - *Rationale & Evidence*: Integrating `--coop/--no-coop` directly into `nearfield360 pipeline run` allows four-camera surround perception tracks to be injected directly into the cooperative fusion engine alongside roadside CPM telemetry. Expanding the release audit to enforce 26 CLI groups guarantees release readiness and prevents surface regressions.
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Coop Config Defaults & Overrides | `uv run pytest tests/unit/test_config.py` | 88 passed |
+| Coop Domain Models & Serialization | `uv run pytest tests/unit/coop/test_coop_models.py` | 4 passed |
+| RPU Manager & CPM Dispatcher | `uv run pytest tests/unit/coop/test_rpu.py` | 5 passed |
+| Spatiotemporal Alignment & Extrapolation | `uv run pytest tests/unit/coop/test_alignment.py` | 5 passed |
+| Cooperative Track Fusion & CI | `uv run pytest tests/unit/coop/test_fusion.py` | 5 passed |
+| Blind-Spot Occlusion & TTC Warnings | `uv run pytest tests/unit/coop/test_blind_spot.py` | 5 passed |
+| Tactical BEV Cooperative Visualizer | `uv run pytest tests/unit/coop/test_coop_viz.py` | 3 passed |
+| Coop CLI Commands & Payloads | `uv run pytest tests/unit/test_coop_cli.py` | 5 passed |
+| Pipeline Runner Coop Integration | `uv run pytest tests/unit/test_pipeline_coop.py` | 1 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 26 groups passed |
+| Full Test Suite | `uv run pytest -q` | 1400 passed, 5 skipped |
+| Ruff Linting | `uv run ruff check .` | 0 errors |
+| Ruff Formatting | `uv run ruff format --check .` | 359 files formatted |
+| Mypy Strict Typing | `uv run mypy` | 0 errors in 185 source files |
+| Package Build Artifacts | `uv build` | Wheel & sdist built |
+| Remote GitHub Actions CI | `gh run list --branch phase/cooperative-perception-infrastructure-cpm` | 100% Green |

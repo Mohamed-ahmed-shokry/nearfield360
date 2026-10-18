@@ -123,6 +123,7 @@ def _run_checks() -> list[dict[str, Any]]:
         "charging",
         "config",
         "control",
+        "coop",
         "curbside",
         "data",
         "emergency",

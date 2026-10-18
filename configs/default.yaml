@@ -250,3 +250,11 @@ gate:
   anti_tailgating_timeout_s: 2.0
   safety_loop_debounce_ms: 50.0
   uwb_rssi_threshold_dbm: -75.0
+coop:
+  max_latency_compensation_s: 0.50
+  association_gate_mahalanobis: 3.0
+  min_cpm_confidence: 0.60
+  blind_spot_warning_ttc_s: 2.5
+  occlusion_grid_resolution_m: 0.25
+  rpu_broadcast_frequency_hz: 10.0
+  track_covariance_inflation_factor: 1.25

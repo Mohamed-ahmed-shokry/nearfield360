@@ -16,6 +16,7 @@ from nearfield360 import __version__
 from nearfield360.cli.billing import billing_app
 from nearfield360.cli.charging import charging_app
 from nearfield360.cli.control import control_app
+from nearfield360.cli.coop import coop_app
 from nearfield360.cli.curbside import curbside_app
 from nearfield360.cli.data_commands import data_app
 from nearfield360.cli.emergency import emergency_app
@@ -63,6 +64,7 @@ app.add_typer(billing_app, name="billing")
 app.add_typer(charging_app, name="charging")
 app.add_typer(config_app, name="config")
 app.add_typer(control_app, name="control")
+app.add_typer(coop_app, name="coop")
 app.add_typer(curbside_app, name="curbside")
 app.add_typer(data_app, name="data")
 app.add_typer(emergency_app, name="emergency")
