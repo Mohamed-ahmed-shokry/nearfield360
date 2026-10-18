@@ -1098,10 +1098,10 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
    - [x] 6.3 `test(coop): verify occlusion polygon calculation, blind-spot hazard detection, and TTC warnings`
    - [x] 6.4 `docs(progress): mark Task 6 blind-spot assessor completed`
 7. **Task 7: Tactical BEV Cooperative Map & Visualizer**
-   - [ ] 7.1 `feat(coop): implement dual-panel BEV layout with onboard FOV, RPU cones, and blind shadows`
-   - [ ] 7.2 `feat(coop): implement cooperative perception HUD with latency, tracks, and TTC risk gauges`
-   - [ ] 7.3 `test(coop): verify cooperative perception visualizer exports valid PNG artifacts`
-   - [ ] 7.4 `docs(progress): mark Task 7 cooperative visualizer completed`
+   - [x] 7.1 `feat(coop): implement dual-panel BEV layout with onboard FOV, RPU cones, and blind shadows`
+   - [x] 7.2 `feat(coop): implement cooperative perception HUD with latency, tracks, and TTC risk gauges`
+   - [x] 7.3 `test(coop): verify cooperative perception visualizer exports valid PNG artifacts`
+   - [x] 7.4 `docs(progress): mark Task 7 cooperative visualizer completed`
 8. **Task 8: Package Exports, CLI Command Group & Pipeline Integration**
    - [ ] 8.1 `feat(coop): export public cooperative perception API from package init`
    - [ ] 8.2 `feat(cli): implement nearfield360 coop command group (info, rpu, fuse, render, audit)`

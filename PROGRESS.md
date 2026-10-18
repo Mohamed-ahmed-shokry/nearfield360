@@ -2350,7 +2350,11 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
   - [x] 6.2 `feat(coop): implement blind-spot hazard detection and TTC warning generation`
   - [x] 6.3 `test(coop): verify occlusion polygon calculation, blind-spot hazard detection, and TTC warnings`
   - [x] 6.4 `docs(progress): mark Task 6 blind-spot assessor completed`
-- [ ] Task 7: Tactical BEV Cooperative Map & Visualizer
+- [x] Task 7: Tactical BEV Cooperative Map & Visualizer
+  - [x] 7.1 `feat(coop): implement dual-panel BEV layout with onboard FOV, RPU cones, and blind shadows`
+  - [x] 7.2 `feat(coop): implement cooperative perception HUD with latency, tracks, and TTC risk gauges`
+  - [x] 7.3 `test(coop): verify cooperative perception visualizer exports valid PNG artifacts`
+  - [x] 7.4 `docs(progress): mark Task 7 cooperative visualizer completed`
 - [ ] Task 8: Package Exports, CLI Command Group & Pipeline Integration
 - [ ] Task 9: End-to-End Documentation, Self-Review & Delivery
 
@@ -2374,5 +2378,6 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 6. **Decision**: Preemptive Closest-Point-of-Approach (CPA) Warning for Occluded Corridor Hazards
    - *Alternatives Considered*: Warning only when a hazard crosses into the physical aisle or after direct onboard sensor acquisition.
    - *Rationale & Evidence*: In indoor parking structures with narrow 6m aisles, waiting until a cross-traffic vehicle emerges from behind a structural pillar leaves insufficient braking distance ($< 1.0$ s reaction time). Computing projected CPA using infrastructure CPM observations enables preemptive slowing and emergency stopping before visual exposure.
-
-
+7. **Decision**: Dual-Panel Tactical BEV and Real-Time HUD Visualization
+   - *Alternatives Considered*: Single-view BEV overlay without telemetry or tabular-only console logs.
+   - *Rationale & Evidence*: Cooperative perception involves multi-modal, multi-perspective data (onboard 360-degree coverage, infrastructure sensor cones, shadow polygons, and track covariance ellipses). A dual-panel display separating spatial situational awareness (left) from telemetry metrics, association status, and urgent blind-spot conflict alarms (right) enables immediate operator auditing and diagnostics during automated valet operations.
