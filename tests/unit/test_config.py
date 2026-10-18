@@ -992,4 +992,3 @@ def test_coop_config_rejects_excessive_latency(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 5"):
         load_config(config_path)
-

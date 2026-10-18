@@ -2337,4 +2337,3 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 1. **Decision**: Explicit `CoopConfig` with Strict Bounds and Safe Defaults
    - *Alternatives Considered*: Reusing existing `FleetConfig` or hardcoding parameters in fusion modules.
    - *Rationale & Evidence*: Cooperative perception under ISO 23374 Type 2/3 operates at the sensor fusion level (sub-second kinematic extrapolation, Mahalanobis gating, raycasting), whereas fleet coordination operates at the mission/dispatch level. Isolating `CoopConfig` maintains clean separation of concerns and allows deterministic fine-tuning of safety thresholds.
-

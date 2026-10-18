@@ -258,4 +258,3 @@ coop:
   occlusion_grid_resolution_m: 0.25
   rpu_broadcast_frequency_hz: 10.0
   track_covariance_inflation_factor: 1.25
-
