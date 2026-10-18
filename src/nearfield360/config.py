@@ -475,6 +475,40 @@ class MultiFloorConfig(BaseModel):
     max_floors_supported: int = Field(default=16, ge=2, le=64)
 
 
+class EmergencyConfig(BaseModel):
+    """Parameters for emergency vehicle preemption, facility fire evacuation, and life safety."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    preemption_radius_m: float = Field(default=35.0, gt=0.0, le=200.0, allow_inf_nan=False)
+    hazard_buffer_radius_m: float = Field(default=12.0, gt=0.0, le=100.0, allow_inf_nan=False)
+    evacuation_speed_limit_mps: float = Field(default=4.0, gt=0.0, le=15.0, allow_inf_nan=False)
+    fire_door_clearance_timeout_s: float = Field(
+        default=15.0, gt=0.0, le=120.0, allow_inf_nan=False
+    )
+    stagger_interval_s: float = Field(default=3.0, ge=0.0, le=60.0, allow_inf_nan=False)
+    emergency_heartbeat_timeout_s: float = Field(default=1.0, gt=0.0, le=10.0, allow_inf_nan=False)
+    thermal_runaway_temp_c: float = Field(default=70.0, gt=0.0, le=250.0, allow_inf_nan=False)
+
+
+class GateConfig(BaseModel):
+    """Parameters for automated facility access control, barrier gates, and vehicle enveloping."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    portal_clearance_height_m: float = Field(default=2.10, gt=0.0, le=10.0, allow_inf_nan=False)
+    portal_clearance_width_m: float = Field(default=2.60, gt=0.0, le=10.0, allow_inf_nan=False)
+    ground_clearance_min_m: float = Field(default=0.12, ge=0.0, le=1.0, allow_inf_nan=False)
+    barrier_arm_length_m: float = Field(default=3.0, gt=0.0, le=10.0, allow_inf_nan=False)
+    barrier_opening_time_s: float = Field(default=1.8, gt=0.0, le=30.0, allow_inf_nan=False)
+    barrier_holding_time_s: float = Field(default=5.0, ge=0.0, le=120.0, allow_inf_nan=False)
+    barrier_closing_time_s: float = Field(default=2.2, gt=0.0, le=30.0, allow_inf_nan=False)
+    alpr_confidence_threshold: float = Field(default=0.85, ge=0.0, le=1.0, allow_inf_nan=False)
+    anti_tailgating_timeout_s: float = Field(default=2.0, gt=0.0, le=60.0, allow_inf_nan=False)
+    safety_loop_debounce_ms: float = Field(default=50.0, ge=0.0, le=1000.0, allow_inf_nan=False)
+    uwb_rssi_threshold_dbm: float = Field(default=-75.0, le=0.0, ge=-120.0, allow_inf_nan=False)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -515,6 +549,8 @@ class ProjectConfig(BaseSettings):
     curbside: CurbsideConfig = Field(default_factory=CurbsideConfig)
     teleop: TeleopConfig = Field(default_factory=TeleopConfig)
     floor: MultiFloorConfig = Field(default_factory=MultiFloorConfig)
+    emergency: EmergencyConfig = Field(default_factory=EmergencyConfig)
+    gate: GateConfig = Field(default_factory=GateConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -566,7 +602,9 @@ __all__ = [
     "ChargingConfig",
     "ConfigurationError",
     "CurbsideConfig",
+    "EmergencyConfig",
     "FleetConfig",
+    "GateConfig",
     "GeometryConfig",
     "InferenceConfig",
     "LoggingConfig",

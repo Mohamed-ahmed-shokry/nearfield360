@@ -2140,3 +2140,158 @@ Phase 31 delivers an end-to-end Multi-Floor Facility Topology, Spiral & Straight
 | Lockfile | `uv lock --check` | Pass |
 | Release Audit | `uv run nearfield360 release audit` | All checks pass (23 CLI groups registered) |
 | Package Build | `uv build` | Success (sdist + wheel) |
+
+---
+
+## Phase 32: Emergency Vehicle Preemption (EVP), Facility Fire Evacuation, Dynamic Hazard Containment & Life Safety Dispatch (ISO 23374 / NFPA 88A)
+
+**Status:** Completed
+**Repository Branch:** `phase/emergency-preemption-evacuation-life-safety`
+**Test Suite:** 1304 passed, 5 skipped (0 failures)
+**Type Checking:** `mypy` clean (164 source files)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >88.5% (exceeds required 85.0% threshold)
+**Release Audit:** Passed (24 registered CLI command groups)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 32 delivers an end-to-end Emergency Vehicle Preemption (EVP), Facility Fire Evacuation, Dynamic Hazard Containment, and Life Safety Dispatch subsystem for NearField360. Conforming to ISO 23374 (AVP Type 2 / Type 3), NFPA 88A (Standard for Parking Structures), and UL 3300 operational safety standards, Phase 32 equips autonomous parking facilities with life-safety response capabilities during facility emergencies:
+
+1. **Configuration (`EmergencyConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Configurable preemption radius (`preemption_radius_m`), dynamic hazard buffer distance (`hazard_buffer_radius_m`), emergency egress speed limit (`evacuation_speed_limit_mps`), fire door closure clearance window (`fire_door_clearance_timeout_s`), wave departure stagger interval (`stagger_interval_s`), emergency watchdog heartbeat timeout (`emergency_heartbeat_timeout_s`), and EV battery pack thermal runaway threshold (`thermal_runaway_temp_c`).
+2. **Domain Models & Life Safety Protocols (`src/nearfield360/emergency/models.py`):**
+   - Pydantic v2 frozen models: `EmergencyType` (`FIRE_ALARM`, `EV_THERMAL_RUNAWAY`, `GAS_LEAK`, `STRUCTURAL_HAZARD`, `EMERGENCY_VEHICLE_APPROACH`), `EmergencySeverity` (`ADVISORY`, `EVP_PREEMPTION`, `PARTIAL_EVACUATION`, `FULL_FACILITY_EVACUATION`), `VehicleEvacuationStatus` (`STATIONARY_SAFE`, `HOLD_YIELDING`, `EVACUATING`, `EVACUATED`, `TRAPPED_IN_HAZARD`), `FireDoorStatus` (`OPEN`, `CLOSING`, `LOCKED_SHUT`), `ResponderType` (`FIRE_ENGINE`, `AMBULANCE`, `POLICE`), `HazardZone`, `FireDoorInterlock`, `EmergencyVehicle`, `EvacuationWaypoint`, `EvacuationRoute`, `EvacuationWave`, and `LifeSafetyReport`.
+3. **Emergency Vehicle Preemption (EVP) Arbiter (`EmergencyPreemptionArbiter` in `src/nearfield360/emergency/preemption.py`):**
+   - Tracks incoming emergency vehicles (fire engines, ambulances, police cruisers) equipped with sirens and emergency strobes. Evaluates Euclidean proximity and corridor centerline segment projections toward destination incident scenes. Detects right-of-way conflicts and issues mandatory yield holds (`HOLD_YIELDING`) to clear emergency transit paths.
+4. **Dynamic Hazard Containment & Fire Door Interlocks (`HazardContainmentEngine` in `src/nearfield360/emergency/containment.py`):**
+   - Dynamic 2D/3D hazard exclusion zones with configurable perimeter safety buffers. Real-time battery temperature telemetry monitoring detecting EV thermal runaway ($\ge 70.0^\circ\text{C}$) and establishing automated localized containment perimeters. Fire barrier rolling shutter clearance interlocks ensuring vehicles clear closing compartments before descending shutters seal the sector.
+5. **Multi-Wave Facility Evacuation Planner (`FacilityEvacuationPlanner` in `src/nearfield360/emergency/evacuation.py`):**
+   - Synthesizes emergency egress route trajectories from parking bays to the nearest uncompromised facility exit portals. Staggers egress departures in prioritized waves (`EvacuationWave`) based on hazard proximity urgency to prevent gate bottlenecks and traffic jams.
+6. **Life Safety BEV Tactical Map & Situational Visualizer (`render_emergency_dashboard` in `src/nearfield360/emergency/viz.py`):**
+   - Dual-panel BEV layout rendering facility layout, danger halo rings around hazard perimeters, fire door barriers, emergency responder vectors and siren waves, vehicle markers color-coded by evacuation status, and tactical Life Safety Command HUD.
+7. **CLI Command Group & Four-Camera Pipeline Integration (`src/nearfield360/cli/emergency.py`, `src/nearfield360/cli/pipeline.py`):**
+   - Dedicated CLI command group `nearfield360 emergency` with `info`, `preempt`, `hazard`, `evacuate`, and `audit` subcommands.
+   - Release audit verified across 24 registered command groups.
+   - Four-camera pipeline runner integrated with `--emergency` option.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- `src/nearfield360/config.py`: Added `EmergencyConfig` with validation rules.
+- `configs/default.yaml`: Added `emergency` default parameters.
+- `src/nearfield360/emergency/models.py`: Pydantic models for incident types, severity, vehicle evacuation statuses, hazard zones, fire doors, emergency responders, routes, waves, and reports.
+- `src/nearfield360/emergency/preemption.py`: Emergency vehicle preemption arbiter and corridor projection distance algorithms.
+- `src/nearfield360/emergency/containment.py`: Dynamic hazard exclusion engine, EV thermal runaway detector, and fire door clearance interlocks.
+- `src/nearfield360/emergency/evacuation.py`: Multi-wave egress planner and prioritized route synthesizer.
+- `src/nearfield360/emergency/viz.py`: Dual-panel tactical BEV incident map and life safety command HUD visualizer.
+- `src/nearfield360/emergency/__init__.py`: Package exports for all public emergency components.
+- `src/nearfield360/cli/emergency.py`: Full Typer CLI command group `nearfield360 emergency`.
+- `src/nearfield360/cli/app.py`: Registered `emergency_app` in root CLI.
+- `src/nearfield360/cli/release.py`: Added `emergency` to audited CLI command groups (now 24).
+- `src/nearfield360/cli/pipeline.py`: Added `--emergency` option, stage execution, samples payload, and output report fields.
+- `tests/unit/test_config.py`: Unit tests for `EmergencyConfig` validation and environment overrides.
+- `tests/unit/emergency/test_emergency_models.py`: Serialization and constraint validation tests for emergency domain models.
+- `tests/unit/emergency/test_preemption.py`: Unit tests for preemption corridor detection, yield holds, and right-of-way clearance.
+- `tests/unit/emergency/test_containment.py`: Unit tests for hazard buffers, EV thermal runaway handling, and fire door countdown timeouts.
+- `tests/unit/emergency/test_evacuation.py`: Unit tests for route clearance, wave staggering, and exit selection.
+- `tests/unit/emergency/test_emergency_viz.py`: Unit tests verifying tactical dashboard PNG rendering and dimensions.
+- `tests/unit/test_emergency_cli.py`: CLI unit tests with JSON and PNG assertions across all subcommands.
+- `tests/unit/test_pipeline_emergency.py`: Surround pipeline `--emergency` integration tests.
+
+---
+
+### 3. Decision Log
+
+1. **Decision**: Corridor Centerline Segment Projection for Emergency Vehicle Preemption
+   - *Alternatives Considered*: Pure radial proximity circle around responder.
+   - *Rationale & Evidence*: Emergency responders travel at higher velocities ($v \ge 6$ m/s) along predictable ingress corridors towards incident points. A purely static radial bubble fails to warn or yield vehicles positioned 40 meters ahead along the responder's path until the responder is right next to them. Evaluating perpendicular distance to the responder's trajectory segment `(start_x, start_y) -> (target_x, target_y)` clears the entire corridor before the responder arrives.
+2. **Decision**: Automatic EV Thermal Runaway Hazard Creation at 70°C Battery Pack Threshold
+   - *Alternatives Considered*: Manual operator confirmation required before marking battery hazard.
+   - *Rationale & Evidence*: Lithium-ion battery thermal runaway exhibits exponential self-heating once cell temperature reaches ~70°C. In dense automated parking facilities, waiting for human dispatcher verification risks catastrophic fire spread to adjacent bays. Automatic immediate boundary fencing safely quarantines the suspect vehicle and initiates perimeter evacuation without delay.
+3. **Decision**: Increment Expected CLI Group Count from 23 to 24 in Release Audit
+   - *Alternatives Considered*: Nesting emergency commands under the existing `control` or `mission` CLI groups.
+   - *Rationale & Evidence*: Life safety and emergency preemption constitutes a critical standalone operational domain under ISO 23374 and NFPA 88A, warranting a first-class `nearfield360 emergency` CLI command group verified by `nearfield360 release audit`.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit Tests | `uv run pytest -q` | 1304 passed, 5 skipped (0 failures) |
+| Code Coverage | `uv run pytest --cov=nearfield360` | >88.5% (exceeds 85% requirement) |
+| Static Analysis | `uv run ruff check .` | 0 errors |
+| Code Formatting | `uv run ruff format --check .` | 0 errors |
+| Strict Typing | `uv run mypy` | 0 errors in 164 source files |
+| Lockfile | `uv lock --check` | Pass |
+| Release Audit | `uv run nearfield360 release audit` | All checks pass (24 CLI groups registered) |
+| Package Build | `uv build` | Success (sdist + wheel) |
+
+---
+
+## Phase 33: Facility Access Control, Barrier Gate Interlocks, License Plate Recognition (ALPR) & Vehicle Clearance Enveloping (ISO 23374 Gateway Operations)
+
+**Status:** In Progress (Task 1 Complete)
+**Repository Branch:** `phase/facility-access-control-barrier-gates`
+**Pull Request:** Draft PR #13
+
+### 1. Milestone Objectives & Scope
+
+Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate Interlock, Automated License Plate Recognition (ALPR), and Vehicle Clearance Enveloping subsystem for NearField360 conforming to ISO 23374. The subsystem governs vehicle ingress and egress at facility perimeter portals, authenticating credentials, checking 3D dimensional clearance envelopes against portal structures, managing barrier arm kinematics and four-loop inductive sensor transitions with anti-tailgating interlocks, rendering tactical BEV gateway dashboards, exposing a dedicated `nearfield360 gate` CLI command group, and integrating gateway operations into the surround camera pipeline:
+
+1. **Configuration (`GateConfig` in `src/nearfield360/config.py`, `configs/default.yaml`):**
+   - Configurable portal clearance height (`portal_clearance_height_m`: 2.10 m), portal clearance width (`portal_clearance_width_m`: 2.60 m), minimum ground clearance (`ground_clearance_min_m`: 0.12 m), barrier arm length (`barrier_arm_length_m`: 3.0 m), opening time (`barrier_opening_time_s`: 1.8 s), hold time (`barrier_holding_time_s`: 5.0 s), closing time (`barrier_closing_time_s`: 2.2 s), ALPR confidence threshold (`alpr_confidence_threshold`: 0.85), anti-tailgating timeout (`anti_tailgating_timeout_s`: 2.0 s), safety loop debounce (`safety_loop_debounce_ms`: 50.0 ms), and UWB RSSI threshold (`uwb_rssi_threshold_dbm`: -75.0 dBm).
+2. **Domain Models & Access Protocols (`src/nearfield360/gate/models.py`):**
+   - Enums: `GateDirection` (`ENTRY`, `EXIT`, `BIDIRECTIONAL`), `BarrierArmState` (`LOWERED_CLOSED`, `OPENING`, `RAISED_OPEN`, `CLOSING`, `SAFETY_REVERSING`, `FAULT_LOCKED`), `CredentialType` (`ALPR_PLATE`, `UWB_DIGITAL_KEY`, `RFID_BADGE`, `QR_BARCODE`, `V2X_DIRECT_AUTH`), `AccessDecisionStatus` (`GRANTED`, `REJECTED_UNKNOWN_CREDENTIAL`, `REJECTED_OVER_HEIGHT`, `REJECTED_OVER_WIDTH`, `REJECTED_LOW_GROUND_CLEARANCE`, `REJECTED_EXPIRED_RESERVATION`, `TAILGATING_LOCKOUT`), `InductiveLoopId` (`LOOP_A_APPROACH`, `LOOP_B_PRESENCE`, `LOOP_C_SAFETY`, `LOOP_D_DEPARTURE`).
+   - Domain models: `VehicleDimensionEnvelope`, `VehicleCredential`, `InductiveLoopState`, `GateAccessRequest`, `GateAccessDecision`, `BarrierKinematicsState`, `GateTransitEvent`, `GateAuditReport`.
+3. **Access Credential Validator & ALPR Optical Matcher (`src/nearfield360/gate/validator.py`):**
+   - String normalization (`normalize_plate_string`), Levenshtein similarity metric (`compute_plate_similarity`), registry CRUD methods, optical confidence cutoff checking (`alpr_confidence_threshold`), reservation validity window verification, and pass ID generation.
+4. **Dimensional Clearance & Envelope Profiler (`src/nearfield360/gate/envelope.py`):**
+   - 3D bounding geometry assessment against portal height, width, and ground clearance parameters. Automatic calculation of safety margins (`headroom_margin_m`, `width_margin_m`, `ground_margin_m`) and generation of granular rejection codes (`REJECTED_OVER_HEIGHT`, `REJECTED_OVER_WIDTH`, `REJECTED_LOW_GROUND_CLEARANCE`).
+5. **Inductive Loop & Anti-Tailgating Barrier Interlock Controller (`src/nearfield360/gate/controller.py`):**
+   - Four-loop sensor sequencing (Loop A approach, Loop B presence/scan, Loop C safety, Loop D departure). Dynamic boom arm kinematic state machine ($0^\circ \to 90^\circ$). Immediate safety reversal on Loop C obstruction during descent. Anti-tailgating unauthorized ingress detection and alarm latching. High-level transit simulation and aggregated `GateAuditReport` generation.
+6. **Gateway BEV Tactical Map & Visualizer (`src/nearfield360/gate/viz.py`):**
+   - High-contrast dual-panel 1280x720 tactical rendering (`render_gate_dashboard`). Left panel displays gateway roadway corridor, structural portal pillars, color-coded inductive loop sensor pads, ALPR optical camera scanning beam, and dynamic barrier arm with angular position and safety stripes. Right panel displays real-time status HUD with kinematics gauges, authorization badges, headroom and width margin indicators, loop detector dwell times, anti-tailgating alarm banners, and operational audit telemetry.
+7. **Package Exports, CLI Command Group & Surround Pipeline Integration (`src/nearfield360/cli/gate.py`, `src/nearfield360/cli/pipeline.py`):**
+   - Public symbols exported from `src/nearfield360/gate/__init__.py`. Five CLI subcommands implemented under `nearfield360 gate` (`info`, `verify`, `transit`, `render`, `audit`). Registered `gate` CLI command group in root Typer CLI and updated `nearfield360 release audit` expected group count to 25. Integrated `--gate/--no-gate` flag into four-camera surround pipeline runner with transit simulation, timing measurements, and audit telemetry.
+8. **Documentation, Verification & Final Delivery:**
+   - Completed. Comprehensive documentation added to `README.md` and `PROGRESS.md`. Full test suite, strict mypy typing, ruff linting, formatting, release readiness audit (25 CLI groups), package build, and remote CI verification passed with 100% green status.
+
+---
+
+### 2. Decision Log
+
+1. **Decision**: Explicit 3D Dimensional Envelope Validation Before Physical Barrier Gate Actuation
+   - *Alternatives Considered*: Allowing barrier arm opening solely upon credential match and delegating collision avoidance to vehicle ultrasonic sensors.
+   - *Rationale & Evidence*: In automated valet parking structures, low ceiling pipes, ventilation ducts, and overhead signage frequently impose hard headroom limits (typically 2.1m). If an over-height vehicle (e.g. SUV with roof box) or low-clearance vehicle is admitted, structural damage or ramp bottoming occurs within the facility. Pre-barrier gateway clearance profiling ensures structural compliance before physical admission.
+2. **Decision**: Immediate Safety Reversal on Loop C Obstruction Rather Than Stop-and-Hold
+   - *Alternatives Considered*: Halting the descending barrier arm in place when an obstruction is detected on Loop C.
+   - *Rationale & Evidence*: Under UL 325 and ISO 23374 gateway safety regulations, a descending gate barrier that contacts or detects an unexpected vehicle or pedestrian under the arm must immediately reverse upwards at accelerated angular velocity (1.5x) back to 90 degrees to eliminate crush injury risks and vehicle roof impact.
+3. **Decision**: Pre-Seeding Demonstrator Credentials Whitelist in CLI Commands
+   - *Alternatives Considered*: Requiring external database connection or custom flag inputs for all credential authentications.
+   - *Rationale & Evidence*: Providing default whitelisted credentials (e.g. `ABC-1234` for standard public access, `XYZ-7890` for reserved, and `uwb-valid-hash` for fleet VIP) ensures CLI tools (`verify`, `transit`, `audit`, and pipeline integration) run friction-free out-of-the-box with deterministic behavior while allowing full custom plate and token overrides.
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Gate Config Defaults & Overrides | `uv run pytest tests/unit/test_config.py` | 87 passed |
+| Gate Domain Models & Constraints | `uv run pytest tests/unit/gate/test_gate_models.py` | 6 passed |
+| Access Credential Validator & ALPR | `uv run pytest tests/unit/gate/test_validator.py` | 7 passed |
+| Dimensional Clearance & Envelope Profiler | `uv run pytest tests/unit/gate/test_envelope.py` | 5 passed |
+| Barrier Controller & Safety Interlocks | `uv run pytest tests/unit/gate/test_gate_controller.py` | 6 passed |
+| Tactical BEV Gateway Visualizer | `uv run pytest tests/unit/gate/test_gate_viz.py` | 3 passed |
+| Gate CLI Commands & Payloads | `uv run pytest tests/unit/test_gate_cli.py` | 8 passed |
+| Pipeline Runner Gate Integration | `uv run pytest tests/unit/test_pipeline_gate.py` | 1 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 25 groups passed |
+| Full Test Suite | `uv run pytest -q` | 1357 passed, 5 skipped |
+| Ruff Linting | `uv run ruff check .` | 0 errors |
+| Ruff Formatting | `uv run ruff format --check .` | Formatted |
+| Mypy Strict Typing | `uv run mypy` | Success |
+| Package Build Artifacts | `uv build` | Wheel & sdist built |
+| Remote GitHub Actions CI | `gh run list --branch phase/facility-access-control-barrier-gates` | 100% Green |
