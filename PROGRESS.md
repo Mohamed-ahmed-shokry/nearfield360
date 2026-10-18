@@ -2359,6 +2359,3 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 4. **Decision**: Bounded Kinematic Extrapolation with Confidence Penalty for Latency Compensation
    - *Alternatives Considered*: Dropping all delayed CPM messages immediately or extrapolating indefinitely without covariance inflation.
    - *Rationale & Evidence*: Real-world wireless V2X transmission incurs 50–200 ms jitter. Constant-velocity kinematic extrapolation with discrete process noise covariance growth accounts for object motion during transit. If latency exceeds the 0.5s safety horizon, confidence is penalized progressively, preventing stale infrastructure ghost tracks from overriding fresh onboard sensor observations.
-
-
-
