@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import math
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
-from nearfield360.coop.alignment import Covariance2D
+from nearfield360.config import CoopConfig
+from nearfield360.coop.alignment import Covariance2D, SpatiotemporalAligner
+from nearfield360.coop.models import (
+    CollectivePerceptionMessage,
+    CooperativeTrack,
+    CoopTrackSource,
+    CPMPerceivedObject,
+)
 
 
 class MatchResult(NamedTuple):
@@ -173,3 +180,151 @@ def fuse_velocity_ci(
     w1 = omega
     w2 = 1.0 - omega
     return (w1 * v1[0] + w2 * v2[0], w1 * v1[1] + w2 * v2[1])
+
+
+class CooperativeTrackManager:
+    """Maintains cooperative track lifecycle and executes multi-sensor track-to-track fusion."""
+
+    def __init__(self) -> None:
+        self._tracks: dict[str, CooperativeTrack] = {}
+        self._track_counter: int = 0
+        self._last_timestamp_s: float = 0.0
+
+    def get_active_tracks(self) -> list[CooperativeTrack]:
+        """Return active cooperative tracks sorted by track ID."""
+        return sorted(self._tracks.values(), key=lambda t: t.track_id)
+
+    def clear(self) -> None:
+        """Clear all active tracks and reset counters."""
+        self._tracks.clear()
+        self._track_counter = 0
+
+    def fuse_cycle(
+        self,
+        onboard_tracks: list[CooperativeTrack | dict[str, Any]],
+        cpm_messages: list[CollectivePerceptionMessage],
+        timestamp_s: float,
+        config: CoopConfig | None = None,
+    ) -> list[CooperativeTrack]:
+        """Execute one complete cooperative track fusion cycle."""
+        active_cfg = config or CoopConfig()
+        self._last_timestamp_s = timestamp_s
+
+        # 1. Normalize onboard tracks
+        norm_onboard: list[CooperativeTrack] = []
+        for item in onboard_tracks:
+            if isinstance(item, CooperativeTrack):
+                norm_onboard.append(item)
+            elif isinstance(item, dict):
+                norm_onboard.append(CooperativeTrack.model_validate(item))
+
+        # 2. Extract and extrapolate valid CPM objects
+        cpm_objects: list[CPMPerceivedObject] = []
+        for msg in cpm_messages:
+            for obj in msg.perceived_objects:
+                if obj.confidence >= active_cfg.min_cpm_confidence:
+                    extrap = SpatiotemporalAligner.extrapolate_cpm_object(
+                        obj,
+                        target_time_s=timestamp_s,
+                        max_latency_s=active_cfg.max_latency_compensation_s,
+                    )
+                    cpm_objects.append(extrap)
+
+        # 3. Associate onboard tracks with extrapolated CPM objects
+        on_pos = [(t.x_m, t.y_m) for t in norm_onboard]
+        on_cov = [Covariance2D(xx=t.cov_xx, yy=t.cov_yy, xy=t.cov_xy) for t in norm_onboard]
+        cpm_pos = [(c.x_m, c.y_m) for c in cpm_objects]
+        cpm_cov = [Covariance2D(xx=c.cov_xx, yy=c.cov_yy, xy=c.cov_xy) for c in cpm_objects]
+
+        match_res = associate_gated_greedy(
+            on_pos,
+            on_cov,
+            cpm_pos,
+            cpm_cov,
+            gate_threshold=active_cfg.association_gate_mahalanobis,
+        )
+
+        fused_tracks: list[CooperativeTrack] = []
+
+        # 4. Handle matched pairs -> Fused Cooperative Tracks
+        for i_on, j_cpm in match_res.matched_pairs:
+            on_trk = norm_onboard[i_on]
+            cpm_obj = cpm_objects[j_cpm]
+
+            (fused_x, fused_y), fused_cov, omega = fuse_covariance_intersection(
+                (on_trk.x_m, on_trk.y_m),
+                Covariance2D(xx=on_trk.cov_xx, yy=on_trk.cov_yy, xy=on_trk.cov_xy),
+                (cpm_obj.x_m, cpm_obj.y_m),
+                Covariance2D(xx=cpm_obj.cov_xx, yy=cpm_obj.cov_yy, xy=cpm_obj.cov_xy),
+                inflation_factor=active_cfg.track_covariance_inflation_factor,
+            )
+            fused_vx, fused_vy = fuse_velocity_ci(
+                (on_trk.vx_mps, on_trk.vy_mps),
+                (cpm_obj.vx_mps, cpm_obj.vy_mps),
+                omega=omega,
+            )
+
+            combined_conf = min(0.99, max(on_trk.confidence, cpm_obj.confidence) + 0.05)
+            best_cat = (
+                on_trk.category if on_trk.confidence >= cpm_obj.confidence else cpm_obj.category
+            )
+
+            track = CooperativeTrack(
+                track_id=on_trk.track_id,
+                source=CoopTrackSource.FUSED_COOPERATIVE,
+                x_m=fused_x,
+                y_m=fused_y,
+                vx_mps=fused_vx,
+                vy_mps=fused_vy,
+                cov_xx=fused_cov.xx,
+                cov_yy=fused_cov.yy,
+                cov_xy=fused_cov.xy,
+                category=best_cat,
+                confidence=combined_conf,
+                age_s=on_trk.age_s + 0.1,
+                hits=on_trk.hits + 1,
+                onboard_track_id=on_trk.onboard_track_id or on_trk.track_id,
+                rpu_station_id=cpm_obj.station_id,
+                rpu_object_id=cpm_obj.object_id,
+            )
+            fused_tracks.append(track)
+            self._tracks[track.track_id] = track
+
+        # 5. Handle unmatched onboard tracks
+        for i_on in match_res.unmatched_first:
+            on_trk = norm_onboard[i_on]
+            track = on_trk.model_copy(
+                update={
+                    "source": CoopTrackSource.ONBOARD_ONLY,
+                    "age_s": on_trk.age_s + 0.1,
+                }
+            )
+            fused_tracks.append(track)
+            self._tracks[track.track_id] = track
+
+        # 6. Handle unmatched CPM objects -> Infrastructure Only Tracks
+        for j_cpm in match_res.unmatched_second:
+            cpm_obj = cpm_objects[j_cpm]
+            self._track_counter += 1
+            tid = f"COOP-INFRA-{self._track_counter:04d}"
+            track = CooperativeTrack(
+                track_id=tid,
+                source=CoopTrackSource.INFRASTRUCTURE_ONLY,
+                x_m=cpm_obj.x_m,
+                y_m=cpm_obj.y_m,
+                vx_mps=cpm_obj.vx_mps,
+                vy_mps=cpm_obj.vy_mps,
+                cov_xx=cpm_obj.cov_xx,
+                cov_yy=cpm_obj.cov_yy,
+                cov_xy=cpm_obj.cov_xy,
+                category=cpm_obj.category,
+                confidence=cpm_obj.confidence,
+                age_s=0.1,
+                hits=1,
+                rpu_station_id=cpm_obj.station_id,
+                rpu_object_id=cpm_obj.object_id,
+            )
+            fused_tracks.append(track)
+            self._tracks[track.track_id] = track
+
+        return fused_tracks
