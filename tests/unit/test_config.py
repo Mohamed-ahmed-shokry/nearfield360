@@ -949,3 +949,47 @@ def test_gate_config_rejects_excessive_clearance(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 10"):
         load_config(config_path)
+
+
+def test_coop_config_defaults() -> None:
+    config = load_config()
+
+    assert config.coop.max_latency_compensation_s == 0.50
+    assert config.coop.association_gate_mahalanobis == 3.0
+    assert config.coop.min_cpm_confidence == 0.60
+    assert config.coop.blind_spot_warning_ttc_s == 2.5
+    assert config.coop.occlusion_grid_resolution_m == 0.25
+    assert config.coop.rpu_broadcast_frequency_hz == 10.0
+    assert config.coop.track_covariance_inflation_factor == 1.25
+
+
+def test_coop_config_environment_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("coop:\n  max_latency_compensation_s: 0.80\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_COOP__ASSOCIATION_GATE_MAHALANOBIS", "4.5")
+    monkeypatch.setenv("NEARFIELD360_COOP__MIN_CPM_CONFIDENCE", "0.75")
+    monkeypatch.setenv("NEARFIELD360_COOP__BLIND_SPOT_WARNING_TTC_S", "3.0")
+
+    config = load_config(config_path)
+
+    assert config.coop.max_latency_compensation_s == 0.80
+    assert config.coop.association_gate_mahalanobis == 4.5
+    assert config.coop.min_cpm_confidence == 0.75
+    assert config.coop.blind_spot_warning_ttc_s == 3.0
+
+
+def test_coop_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("coop:\n  max_latency_compensation_s: -1.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
+
+
+def test_coop_config_rejects_excessive_latency(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("coop:\n  max_latency_compensation_s: 10.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 5"):
+        load_config(config_path)
+
