@@ -520,7 +520,9 @@ class CoopConfig(BaseModel):
     blind_spot_warning_ttc_s: float = Field(default=2.5, gt=0.0, le=10.0, allow_inf_nan=False)
     occlusion_grid_resolution_m: float = Field(default=0.25, gt=0.0, le=2.0, allow_inf_nan=False)
     rpu_broadcast_frequency_hz: float = Field(default=10.0, gt=0.0, le=100.0, allow_inf_nan=False)
-    track_covariance_inflation_factor: float = Field(default=1.25, ge=1.0, le=5.0, allow_inf_nan=False)
+    track_covariance_inflation_factor: float = Field(
+        default=1.25, ge=1.0, le=5.0, allow_inf_nan=False
+    )
 
 
 class ProjectConfig(BaseSettings):
