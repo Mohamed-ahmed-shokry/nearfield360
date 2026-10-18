@@ -2295,3 +2295,46 @@ Phase 33 delivers an end-to-end Automated Facility Access Control, Barrier Gate 
 | Mypy Strict Typing | `uv run mypy` | Success |
 | Package Build Artifacts | `uv build` | Wheel & sdist built |
 | Remote GitHub Actions CI | `gh run list --branch phase/facility-access-control-barrier-gates` | 100% Green |
+
+---
+
+## Phase 34: Infrastructure Cooperative Perception, ETSI Collective Perception Service (CPM) & Blind-Spot Occlusion Fusion (ISO 23374 Type 2/3)
+
+**Status:** In Progress
+**Repository Branch:** `phase/cooperative-perception-infrastructure-cpm`
+**PR:** Draft PR #14
+
+### 1. Milestone Objectives & Scope
+
+Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlusion Fusion subsystem for NearField360, conforming to ISO 23374 (AVP Type 2 / Type 3 Infrastructure-to-Vehicle / I2V Cooperative Perception) and ETSI TR 103 562 / SAE J3224 Collective Perception Message (CPM) standards:
+1. **Configuration (`CoopConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+   - `max_latency_compensation_s`: 0.50 s maximum wireless age for kinematic extrapolation.
+   - `association_gate_mahalanobis`: 3.0 gating threshold for track-to-track association.
+   - `min_cpm_confidence`: 0.60 minimum confidence score for CPM objects.
+   - `blind_spot_warning_ttc_s`: 2.5 s time-to-collision warning threshold.
+   - `occlusion_grid_resolution_m`: 0.25 m grid cell resolution for line-of-sight raytracing.
+   - `rpu_broadcast_frequency_hz`: 10.0 Hz transmission frequency.
+   - `track_covariance_inflation_factor`: 1.25 inflation factor for cross-correlation handling.
+
+### 2. Task Progress
+
+- [x] Task 1: Roadmap & Cooperative Perception Configuration Foundation
+  - [x] 1.1 `docs(roadmap): establish Phase 34 cooperative perception and infrastructure CPM roadmap`
+  - [x] 1.2 `feat(config): add CoopConfig and update default yaml configuration`
+  - [x] 1.3 `test(config): add unit tests for CoopConfig validation and environment overrides`
+  - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
+- [ ] Task 2: Cooperative Perception Domain Models & CPM Protocols
+- [ ] Task 3: Roadside Perception Unit (RPU) Manager & CPM Dispatcher
+- [ ] Task 4: Spatiotemporal Alignment & Wireless Latency Extrapolation
+- [ ] Task 5: Track-to-Track Cooperative Fusion Engine
+- [ ] Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor
+- [ ] Task 7: Tactical BEV Cooperative Map & Visualizer
+- [ ] Task 8: Package Exports, CLI Command Group & Pipeline Integration
+- [ ] Task 9: End-to-End Documentation, Self-Review & Delivery
+
+### 3. Decision Log
+
+1. **Decision**: Explicit `CoopConfig` with Strict Bounds and Safe Defaults
+   - *Alternatives Considered*: Reusing existing `FleetConfig` or hardcoding parameters in fusion modules.
+   - *Rationale & Evidence*: Cooperative perception under ISO 23374 Type 2/3 operates at the sensor fusion level (sub-second kinematic extrapolation, Mahalanobis gating, raycasting), whereas fleet coordination operates at the mission/dispatch level. Isolating `CoopConfig` maintains clean separation of concerns and allows deterministic fine-tuning of safety thresholds.
+

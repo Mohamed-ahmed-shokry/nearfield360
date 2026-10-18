@@ -1066,10 +1066,10 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & Cooperative Perception Configuration Foundation**
-   - [ ] 1.1 `docs(roadmap): establish Phase 34 cooperative perception and infrastructure CPM roadmap`
-   - [ ] 1.2 `feat(config): add CoopConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for CoopConfig validation and environment overrides`
-   - [ ] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
+   - [x] 1.1 `docs(roadmap): establish Phase 34 cooperative perception and infrastructure CPM roadmap`
+   - [x] 1.2 `feat(config): add CoopConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for CoopConfig validation and environment overrides`
+   - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
 2. **Task 2: Cooperative Perception Domain Models & CPM Protocols**
    - [ ] 2.1 `feat(coop): implement RPU sensor types, station types, and risk level enums`
    - [ ] 2.2 `feat(coop): implement RPU state, CPM object, CPM message, and cooperative track models`
