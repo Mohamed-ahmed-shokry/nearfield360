@@ -978,3 +978,141 @@ Deliver an end-to-end Automated Facility Access Control, Barrier Gate Interlock,
    - [x] 8.2 `docs(progress): document completed Phase 33 milestone, Decision Log, and verification gates`
    - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
    - [x] 8.4 `docs(roadmap): mark Phase 33 fully completed and all acceptance criteria met`
+
+---
+
+## Phase 34: Infrastructure Cooperative Perception, ETSI Collective Perception Service (CPM) & Blind-Spot Occlusion Fusion (ISO 23374 Type 2/3)
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlusion Fusion subsystem for NearField360, conforming to ISO 23374 (AVP Type 2 / Type 3 Infrastructure-to-Vehicle / I2V Cooperative Perception) and ETSI TR 103 562 / SAE J3224 Collective Perception Message (CPM) standards. The system enables stationary roadside perception units (RPUs) — including ceiling-mounted LiDAR, overhead wide-angle cameras, and corner radar beacons — to continuously monitor facility blind spots (e.g. 90-degree aisle junctions, ramp crests, structural pillars) and broadcast standardized CPM telemetry. The vehicle fuses incoming infrastructure detections with its onboard 4-camera nearfield surround-view tracks via spatiotemporal coordinate transformation, latency compensation, and track-to-track covariance intersection. The engine calculates an occlusion horizon and generates preemptive blind-spot collision warnings and yield holds for concealed hazards before they emerge into direct onboard line-of-sight.
+
+### 2. Scope
+
+- **Configuration (`CoopConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `max_latency_compensation_s`: Maximum wireless age of CPM object eligible for kinematic extrapolation (e.g. 0.5 s).
+  - `association_gate_mahalanobis`: Mahalanobis distance gating threshold for track-to-track association (e.g. 3.0).
+  - `min_cpm_confidence`: Minimum infrastructure detection confidence score required for fusion (e.g. 0.60).
+  - `blind_spot_warning_ttc_s`: Time-to-collision warning horizon threshold for blind-spot hazards (e.g. 2.5 s).
+  - `occlusion_grid_resolution_m`: Spatial grid resolution for line-of-sight raycasting (e.g. 0.25 m).
+  - `rpu_broadcast_frequency_hz`: Roadside perception unit transmission frequency (e.g. 10.0 Hz).
+  - `track_covariance_inflation_factor`: Inflation factor applied during covariance intersection to account for unmodeled cross-correlation (e.g. 1.25).
+- **Domain Models & CPM Protocols (`src/nearfield360/coop/models.py`)**:
+  - `RPUSensorType` Enum: `LIDAR`, `FISHEYE_CAMERA`, `RADAR`, `FUSED_STATION`.
+  - `CPMStationType` Enum: `INFRASTRUCTURE_RPU`, `VEHICLE_ONBOARD`, `SPECIAL_EQUIPMENT`.
+  - `CoopTrackSource` Enum: `ONBOARD_ONLY`, `INFRASTRUCTURE_ONLY`, `FUSED_COOPERATIVE`.
+  - `BlindSpotRiskLevel` Enum: `SAFE`, `ADVISORY`, `WARNING`, `CRITICAL_BRAKE`.
+  - `RPUSensorState`: `station_id`, `sensor_type`, `position_m` $(x, y, z)$, `orientation_deg` $(\text{yaw}, \text{pitch}, \text{roll})$, `range_max_m`, `fov_azimuth_deg`, `is_operational`.
+  - `CPMPerceivedObject`: `object_id`, `station_id`, `timestamp`, `category`, `position` $(x, y, z)$, `velocity` $(\dot{x}, \dot{y})$, `dimensions` $(l, w, h)$, `position_covariance`, `confidence`, `occluded`.
+  - `CollectivePerceptionMessage`: `station_id`, `station_type`, `sequence_number`, `timestamp`, `reference_position`, `perceived_objects`.
+  - `CooperativeTrack`: `track_id`, `source`, `position` $(x, y)$, `velocity` $(\dot{x}, \dot{y})$, `covariance_2x2`, `category`, `confidence`, `age_s`, `onboard_track_id`, `rpu_station_id`, `rpu_object_id`.
+  - `BlindSpotWarning`: `target_vehicle_id`, `hazard_object_id`, `conflict_point` $(x, y)$, `ttc_s`, `risk_level`, `recommended_action`, `occlusion_source`.
+  - `CoopTelemetryReport`: `active_rpus`, `cpm_message_count`, `onboard_track_count`, `fused_track_count`, `blind_spot_hazard_count`, `warnings`, `mean_fusion_latency_ms`.
+- **Roadside Perception Unit (RPU) & CPM Dispatcher (`src/nearfield360/coop/rpu.py`)**:
+  - Manages roadside perception stations with geometric FOV cones, visibility filtering, and compliant CPM payload encoding.
+- **Spatiotemporal Alignment & Wireless Latency Extrapolation (`src/nearfield360/coop/alignment.py`)**:
+  - Transforms RPU local coordinates into facility global coordinates and vehicle body frame using SE(2)/SE(3) rigid transformations.
+  - Applies constant-velocity kinematic extrapolation to compensate for wireless transmission delays.
+- **Track-to-Track Cooperative Fusion Engine (`src/nearfield360/coop/fusion.py`)**:
+  - Gated Mahalanobis distance metric and Hungarian/greedy association between onboard fisheye tracks and received CPM objects.
+  - Covariance Intersection (CI) state update fusing independent onboard and infrastructure estimates with provable bounds.
+  - Maintains track lifecycle (initiation, confirmation, prediction, deletion).
+- **Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor (`src/nearfield360/coop/blind_spot.py`)**:
+  - Raycasts onboard sensor FOV against structural pillars to construct line-of-sight visibility polygons and identify occluded shadow regions.
+  - Assesses whether infrastructure-detected hazards reside in blind zones and computes TTC along projected vehicle trajectory.
+- **Tactical Cooperative BEV Visualizer (`src/nearfield360/coop/viz.py`)**:
+  - Dual-panel layout:
+    - Left panel: Facility BEV map showing aisles, structural pillars, vehicle position, onboard 360-degree fisheye coverage polygon, RPU stations with sensor FOV cones, occluded blind shadow zones highlighted in translucent amber, onboard tracks (blue), infrastructure CPM detections (magenta), and fused cooperative tracks (bright green) with velocity vectors and uncertainty ellipses.
+    - Right panel: Cooperative Perception HUD showing active RPU stations, CPM throughput and latency, track association matrix, blind-spot hazard alerts with TTC countdown gauges, and cooperative risk status badge.
+- **Package Exports, CLI Command Group & Surround Pipeline Integration (`src/nearfield360/coop/__init__.py`, `src/nearfield360/cli/coop.py`, `src/nearfield360/cli/pipeline.py`)**:
+  - Public symbols exported from `src/nearfield360/coop/__init__.py`.
+  - Dedicated CLI group: `nearfield360 coop` with subcommands: `info`, `rpu`, `fuse`, `render`, `audit`.
+  - Register `coop` CLI command group in `src/nearfield360/cli/app.py`.
+  - Update release audit in `src/nearfield360/cli/release.py` to expect 26 command groups.
+  - Pipeline runner integration: `nearfield360 pipeline run --coop` / `--no-coop`.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, RPU dispatcher, alignment/extrapolation, cooperative fusion, blind-spot warning, visualizer, CLI commands, and pipeline integration.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `CoopConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for RPU states, CPM perceived objects, CPM messages, cooperative tracks, and blind spot warnings | `uv run pytest tests/unit/coop/test_coop_models.py` |
+| AC-3 | `RPUSensorManager` manages roadside perception stations, visibility geometry, and generates compliant CPM messages | `uv run pytest tests/unit/coop/test_rpu.py` |
+| AC-4 | `SpatiotemporalAligner` executes coordinate transforms and latency compensation extrapolation | `uv run pytest tests/unit/coop/test_alignment.py` |
+| AC-5 | `CooperativeTrackFusion` performs Mahalanobis gated association and Covariance Intersection track fusion | `uv run pytest tests/unit/coop/test_fusion.py` |
+| AC-6 | `BlindSpotAssessor` computes line-of-sight occlusion polygons, detects hidden hazards, and generates preemptive collision warnings | `uv run pytest tests/unit/coop/test_blind_spot.py` |
+| AC-7 | Tactical BEV cooperative visualizer renders facility layout, onboard FOV, RPU cones, blind zones, fused tracks, and HUD to valid PNG | `uv run pytest tests/unit/coop/test_coop_viz.py` |
+| AC-8 | Dedicated CLI command group `nearfield360 coop` executes `info`, `rpu`, `fuse`, `render`, and `audit` | `uv run pytest tests/unit/test_coop_cli.py` |
+| AC-9 | Root CLI registers `coop` command group, passing release audit with 26 groups | `uv run nearfield360 release audit` |
+| AC-10 | Surround pipeline runner integrates `--coop` option and exports cooperative perception telemetry in report | `uv run pytest tests/unit/test_pipeline_coop.py` |
+| AC-11 | All local CI-parity checks and remote CI workflow runs pass 100% | `uv run pytest`, `uv run mypy`, `uv run ruff check .`, `uv build` |
+
+### 4. Validation Plan
+
+1. Unit tests covering config, models, RPU manager, alignment/extrapolation, fusion, blind-spot assessor, viz, CLI, and pipeline.
+2. CLI integration tests verifying `nearfield360 coop info`, `coop rpu`, `coop fuse`, `coop render`, `coop audit` with JSON/PNG outputs.
+3. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit: `uv run nearfield360 release audit`.
+5. Full test suite: `uv run pytest -q`.
+
+### 5. Exclusions
+
+- Direct physical IEEE 802.11p / C-V2X PC5 direct sidelink baseband radio physical layer decoding.
+- Multi-building fiber optic distribution network PTP IEEE 1588 nanosecond clock synchronization.
+- Overhead LiDAR point cloud raw voxel segmentation deep learning training loops.
+
+### 6. Task List & Micro-Commit Plan
+
+1. **Task 1: Roadmap & Cooperative Perception Configuration Foundation**
+   - [ ] 1.1 `docs(roadmap): establish Phase 34 cooperative perception and infrastructure CPM roadmap`
+   - [ ] 1.2 `feat(config): add CoopConfig and update default yaml configuration`
+   - [ ] 1.3 `test(config): add unit tests for CoopConfig validation and environment overrides`
+   - [ ] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
+2. **Task 2: Cooperative Perception Domain Models & CPM Protocols**
+   - [ ] 2.1 `feat(coop): implement RPU sensor types, station types, and risk level enums`
+   - [ ] 2.2 `feat(coop): implement RPU state, CPM object, CPM message, and cooperative track models`
+   - [ ] 2.3 `feat(coop): implement blind spot warning and cooperative telemetry report models`
+   - [ ] 2.4 `test(coop): verify cooperative domain models, validation, and JSON serialization`
+   - [ ] 2.5 `docs(progress): mark Task 2 domain models completed`
+3. **Task 3: Roadside Perception Unit (RPU) Manager & CPM Dispatcher**
+   - [ ] 3.1 `feat(coop): implement RPU sensor station management and FOV coverage geometry`
+   - [ ] 3.2 `feat(coop): implement CPM message generation and station payload dispatch`
+   - [ ] 3.3 `test(coop): verify RPU registration, FOV filtering, and CPM dispatch`
+   - [ ] 3.4 `docs(progress): mark Task 3 RPU manager completed`
+4. **Task 4: Spatiotemporal Alignment & Wireless Latency Extrapolation**
+   - [ ] 4.1 `feat(coop): implement coordinate frame transformations between RPU, facility, and vehicle`
+   - [ ] 4.2 `feat(coop): implement kinematic extrapolation and latency compensation for CPM objects`
+   - [ ] 4.3 `test(coop): verify coordinate transformation accuracy and kinematic time-extrapolation`
+   - [ ] 4.4 `docs(progress): mark Task 4 alignment and extrapolation completed`
+5. **Task 5: Track-to-Track Cooperative Fusion Engine**
+   - [ ] 5.1 `feat(coop): implement Mahalanobis distance association and gated track matching`
+   - [ ] 5.2 `feat(coop): implement Covariance Intersection (CI) track state and covariance update`
+   - [ ] 5.3 `feat(coop): implement cooperative track manager with track lifecycle management`
+   - [ ] 5.4 `test(coop): verify track association, Covariance Intersection fusion, and lifecycle`
+   - [ ] 5.5 `docs(progress): mark Task 5 cooperative fusion completed`
+6. **Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor**
+   - [ ] 6.1 `feat(coop): implement line-of-sight raycasting and pillar occlusion shadow computation`
+   - [ ] 6.2 `feat(coop): implement blind-spot hazard detection and TTC warning generation`
+   - [ ] 6.3 `test(coop): verify occlusion polygon calculation, blind-spot hazard detection, and TTC warnings`
+   - [ ] 6.4 `docs(progress): mark Task 6 blind-spot assessor completed`
+7. **Task 7: Tactical BEV Cooperative Map & Visualizer**
+   - [ ] 7.1 `feat(coop): implement dual-panel BEV layout with onboard FOV, RPU cones, and blind shadows`
+   - [ ] 7.2 `feat(coop): implement cooperative perception HUD with latency, tracks, and TTC risk gauges`
+   - [ ] 7.3 `test(coop): verify cooperative perception visualizer exports valid PNG artifacts`
+   - [ ] 7.4 `docs(progress): mark Task 7 cooperative visualizer completed`
+8. **Task 8: Package Exports, CLI Command Group & Pipeline Integration**
+   - [ ] 8.1 `feat(coop): export public cooperative perception API from package init`
+   - [ ] 8.2 `feat(cli): implement nearfield360 coop command group (info, rpu, fuse, render, audit)`
+   - [ ] 8.3 `feat(cli): register coop CLI group and update release audit expected count to 26`
+   - [ ] 8.4 `feat(pipeline): integrate --coop options into surround pipeline runner`
+   - [ ] 8.5 `test(cli): verify coop CLI commands, JSON payloads, and visual outputs`
+   - [ ] 8.6 `test(pipeline): verify pipeline coop integration workflow`
+   - [ ] 8.7 `docs(progress): mark Task 8 package exports and CLI integration completed`
+9. **Task 9: End-to-End Documentation, Self-Review & Delivery**
+   - [ ] 9.1 `docs: update README with Phase 34 cooperative perception usage examples`
+   - [ ] 9.2 `docs(progress): document completed Phase 34 milestone, Decision Log, and verification gates`
+   - [ ] 9.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [ ] 9.4 `docs(roadmap): mark Phase 34 fully completed and all acceptance criteria met`
+
