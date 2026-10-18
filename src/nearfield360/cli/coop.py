@@ -62,9 +62,9 @@ def coop_info(
     cfg = get_state(context).config.coop
 
     demonstrator_stations = [
-        "RPU_CORNER_LIDAR (3D LiDAR, Blind Corner Intersection)",
-        "RPU_RAMP_RADAR (77 GHz Radar, Spiral Ramp Crest)",
-        "RPU_PORTAL_FISHEYE (190° Fisheye, Access Portal Gateway)",
+        "RPU-BLIND-CORNER-1 (3D LiDAR, Blind Corner Intersection)",
+        "RPU-RAMP-CREST-1 (77 GHz Radar, Spiral Ramp Crest)",
+        "RPU-GATE-OVERHEAD-1 (180° Fisheye, Access Portal Gateway)",
     ]
 
     info_payload = {
@@ -130,7 +130,7 @@ def coop_rpu(
     # Populate sample perceived objects
     sample_ped = CPMPerceivedObject(
         object_id="INFRA-OBJ-01",
-        station_id="RPU_CORNER_LIDAR",
+        station_id="RPU-BLIND-CORNER-1",
         timestamp_s=10.0,
         category=PerceivedObjectClass.PEDESTRIAN,
         x_m=22.0,
@@ -141,7 +141,7 @@ def coop_rpu(
     )
     sample_veh = CPMPerceivedObject(
         object_id="INFRA-OBJ-02",
-        station_id="RPU_RAMP_RADAR",
+        station_id="RPU-RAMP-CREST-1",
         timestamp_s=10.0,
         category=PerceivedObjectClass.VEHICLE,
         x_m=28.0,
@@ -151,10 +151,10 @@ def coop_rpu(
         occlusion_state=OcclusionState.VISIBLE,
     )
 
-    if any(s.station_id == "RPU_CORNER_LIDAR" for s in stations):
-        network.add_perceived_object("RPU_CORNER_LIDAR", sample_ped)
-    if any(s.station_id == "RPU_RAMP_RADAR" for s in stations):
-        network.add_perceived_object("RPU_RAMP_RADAR", sample_veh)
+    if any(s.station_id == "RPU-BLIND-CORNER-1" for s in stations):
+        network.add_perceived_object("RPU-BLIND-CORNER-1", sample_ped)
+    if any(s.station_id == "RPU-RAMP-CREST-1" for s in stations):
+        network.add_perceived_object("RPU-RAMP-CREST-1", sample_veh)
 
     messages = [network.generate_cpm(s.station_id, timestamp_s=10.0) for s in stations]
 
@@ -218,7 +218,7 @@ def coop_fuse(
     # Infrastructure observation slightly offset in time and space
     raw_cpm_obj = CPMPerceivedObject(
         object_id="RPU-OBJ-99",
-        station_id="RPU_CORNER_LIDAR",
+        station_id="RPU-BLIND-CORNER-1",
         timestamp_s=timestamp - latency_s,
         category=PerceivedObjectClass.VEHICLE,
         x_m=18.0 - (2.0 * latency_s) + 0.1,  # matches after latency compensation
@@ -230,7 +230,7 @@ def coop_fuse(
     # Infrastructure-only hidden hazard in corridor
     hidden_cpm_obj = CPMPerceivedObject(
         object_id="RPU-OBJ-100",
-        station_id="RPU_CORNER_LIDAR",
+        station_id="RPU-BLIND-CORNER-1",
         timestamp_s=timestamp - latency_s,
         category=PerceivedObjectClass.PEDESTRIAN,
         x_m=20.0,
@@ -240,8 +240,8 @@ def coop_fuse(
         confidence=0.92,
     )
 
-    network.add_perceived_object("RPU_CORNER_LIDAR", raw_cpm_obj)
-    network.add_perceived_object("RPU_CORNER_LIDAR", hidden_cpm_obj)
+    network.add_perceived_object("RPU-BLIND-CORNER-1", raw_cpm_obj)
+    network.add_perceived_object("RPU-BLIND-CORNER-1", hidden_cpm_obj)
 
     cpm_messages = [
         network.generate_cpm(s.station_id, timestamp_s=timestamp - latency_s)
