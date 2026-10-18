@@ -146,3 +146,33 @@ class CooperativeTrack(BaseModel):
     onboard_track_id: str | None = None
     rpu_station_id: str | None = None
     rpu_object_id: str | None = None
+
+
+class BlindSpotWarning(BaseModel):
+    """Preemptive collision warning emitted for an occluded hazard approaching trajectory."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target_vehicle_id: str = Field(min_length=1)
+    hazard_object_id: str = Field(min_length=1)
+    conflict_point_m: tuple[float, float]
+    ttc_s: float = Field(ge=0.0, allow_inf_nan=False)
+    risk_level: BlindSpotRiskLevel
+    recommended_action: WarningAction
+    occlusion_source: str = "structural_pillar"
+    timestamp_s: float = Field(ge=0.0, allow_inf_nan=False)
+
+
+class CoopTelemetryReport(BaseModel):
+    """Aggregated status and metrics for cooperative perception operations."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    active_rpus: int = Field(ge=0)
+    cpm_message_count: int = Field(ge=0)
+    onboard_track_count: int = Field(ge=0)
+    fused_track_count: int = Field(ge=0)
+    blind_spot_hazard_count: int = Field(ge=0)
+    warnings: list[BlindSpotWarning] = Field(default_factory=list)
+    mean_fusion_latency_ms: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    timestamp_s: float = Field(ge=0.0, allow_inf_nan=False)
