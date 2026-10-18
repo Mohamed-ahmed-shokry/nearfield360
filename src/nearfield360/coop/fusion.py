@@ -87,3 +87,89 @@ def associate_gated_greedy(
         unmatched_first=unmatched_first,
         unmatched_second=unmatched_second,
     )
+
+
+def invert_covariance_2d(cov: Covariance2D) -> tuple[float, float, float]:
+    """Compute the matrix inverse of a 2x2 symmetric covariance matrix.
+
+    Returns (inv_xx, inv_yy, inv_xy).
+    """
+    det = cov.xx * cov.yy - cov.xy**2
+    safe_det = max(1e-9, det)
+    return (cov.yy / safe_det, cov.xx / safe_det, -cov.xy / safe_det)
+
+
+def fuse_covariance_intersection(
+    pos1: tuple[float, float],
+    cov1: Covariance2D,
+    pos2: tuple[float, float],
+    cov2: Covariance2D,
+    omega: float | None = None,
+    inflation_factor: float = 1.0,
+) -> tuple[tuple[float, float], Covariance2D, float]:
+    """Fuse two 2D Gaussian estimates with unknown cross-covariance using Covariance Intersection.
+
+    Returns ((fused_x, fused_y), fused_cov, chosen_omega).
+    """
+    if omega is None:
+        tr1 = cov1.xx + cov1.yy
+        tr2 = cov2.xx + cov2.yy
+        total_tr = tr1 + tr2
+        raw_omega = tr2 / total_tr if total_tr > 1e-9 else 0.5
+        chosen_omega = min(0.9, max(0.1, raw_omega))
+    else:
+        chosen_omega = min(0.99, max(0.01, omega))
+
+    inv1_xx, inv1_yy, inv1_xy = invert_covariance_2d(cov1)
+    inv2_xx, inv2_yy, inv2_xy = invert_covariance_2d(cov2)
+
+    # P_F^-1 = omega * P1^-1 + (1 - omega) * P2^-1
+    w1 = chosen_omega
+    w2 = 1.0 - chosen_omega
+
+    inv_f_xx = w1 * inv1_xx + w2 * inv2_xx
+    inv_f_yy = w1 * inv1_yy + w2 * inv2_yy
+    inv_f_xy = w1 * inv1_xy + w2 * inv2_xy
+
+    det_inv_f = inv_f_xx * inv_f_yy - inv_f_xy**2
+    safe_det = max(1e-9, det_inv_f)
+
+    # Invert back to covariance P_F
+    raw_f_xx = (inv_f_yy / safe_det) * inflation_factor
+    raw_f_yy = (inv_f_xx / safe_det) * inflation_factor
+    raw_f_xy = (-inv_f_xy / safe_det) * inflation_factor
+
+    fused_cov = Covariance2D(
+        xx=max(1e-4, raw_f_xx),
+        yy=max(1e-4, raw_f_yy),
+        xy=raw_f_xy,
+    )
+
+    # Information vector: y = omega * P1^-1 * x1 + (1 - omega) * P2^-1 * x2
+    y_x = w1 * (inv1_xx * pos1[0] + inv1_xy * pos1[1]) + w2 * (
+        inv2_xx * pos2[0] + inv2_xy * pos2[1]
+    )
+    y_y = w1 * (inv1_xy * pos1[0] + inv1_yy * pos1[1]) + w2 * (
+        inv2_xy * pos2[0] + inv2_yy * pos2[1]
+    )
+
+    # Fused mean x_F = P_F * y (uninflated base covariance)
+    uninflated_xx = inv_f_yy / safe_det
+    uninflated_yy = inv_f_xx / safe_det
+    uninflated_xy = -inv_f_xy / safe_det
+
+    fused_x = uninflated_xx * y_x + uninflated_xy * y_y
+    fused_y = uninflated_xy * y_x + uninflated_yy * y_y
+
+    return ((fused_x, fused_y), fused_cov, chosen_omega)
+
+
+def fuse_velocity_ci(
+    v1: tuple[float, float],
+    v2: tuple[float, float],
+    omega: float,
+) -> tuple[float, float]:
+    """Fuse 2D velocities linearly using CI weighting factor omega."""
+    w1 = omega
+    w2 = 1.0 - omega
+    return (w1 * v1[0] + w2 * v2[0], w1 * v1[1] + w2 * v2[1])
