@@ -1082,10 +1082,10 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
    - [x] 3.3 `test(coop): verify RPU registration, FOV filtering, and CPM dispatch`
    - [x] 3.4 `docs(progress): mark Task 3 RPU manager completed`
 4. **Task 4: Spatiotemporal Alignment & Wireless Latency Extrapolation**
-   - [ ] 4.1 `feat(coop): implement coordinate frame transformations between RPU, facility, and vehicle`
-   - [ ] 4.2 `feat(coop): implement kinematic extrapolation and latency compensation for CPM objects`
-   - [ ] 4.3 `test(coop): verify coordinate transformation accuracy and kinematic time-extrapolation`
-   - [ ] 4.4 `docs(progress): mark Task 4 alignment and extrapolation completed`
+   - [x] 4.1 `feat(coop): implement coordinate frame transformations between RPU, facility, and vehicle`
+   - [x] 4.2 `feat(coop): implement kinematic extrapolation and latency compensation for CPM objects`
+   - [x] 4.3 `test(coop): verify coordinate transformation accuracy and kinematic time-extrapolation`
+   - [x] 4.4 `docs(progress): mark Task 4 alignment and extrapolation completed`
 5. **Task 5: Track-to-Track Cooperative Fusion Engine**
    - [ ] 5.1 `feat(coop): implement Mahalanobis distance association and gated track matching`
    - [ ] 5.2 `feat(coop): implement Covariance Intersection (CI) track state and covariance update`

@@ -2334,7 +2334,11 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
   - [x] 3.2 `feat(coop): implement CPM message generation and station payload dispatch`
   - [x] 3.3 `test(coop): verify RPU registration, FOV filtering, and CPM dispatch`
   - [x] 3.4 `docs(progress): mark Task 3 RPU manager completed`
-- [ ] Task 4: Spatiotemporal Alignment & Wireless Latency Extrapolation
+- [x] Task 4: Spatiotemporal Alignment & Wireless Latency Extrapolation
+  - [x] 4.1 `feat(coop): implement coordinate frame transformations between RPU, facility, and vehicle`
+  - [x] 4.2 `feat(coop): implement kinematic extrapolation and latency compensation for CPM objects`
+  - [x] 4.3 `test(coop): verify coordinate transformation accuracy and kinematic time-extrapolation`
+  - [x] 4.4 `docs(progress): mark Task 4 alignment and extrapolation completed`
 - [ ] Task 5: Track-to-Track Cooperative Fusion Engine
 - [ ] Task 6: Blind-Spot Occlusion Profiler & Preemptive Conflict Assessor
 - [ ] Task 7: Tactical BEV Cooperative Map & Visualizer
@@ -2352,5 +2356,9 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 3. **Decision**: Pre-Configured Multi-Station Demonstrator Network
    - *Alternatives Considered*: Requiring external JSON/YAML configuration for all RPU setups.
    - *Rationale & Evidence*: Providing `RPUSensorManager.create_default_demonstrator_network()` provides instant, deterministic coverage across representative facility bottlenecks (blind corner intersection, ramp crest, and access portal) without boilerplate file parsing, while allowing complete programmatic and CLI overrides.
+4. **Decision**: Bounded Kinematic Extrapolation with Confidence Penalty for Latency Compensation
+   - *Alternatives Considered*: Dropping all delayed CPM messages immediately or extrapolating indefinitely without covariance inflation.
+   - *Rationale & Evidence*: Real-world wireless V2X transmission incurs 50–200 ms jitter. Constant-velocity kinematic extrapolation with discrete process noise covariance growth accounts for object motion during transit. If latency exceeds the 0.5s safety horizon, confidence is penalized progressively, preventing stale infrastructure ghost tracks from overriding fresh onboard sensor observations.
+
 
 
