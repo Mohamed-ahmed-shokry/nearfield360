@@ -2445,12 +2445,12 @@ Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dyna
   - [x] 1.2 `feat(config): add V2GConfig and update default yaml configuration`
   - [x] 1.3 `test(config): add unit tests for V2GConfig validation and environment overrides`
   - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
-- [ ] Task 2: V2G Domain Models & Telemetry Schemas
-  - [ ] 2.1 `feat(v2g): implement V2G power mode, inverter phase, and tariff window models`
-  - [ ] 2.2 `feat(v2g): implement vehicle BPT profile and smart inverter telemetry models`
-  - [ ] 2.3 `feat(v2g): implement arbitrage schedule and microgrid facility report models`
-  - [ ] 2.4 `test(v2g): verify V2G domain models, constraints, and JSON serialization`
-  - [ ] 2.5 `docs(progress): mark Task 2 domain models completed`
+- [x] Task 2: V2G Domain Models & Telemetry Schemas
+  - [x] 2.1 `feat(v2g): implement V2G power mode, inverter phase, and tariff window models`
+  - [x] 2.2 `feat(v2g): implement vehicle BPT profile and smart inverter telemetry models`
+  - [x] 2.3 `feat(v2g): implement arbitrage schedule and microgrid facility report models`
+  - [x] 2.4 `test(v2g): verify V2G domain models, constraints, and JSON serialization`
+  - [x] 2.5 `docs(progress): mark Task 2 domain models completed`
 - [ ] Task 3: Smart Inverter Controller & Droop Response
   - [ ] 3.1 `feat(v2g): implement smart inverter AC/DC conversion and bidirectional power transfer`
   - [ ] 3.2 `feat(v2g): implement frequency-watt droop response and voltage-VAR reactive compensation`
