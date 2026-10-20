@@ -39,6 +39,7 @@ from nearfield360.cli.state import CliState, get_state
 from nearfield360.cli.teleop import teleop_app
 from nearfield360.cli.tenant import tenant_app
 from nearfield360.cli.tracking import track_app
+from nearfield360.cli.v2g import v2g_app
 from nearfield360.config import ConfigurationError, LoggingConfig, ProjectConfig, load_config
 from nearfield360.logging import configure_logging
 
@@ -86,6 +87,7 @@ app.add_typer(slots_app, name="slots")
 app.add_typer(teleop_app, name="teleop")
 app.add_typer(tenant_app, name="tenant")
 app.add_typer(track_app, name="track")
+app.add_typer(v2g_app, name="v2g")
 
 
 def _version_callback(value: bool) -> None:
