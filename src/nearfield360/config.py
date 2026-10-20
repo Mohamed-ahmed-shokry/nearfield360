@@ -525,6 +525,30 @@ class CoopConfig(BaseModel):
     )
 
 
+class V2GConfig(BaseModel):
+    """Parameters for Vehicle-to-Grid (V2G) bi-directional power transfer
+    and microgrid peak shaving.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    facility_transformer_limit_kw: float = Field(
+        default=500.0, gt=0.0, le=5000.0, allow_inf_nan=False
+    )
+    peak_shaving_target_kw: float = Field(default=350.0, gt=0.0, le=5000.0, allow_inf_nan=False)
+    min_departure_reserve_soc: float = Field(default=0.60, ge=0.10, le=1.0, allow_inf_nan=False)
+    max_discharge_power_kw: float = Field(default=22.0, gt=0.0, le=350.0, allow_inf_nan=False)
+    max_charge_power_kw: float = Field(default=50.0, gt=0.0, le=350.0, allow_inf_nan=False)
+    battery_degradation_penalty_per_kwh: float = Field(
+        default=0.04, ge=0.0, le=1.0, allow_inf_nan=False
+    )
+    grid_frequency_nominal_hz: float = Field(default=50.0, gt=40.0, le=70.0, allow_inf_nan=False)
+    frequency_droop_gain_kw_per_hz: float = Field(
+        default=25.0, gt=0.0, le=500.0, allow_inf_nan=False
+    )
+    arbitrage_interval_minutes: int = Field(default=15, ge=1, le=60)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -568,6 +592,7 @@ class ProjectConfig(BaseSettings):
     emergency: EmergencyConfig = Field(default_factory=EmergencyConfig)
     gate: GateConfig = Field(default_factory=GateConfig)
     coop: CoopConfig = Field(default_factory=CoopConfig)
+    v2g: V2GConfig = Field(default_factory=V2GConfig)
 
     @classmethod
     def settings_customise_sources(
