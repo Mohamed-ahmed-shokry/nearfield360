@@ -2456,11 +2456,11 @@ Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dyna
   - [x] 3.2 `feat(v2g): implement frequency-watt droop response and voltage-VAR reactive compensation`
   - [x] 3.3 `test(v2g): verify inverter conversion efficiency, frequency droop, and reactive power`
   - [x] 3.4 `docs(progress): mark Task 3 smart inverter controller completed`
-- [ ] Task 4: Dynamic Arbitrage & Degradation-Constrained Scheduler
-  - [ ] 4.1 `feat(v2g): implement time-of-use economic evaluation and battery degradation penalty`
-  - [ ] 4.2 `feat(v2g): implement multi-interval arbitrage scheduler with departure SoC guarantee`
-  - [ ] 4.3 `test(v2g): verify arbitrage schedule optimization, degradation avoidance, and departure SoC`
-  - [ ] 4.4 `docs(progress): mark Task 4 arbitrage scheduler completed`
+- [x] Task 4: Dynamic Arbitrage & Degradation-Constrained Scheduler
+  - [x] 4.1 `feat(v2g): implement time-of-use economic evaluation and battery degradation penalty`
+  - [x] 4.2 `feat(v2g): implement multi-interval arbitrage scheduler with departure SoC guarantee`
+  - [x] 4.3 `test(v2g): verify arbitrage schedule optimization, degradation avoidance, and departure SoC`
+  - [x] 4.4 `docs(progress): mark Task 4 arbitrage scheduler completed`
 - [ ] Task 5: Facility Microgrid Energy Aggregator & Peak Shaver
   - [ ] 5.1 `feat(v2g): implement fleet battery capacity aggregation and facility base load modeling`
   - [ ] 5.2 `feat(v2g): implement transformer peak-shaving dispatch and islanded emergency backup`
