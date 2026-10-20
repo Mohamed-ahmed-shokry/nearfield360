@@ -2466,11 +2466,11 @@ Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dyna
   - [x] 5.2 `feat(v2g): implement transformer peak-shaving dispatch and islanded emergency backup`
   - [x] 5.3 `test(v2g): verify microgrid peak shaving, transformer overload prevention, and islanding`
   - [x] 5.4 `docs(progress): mark Task 5 microgrid aggregator completed`
-- [ ] Task 6: Tactical V2G Energy Dashboard & SLD Visualizer
-  - [ ] 6.1 `feat(v2g): implement facility electrical single-line diagram and bay power flow rendering`
-  - [ ] 6.2 `feat(v2g): implement microgrid telemetry HUD with load curves, tariffs, and revenue gauges`
-  - [ ] 6.3 `test(v2g): verify V2G visualizer exports valid PNG artifacts`
-  - [ ] 6.4 `docs(progress): mark Task 6 V2G visualizer completed`
+- [x] Task 6: Tactical V2G Energy Dashboard & SLD Visualizer
+  - [x] 6.1 `feat(v2g): implement facility electrical single-line diagram and bay power flow rendering`
+  - [x] 6.2 `feat(v2g): implement microgrid telemetry HUD with load curves, tariffs, and revenue gauges`
+  - [x] 6.3 `test(v2g): verify V2G visualizer exports valid PNG artifacts`
+  - [x] 6.4 `docs(progress): mark Task 6 V2G visualizer completed`
 - [ ] Task 7: Package Exports, CLI Command Group & Pipeline Integration
   - [ ] 7.1 `feat(v2g): export public V2G API from package init`
   - [ ] 7.2 `feat(cli): implement nearfield360 v2g command group (info, schedule, arbitrage, render, audit)`
