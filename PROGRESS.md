@@ -2416,3 +2416,71 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 | Mypy Strict Typing | `uv run mypy` | 0 errors in 185 source files |
 | Package Build Artifacts | `uv build` | Wheel & sdist built |
 | Remote GitHub Actions CI | `gh run list --branch phase/cooperative-perception-infrastructure-cpm` | 100% Green |
+
+---
+
+## Phase 35: Vehicle-to-Grid (V2G) Bi-Directional Power Flow, Peak-Shaving Arbitrage & Automated Inverter Telemetry (ISO 15118-20 / OCPP 2.0.1)
+
+**Status:** In Progress
+**Repository Branch:** `phase/v2g-bidirectional-power-flow`
+
+### 1. Milestone Objectives & Scope
+
+Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dynamic Peak-Shaving Arbitrage, and Smart Inverter Microgrid Telemetry subsystem for NearField360, conforming to ISO 15118-20 (Bi-directional Power Transfer / BPT) and OCPP 2.0.1 (SmartCharging Profiles):
+1. **Configuration (`V2GConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+   - `facility_transformer_limit_kw`: 500.0 kW maximum facility transformer import limit.
+   - `peak_shaving_target_kw`: 350.0 kW peak demand threshold above which discharging is triggered.
+   - `min_departure_reserve_soc`: 0.60 minimum battery state of charge guaranteed to customer at pickup.
+   - `max_discharge_power_kw`: 22.0 kW maximum discharge rate per port.
+   - `max_charge_power_kw`: 50.0 kW maximum charge rate per port.
+   - `battery_degradation_penalty_per_kwh`: 0.04 $/kWh degradation cost penalty.
+   - `grid_frequency_nominal_hz`: 50.0 Hz nominal AC frequency.
+   - `frequency_droop_gain_kw_per_hz`: 25.0 kW/Hz droop response gain.
+   - `arbitrage_interval_minutes`: 15 min temporal resolution.
+
+### 2. Task Progress
+
+- [x] Task 1: Roadmap & V2G Configuration Foundation
+  - [x] 1.1 `docs(roadmap): establish Phase 35 vehicle-to-grid bidirectional power flow roadmap`
+  - [x] 1.2 `feat(config): add V2GConfig and update default yaml configuration`
+  - [x] 1.3 `test(config): add unit tests for V2GConfig validation and environment overrides`
+  - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
+- [ ] Task 2: V2G Domain Models & Telemetry Schemas
+  - [ ] 2.1 `feat(v2g): implement V2G power mode, inverter phase, and tariff window models`
+  - [ ] 2.2 `feat(v2g): implement vehicle BPT profile and smart inverter telemetry models`
+  - [ ] 2.3 `feat(v2g): implement arbitrage schedule and microgrid facility report models`
+  - [ ] 2.4 `test(v2g): verify V2G domain models, constraints, and JSON serialization`
+  - [ ] 2.5 `docs(progress): mark Task 2 domain models completed`
+- [ ] Task 3: Smart Inverter Controller & Droop Response
+  - [ ] 3.1 `feat(v2g): implement smart inverter AC/DC conversion and bidirectional power transfer`
+  - [ ] 3.2 `feat(v2g): implement frequency-watt droop response and voltage-VAR reactive compensation`
+  - [ ] 3.3 `test(v2g): verify inverter conversion efficiency, frequency droop, and reactive power`
+  - [ ] 3.4 `docs(progress): mark Task 3 smart inverter controller completed`
+- [ ] Task 4: Dynamic Arbitrage & Degradation-Constrained Scheduler
+  - [ ] 4.1 `feat(v2g): implement time-of-use economic evaluation and battery degradation penalty`
+  - [ ] 4.2 `feat(v2g): implement multi-interval arbitrage scheduler with departure SoC guarantee`
+  - [ ] 4.3 `test(v2g): verify arbitrage schedule optimization, degradation avoidance, and departure SoC`
+  - [ ] 4.4 `docs(progress): mark Task 4 arbitrage scheduler completed`
+- [ ] Task 5: Facility Microgrid Energy Aggregator & Peak Shaver
+  - [ ] 5.1 `feat(v2g): implement fleet battery capacity aggregation and facility base load modeling`
+  - [ ] 5.2 `feat(v2g): implement transformer peak-shaving dispatch and islanded emergency backup`
+  - [ ] 5.3 `test(v2g): verify microgrid peak shaving, transformer overload prevention, and islanding`
+  - [ ] 5.4 `docs(progress): mark Task 5 microgrid aggregator completed`
+- [ ] Task 6: Tactical V2G Energy Dashboard & SLD Visualizer
+  - [ ] 6.1 `feat(v2g): implement facility electrical single-line diagram and bay power flow rendering`
+  - [ ] 6.2 `feat(v2g): implement microgrid telemetry HUD with load curves, tariffs, and revenue gauges`
+  - [ ] 6.3 `test(v2g): verify V2G visualizer exports valid PNG artifacts`
+  - [ ] 6.4 `docs(progress): mark Task 6 V2G visualizer completed`
+- [ ] Task 7: Package Exports, CLI Command Group & Pipeline Integration
+  - [ ] 7.1 `feat(v2g): export public V2G API from package init`
+  - [ ] 7.2 `feat(cli): implement nearfield360 v2g command group (info, schedule, arbitrage, render, audit)`
+  - [ ] 7.3 `feat(cli): register v2g CLI group and update release audit expected count to 27`
+  - [ ] 7.4 `feat(pipeline): integrate --v2g options into surround pipeline runner`
+  - [ ] 7.5 `test(cli): verify v2g CLI commands, JSON payloads, and visual outputs`
+  - [ ] 7.6 `test(pipeline): verify pipeline v2g integration workflow`
+  - [ ] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
+- [ ] Task 8: End-to-End Documentation, Self-Review & Delivery
+  - [ ] 8.1 `docs: update README with Phase 35 vehicle-to-grid power flow usage examples`
+  - [ ] 8.2 `docs(progress): document completed Phase 35 milestone, Decision Log, and verification gates`
+  - [ ] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+  - [ ] 8.4 `docs(roadmap): mark Phase 35 fully completed and all acceptance criteria met`
