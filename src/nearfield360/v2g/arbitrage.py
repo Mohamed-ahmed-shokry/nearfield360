@@ -133,15 +133,11 @@ class ArbitrageScheduler:
             hour_k = profile.arrival_hour + k * dt_hours
             tariff = dwell_tariffs[k]
 
-            # Calculate slots remaining after this slot
-            remaining_slots = num_slots - 1 - k
-            max_energy_can_charge_later = (
-                remaining_slots * rated_chg_kw * dt_hours * 0.96 / max(1.0, cap)
-            )
-
-            # Check if must charge to guarantee target departure SoC
-            energy_needed_to_target = max(0.0, target_departure_soc - soc)
-            must_charge = energy_needed_to_target >= max_energy_can_charge_later * 0.90
+            # Calculate slots remaining including this slot
+            slots_left = num_slots - k
+            max_recharge_in_slots = slots_left * rated_chg_kw * dt_hours * 0.96 / max(1.0, cap)
+            deficit_soc = max(0.0, target_departure_soc - soc)
+            must_charge = deficit_soc >= (max_recharge_in_slots * 0.80)
 
             # Check if profitable to discharge for peak arbitrage
             profitable_to_discharge = is_discharge_arbitrage_profitable(
@@ -151,42 +147,52 @@ class ArbitrageScheduler:
             )
 
             # Determine dispatch mode
-            if soc < target_departure_soc and (
-                must_charge or tariff.import_price_per_kwh <= min_import_price * 1.15
-            ):
-                # Charging mode
-                room_in_batt_kwh = max(0.0, (1.0 - soc) * cap)
-                p_ac = min(rated_chg_kw, room_in_batt_kwh / (dt_hours * 0.96))
-                if p_ac > 0.5:
-                    energy_ac = p_ac * dt_hours
-                    energy_batt = energy_ac * 0.96
-                    soc += energy_batt / cap
-                    soc = min(1.0, soc)
-
-                    cost = energy_ac * tariff.import_price_per_kwh
-                    tot_charged_kwh += energy_batt
-                    tot_cost_dollars += cost
-
-                    dispatches.append(
-                        V2GTimeSlotDispatch(
-                            slot_index=k,
-                            hour=round(hour_k, 2),
-                            power_mode=V2GPowerMode.CHARGE,
-                            active_power_kw=round(p_ac, 2),
-                            soc_end=round(soc, 4),
-                            import_tariff=tariff.import_price_per_kwh,
-                            export_tariff=tariff.export_price_per_kwh,
-                            cost_or_revenue_delta=-round(cost, 3),
-                        )
+            # Priority 1: Charge if below target departure SoC
+            if soc < target_departure_soc:
+                should_charge = must_charge or (
+                    tariff.import_price_per_kwh <= min_import_price * 1.50
+                )
+                if should_charge:
+                    target_fill = (
+                        1.0
+                        if tariff.import_price_per_kwh <= min_import_price * 1.15
+                        else target_departure_soc
                     )
-                    continue
+                    room_in_batt_kwh = max(0.0, (target_fill - soc) * cap)
+                    p_ac = min(rated_chg_kw, room_in_batt_kwh / (dt_hours * 0.96))
+                    if p_ac > 0.1:
+                        energy_ac = p_ac * dt_hours
+                        energy_batt = energy_ac * 0.96
+                        soc += energy_batt / cap
+                        soc = min(1.0, soc)
 
-            if profitable_to_discharge and not must_charge and soc > 0.25:
-                # Discharge mode for peak arbitrage
-                surplus_soc = soc - 0.20
+                        cost = energy_ac * tariff.import_price_per_kwh
+                        tot_charged_kwh += energy_batt
+                        tot_cost_dollars += cost
+
+                        dispatches.append(
+                            V2GTimeSlotDispatch(
+                                slot_index=k,
+                                hour=round(hour_k, 2),
+                                power_mode=V2GPowerMode.CHARGE,
+                                active_power_kw=round(p_ac, 2),
+                                soc_end=round(soc, 4),
+                                import_tariff=tariff.import_price_per_kwh,
+                                export_tariff=tariff.export_price_per_kwh,
+                                cost_or_revenue_delta=-round(cost, 3),
+                            )
+                        )
+                        continue
+
+            # Priority 2: Discharge for peak arbitrage only if holding surplus above departure
+            can_discharge = (
+                profitable_to_discharge and (soc > (target_departure_soc + 0.03)) and soc > 0.20
+            )
+            if can_discharge:
+                surplus_soc = soc - target_departure_soc
                 max_dis_energy_kwh = surplus_soc * cap * 0.96
                 p_dis_ac = min(rated_dis_kw, max_dis_energy_kwh / dt_hours)
-                if p_dis_ac > 0.5:
+                if p_dis_ac > 0.1:
                     energy_ac = p_dis_ac * dt_hours
                     energy_batt = energy_ac / 0.96
                     soc -= energy_batt / cap
