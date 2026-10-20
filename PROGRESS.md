@@ -2461,11 +2461,11 @@ Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dyna
   - [x] 4.2 `feat(v2g): implement multi-interval arbitrage scheduler with departure SoC guarantee`
   - [x] 4.3 `test(v2g): verify arbitrage schedule optimization, degradation avoidance, and departure SoC`
   - [x] 4.4 `docs(progress): mark Task 4 arbitrage scheduler completed`
-- [ ] Task 5: Facility Microgrid Energy Aggregator & Peak Shaver
-  - [ ] 5.1 `feat(v2g): implement fleet battery capacity aggregation and facility base load modeling`
-  - [ ] 5.2 `feat(v2g): implement transformer peak-shaving dispatch and islanded emergency backup`
-  - [ ] 5.3 `test(v2g): verify microgrid peak shaving, transformer overload prevention, and islanding`
-  - [ ] 5.4 `docs(progress): mark Task 5 microgrid aggregator completed`
+- [x] Task 5: Facility Microgrid Energy Aggregator & Peak Shaver
+  - [x] 5.1 `feat(v2g): implement fleet battery capacity aggregation and facility base load modeling`
+  - [x] 5.2 `feat(v2g): implement transformer peak-shaving dispatch and islanded emergency backup`
+  - [x] 5.3 `test(v2g): verify microgrid peak shaving, transformer overload prevention, and islanding`
+  - [x] 5.4 `docs(progress): mark Task 5 microgrid aggregator completed`
 - [ ] Task 6: Tactical V2G Energy Dashboard & SLD Visualizer
   - [ ] 6.1 `feat(v2g): implement facility electrical single-line diagram and bay power flow rendering`
   - [ ] 6.2 `feat(v2g): implement microgrid telemetry HUD with load curves, tariffs, and revenue gauges`
