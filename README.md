@@ -46,6 +46,7 @@ the corresponding experiments have run.
 | Multi-floor facility topology, spiral ramp kinematics & elevator dispatch | Implemented | Multi-level 3D graph routing, pitch dynamics ($F_g = mg \sin\theta$), spiral kinematics, single-lane ramp token arbiter, automated car lift scheduling with leveling interlocks, `nearfield360 floor`, and surround pipeline integration (`pipeline run --floor`) |
 | Facility access control, barrier gate interlocks & vehicle clearance enveloping | Implemented | ISO 23374 gateway operations, optical ALPR plate recognition, UWB digital credential validation, 3D vehicle clearance envelope profiling (headroom/width/ground clearance), 4-loop inductive safety interlocks ($0^\circ \to 90^\circ$ boom kinematics, UL 325 immediate safety reversal, anti-tailgating lockout), dual-panel BEV gateway map and HUD visualizer (`nearfield360 gate`), and surround pipeline integration (`pipeline run --gate`) |
 | Infrastructure cooperative perception, ETSI CPM dispatch & blind-spot fusion | Implemented | ISO 23374 Type 2/3 and ETSI TR 103 562 Collective Perception Service (CPM), stationary Roadside Perception Units (RPUs) with 3D LiDAR/radar/fisheye, kinematic latency extrapolation, track-to-track Covariance Intersection (CI), line-of-sight raycasting & pillar occlusion shadows, preemptive collision warnings, dual-panel tactical BEV/HUD dashboard (`nearfield360 coop`), and surround pipeline runner integration (`pipeline run --coop`) |
+| Vehicle-to-Grid (V2G) bi-directional power flow, peak-shaving arbitrage & smart inverter telemetry | Implemented | ISO 15118-20 (Bi-directional Power Transfer / BPT) and OCPP 2.0.1 (SmartCharging), bi-directional AC/DC conversion with quadratic loss models, frequency-watt droop response, voltage-VAR reactive compensation, multi-interval dynamic arbitrage with customer departure reserve guarantees and battery degradation penalties ($C_{\text{deg}}$), facility microgrid load balancing with peak shaving and islanded emergency backup, electrical Single-Line Diagram (SLD) visualizer (`nearfield360 v2g`), and surround pipeline runner integration (`pipeline run --v2g`) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -1026,7 +1027,44 @@ Execute the integrated four-camera surround perception pipeline with cooperative
 uv run nearfield360 pipeline run --root data/woodscape --output outputs/pipeline_coop.json --coop
 ```
 
+### Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Peak-Shaving Arbitrage & Inverter Telemetry (ISO 15118-20 / OCPP 2.0.1)
 
+Inspect vehicle-to-grid configuration, transformer ratings, droop gains, and operational limits:
+
+```powershell
+uv run nearfield360 v2g info
+uv run nearfield360 v2g info --json
+```
+
+Simulate smart inverter bidirectional power transfer, conversion efficiency, and IEEE 1547 frequency droop:
+
+```powershell
+uv run nearfield360 v2g schedule --power-kw 22.0 --discharge --frequency-hz 49.80 --output outputs/inverter_telemetry.json
+```
+
+Generate multi-interval dynamic energy arbitrage schedule with departure SoC guarantees and battery degradation penalties:
+
+```powershell
+uv run nearfield360 v2g arbitrage --departure-hours 4.0 --target-soc 0.85 --capacity-kwh 80.0 --initial-soc 0.70 --output outputs/arbitrage_schedule.json
+```
+
+Render facility electrical Single-Line Diagram (SLD) and microgrid telemetry HUD:
+
+```powershell
+uv run nearfield360 v2g render --png outputs/v2g_microgrid_sld.png
+```
+
+Run comprehensive ISO 15118-20 / OCPP 2.0.1 operational, safety, and peak-shaving microgrid audit:
+
+```powershell
+uv run nearfield360 v2g audit --output outputs/v2g_audit.json
+```
+
+Execute the integrated four-camera surround perception pipeline with V2G microgrid energy dispatch and peak shaving:
+
+```powershell
+uv run nearfield360 pipeline run --root data/woodscape --output outputs/pipeline_v2g.json --v2g
+```
 
 ## License
 
