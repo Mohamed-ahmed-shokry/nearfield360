@@ -2421,7 +2421,7 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
 
 ## Phase 35: Vehicle-to-Grid (V2G) Bi-Directional Power Flow, Peak-Shaving Arbitrage & Automated Inverter Telemetry (ISO 15118-20 / OCPP 2.0.1)
 
-**Status:** In Progress
+**Status:** Completed
 **Repository Branch:** `phase/v2g-bidirectional-power-flow`
 
 ### 1. Milestone Objectives & Scope
@@ -2479,8 +2479,58 @@ Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dyna
   - [x] 7.5 `test(cli): verify v2g CLI commands, JSON payloads, and visual outputs`
   - [x] 7.6 `test(pipeline): verify pipeline v2g integration workflow`
   - [x] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
-- [ ] Task 8: End-to-End Documentation, Self-Review & Delivery
-  - [ ] 8.1 `docs: update README with Phase 35 vehicle-to-grid power flow usage examples`
-  - [ ] 8.2 `docs(progress): document completed Phase 35 milestone, Decision Log, and verification gates`
-  - [ ] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
-  - [ ] 8.4 `docs(roadmap): mark Phase 35 fully completed and all acceptance criteria met`
+- [x] Task 8: End-to-End Documentation, Self-Review & Delivery
+  - [x] 8.1 `docs: update README with Phase 35 vehicle-to-grid power flow usage examples`
+  - [x] 8.2 `docs(progress): document completed Phase 35 milestone, Decision Log, and verification gates`
+  - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+  - [x] 8.4 `docs(roadmap): mark Phase 35 fully completed and all acceptance criteria met`
+
+### 3. Decision Log
+
+1. **Decision**: Explicit `V2GConfig` with Strict Bounds, Transformer Limits, and Degradation Penalties
+   - *Alternatives Considered*: Reusing existing `ChargingConfig` or hardcoding parameters in microgrid modules.
+   - *Rationale & Evidence*: While unidirectional EV charging (`ChargingConfig`) schedules energy delivery to vehicles, Vehicle-to-Grid (V2G) fundamentally changes power flow dynamics: energy can flow from vehicle traction batteries back into the facility and grid. V2G requires explicit transformer limit protection, IEEE 1547 frequency droop constants, customer departure SoC reservation guarantees, and battery electrochemical degradation cost models ($C_{\text{deg}}$). Isolating `V2GConfig` ensures clean separation of concerns and deterministic safety enforcement.
+
+2. **Decision**: ISO 15118-20 / OCPP 2.0.1 Bidirectional Power Transfer & Smart Inverter Conversion Model
+   - *Alternatives Considered*: Idealized lossless DC battery simulation without AC inverter conversion losses.
+   - *Rationale & Evidence*: Real-world bidirectional inverters incur non-linear switching, conduction, and transformer core losses ($\eta \in [0.92, 0.98]$). Charging draws AC power from the grid ($P_{\text{dc}} = P_{\text{ac}} \times \eta$), whereas discharging injects AC power back to the grid ($P_{\text{dc}} = P_{\text{ac}} / \eta$). Modeling asymmetric bidirectional conversion ensures accurate battery state-of-charge tracking and prevents overestimating available export power.
+
+3. **Decision**: IEEE 1547-2018 Frequency-Watt Droop Response and Voltage-VAR Reactive Compensation
+   - *Alternatives Considered*: Constant active power dispatch ignoring grid frequency fluctuations.
+   - *Rationale & Evidence*: Modern smart inverters interfaced with commercial microgrids must support grid stability under IEEE 1547. When grid frequency rises above nominal ($f > 50.0 + 0.036$ Hz deadband), discharging active power is curtailed or charging power increased. Conversely, under-frequency conditions trigger rapid active power boost (up to 25.0 kW/Hz gain). Voltage-VAR control dynamically provides capacitive/inductive reactive power up to apparent power limits ($\sqrt{S^2 - P^2}$) without exceeding rated kVA.
+
+4. **Decision**: Degradation-Constrained Arbitrage with Strict Departure SoC Guarantees
+   - *Alternatives Considered*: Pure greedy price arbitrage that discharges customer batteries to near-zero whenever spot prices spike.
+   - *Rationale & Evidence*: Customer trust is paramount in automated valet parking operations. Discharging is strictly forbidden if the resulting state of charge would compromise the user's required departure reserve ($\text{SoC} < \text{SoC}_{\text{target}}$). Furthermore, discharging only occurs when the tariff export spread exceeds round-trip conversion losses plus battery degradation cost ($\text{ExportPrice} - C_{\text{deg}} > \text{ImportPrice}_{\min} / \eta_{\text{rt}}$), guaranteeing net economic profitability while protecting cell chemistry.
+
+5. **Decision**: Multi-Bay Facility Microgrid Aggregator & Transformer Overload Shaving
+   - *Alternatives Considered*: Decentralized independent bay control without facility-level coordination.
+   - *Rationale & Evidence*: Commercial parking facilities have hard transformer import limits (e.g., 500 kW). When baseline facility building demand and solar PV generation fluctuate, a centralized microgrid aggregator aggregates connected fleet battery capacity and dispatches coordinated discharge quotas to connected bays. This caps peak utility demand at the 350 kW target, eliminating costly utility demand charges. In the event of grid blackout, islanded mode coordinates vehicle batteries to sustain critical life-safety and lighting circuits.
+
+6. **Decision**: Dual-Panel Single-Line Diagram (SLD) & Tactical Telemetry HUD Visualizer
+   - *Alternatives Considered*: Tabular console printing or single-curve load charts.
+   - *Rationale & Evidence*: Power systems engineering relies on Single-Line Diagrams (SLD) depicting utility grid feeders, main circuit breakers, facility transformers, busbars, solar PV inverters, and connected EV charging/discharging bays with directional color-coded arrows (green for charging, amber for discharging, blue for standby). Pairing the SLD with a real-time HUD showing load duration curves, Time-of-Use tariffs, transformer utilization gauges, and net revenue counters delivers an intuitive operator experience for facility management.
+
+7. **Decision**: Unified Pipeline `--v2g` Flag and Release Audit Surface Expansion to 27 Command Groups
+   - *Alternatives Considered*: Standalone V2G CLI command without pipeline integration.
+   - *Rationale & Evidence*: Integrating `--v2g/--no-v2g` directly into `nearfield360 pipeline run` allows four-camera surround perception cycles to simulate simultaneous facility microgrid dispatch, battery capacity aggregation, and peak-shaving execution during active vehicle operations. Updating the release audit to enforce 27 CLI groups guarantees release readiness and prevents command group regressions.
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| V2G Config Defaults & Overrides | `uv run pytest tests/unit/test_config.py` | 90 passed |
+| V2G Domain Models & Serialization | `uv run pytest tests/unit/v2g/test_v2g_models.py` | 5 passed |
+| Smart Inverter Conversion & Droop | `uv run pytest tests/unit/v2g/test_inverter.py` | 5 passed |
+| Dynamic Arbitrage & Departure SoC | `uv run pytest tests/unit/v2g/test_arbitrage.py` | 5 passed |
+| Microgrid Aggregator & Peak Shaving | `uv run pytest tests/unit/v2g/test_microgrid.py` | 5 passed |
+| Single-Line Diagram & HUD Visualizer | `uv run pytest tests/unit/v2g/test_v2g_viz.py` | 3 passed |
+| V2G CLI Commands & Payloads | `uv run pytest tests/unit/test_v2g_cli.py` | 5 passed |
+| Pipeline Runner V2G Integration | `uv run pytest tests/unit/test_pipeline_v2g.py` | 2 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 27 groups passed |
+| Full Test Suite | `uv run pytest -q` | 1430 passed, 5 skipped |
+| Ruff Linting | `uv run ruff check .` | 0 errors |
+| Ruff Formatting | `uv run ruff format --check .` | 365 files formatted |
+| Mypy Strict Typing | `uv run mypy` | 0 errors in 191 source files |
+| Package Build Artifacts | `uv build` | Wheel & sdist built |
+| Remote GitHub Actions CI | `gh run list --branch phase/v2g-bidirectional-power-flow` | 100% Green |
