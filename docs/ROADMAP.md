@@ -1201,46 +1201,46 @@ Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dyna
 ### 6. Task List & Micro-Commit Plan
 
 1. **Task 1: Roadmap & V2G Configuration Foundation**
-   - [ ] 1.1 `docs(roadmap): establish Phase 35 vehicle-to-grid bidirectional power flow roadmap`
-   - [ ] 1.2 `feat(config): add V2GConfig and update default yaml configuration`
-   - [ ] 1.3 `test(config): add unit tests for V2GConfig validation and environment overrides`
-   - [ ] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
+   - [x] 1.1 `docs(roadmap): establish Phase 35 vehicle-to-grid bidirectional power flow roadmap`
+   - [x] 1.2 `feat(config): add V2GConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for V2GConfig validation and environment overrides`
+   - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
 2. **Task 2: V2G Domain Models & Telemetry Schemas**
-   - [ ] 2.1 `feat(v2g): implement V2G power mode, inverter phase, and tariff window models`
-   - [ ] 2.2 `feat(v2g): implement vehicle BPT profile and smart inverter telemetry models`
-   - [ ] 2.3 `feat(v2g): implement arbitrage schedule and microgrid facility report models`
-   - [ ] 2.4 `test(v2g): verify V2G domain models, constraints, and JSON serialization`
-   - [ ] 2.5 `docs(progress): mark Task 2 domain models completed`
+   - [x] 2.1 `feat(v2g): implement V2G power mode, inverter phase, and tariff window models`
+   - [x] 2.2 `feat(v2g): implement vehicle BPT profile and smart inverter telemetry models`
+   - [x] 2.3 `feat(v2g): implement arbitrage schedule and microgrid facility report models`
+   - [x] 2.4 `test(v2g): verify V2G domain models, constraints, and JSON serialization`
+   - [x] 2.5 `docs(progress): mark Task 2 domain models completed`
 3. **Task 3: Smart Inverter Controller & Droop Response**
-   - [ ] 3.1 `feat(v2g): implement smart inverter AC/DC conversion and bidirectional power transfer`
-   - [ ] 3.2 `feat(v2g): implement frequency-watt droop response and voltage-VAR reactive compensation`
-   - [ ] 3.3 `test(v2g): verify inverter conversion efficiency, frequency droop, and reactive power`
-   - [ ] 3.4 `docs(progress): mark Task 3 smart inverter controller completed`
+   - [x] 3.1 `feat(v2g): implement smart inverter AC/DC conversion and bidirectional power transfer`
+   - [x] 3.2 `feat(v2g): implement frequency-watt droop response and voltage-VAR reactive compensation`
+   - [x] 3.3 `test(v2g): verify inverter conversion efficiency, frequency droop, and reactive power`
+   - [x] 3.4 `docs(progress): mark Task 3 smart inverter controller completed`
 4. **Task 4: Dynamic Arbitrage & Degradation-Constrained Scheduler**
-   - [ ] 4.1 `feat(v2g): implement time-of-use economic evaluation and battery degradation penalty`
-   - [ ] 4.2 `feat(v2g): implement multi-interval arbitrage scheduler with departure SoC guarantee`
-   - [ ] 4.3 `test(v2g): verify arbitrage schedule optimization, degradation avoidance, and departure SoC`
-   - [ ] 4.4 `docs(progress): mark Task 4 arbitrage scheduler completed`
+   - [x] 4.1 `feat(v2g): implement time-of-use economic evaluation and battery degradation penalty`
+   - [x] 4.2 `feat(v2g): implement multi-interval arbitrage scheduler with departure SoC guarantee`
+   - [x] 4.3 `test(v2g): verify arbitrage schedule optimization, degradation avoidance, and departure SoC`
+   - [x] 4.4 `docs(progress): mark Task 4 arbitrage scheduler completed`
 5. **Task 5: Facility Microgrid Energy Aggregator & Peak Shaver**
-   - [ ] 5.1 `feat(v2g): implement fleet battery capacity aggregation and facility base load modeling`
-   - [ ] 5.2 `feat(v2g): implement transformer peak-shaving dispatch and islanded emergency backup`
-   - [ ] 5.3 `test(v2g): verify microgrid peak shaving, transformer overload prevention, and islanding`
-   - [ ] 5.4 `docs(progress): mark Task 5 microgrid aggregator completed`
+   - [x] 5.1 `feat(v2g): implement fleet battery capacity aggregation and facility base load modeling`
+   - [x] 5.2 `feat(v2g): implement transformer peak-shaving dispatch and islanded emergency backup`
+   - [x] 5.3 `test(v2g): verify microgrid peak shaving, transformer overload prevention, and islanding`
+   - [x] 5.4 `docs(progress): mark Task 5 microgrid aggregator completed`
 6. **Task 6: Tactical V2G Energy Dashboard & SLD Visualizer**
-   - [ ] 6.1 `feat(v2g): implement facility electrical single-line diagram and bay power flow rendering`
-   - [ ] 6.2 `feat(v2g): implement microgrid telemetry HUD with load curves, tariffs, and revenue gauges`
-   - [ ] 6.3 `test(v2g): verify V2G visualizer exports valid PNG artifacts`
-   - [ ] 6.4 `docs(progress): mark Task 6 V2G visualizer completed`
+   - [x] 6.1 `feat(v2g): implement facility electrical single-line diagram and bay power flow rendering`
+   - [x] 6.2 `feat(v2g): implement microgrid telemetry HUD with load curves, tariffs, and revenue gauges`
+   - [x] 6.3 `test(v2g): verify V2G visualizer exports valid PNG artifacts`
+   - [x] 6.4 `docs(progress): mark Task 6 V2G visualizer completed`
 7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
-   - [ ] 7.1 `feat(v2g): export public V2G API from package init`
-   - [ ] 7.2 `feat(cli): implement nearfield360 v2g command group (info, schedule, arbitrage, render, audit)`
-   - [ ] 7.3 `feat(cli): register v2g CLI group and update release audit expected count to 27`
-   - [ ] 7.4 `feat(pipeline): integrate --v2g options into surround pipeline runner`
-   - [ ] 7.5 `test(cli): verify v2g CLI commands, JSON payloads, and visual outputs`
-   - [ ] 7.6 `test(pipeline): verify pipeline v2g integration workflow`
-   - [ ] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
+   - [x] 7.1 `feat(v2g): export public V2G API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 v2g command group (info, schedule, arbitrage, render, audit)`
+   - [x] 7.3 `feat(cli): register v2g CLI group and update release audit expected count to 27`
+   - [x] 7.4 `feat(pipeline): integrate --v2g options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify v2g CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline v2g integration workflow`
+   - [x] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
 8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
-   - [ ] 8.1 `docs: update README with Phase 35 vehicle-to-grid power flow usage examples`
-   - [ ] 8.2 `docs(progress): document completed Phase 35 milestone, Decision Log, and verification gates`
-   - [ ] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
-   - [ ] 8.4 `docs(roadmap): mark Phase 35 fully completed and all acceptance criteria met`
+   - [x] 8.1 `docs: update README with Phase 35 vehicle-to-grid power flow usage examples`
+   - [x] 8.2 `docs(progress): document completed Phase 35 milestone, Decision Log, and verification gates`
+   - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [x] 8.4 `docs(roadmap): mark Phase 35 fully completed and all acceptance criteria met`
