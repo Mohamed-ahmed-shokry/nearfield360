@@ -2471,14 +2471,14 @@ Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dyna
   - [x] 6.2 `feat(v2g): implement microgrid telemetry HUD with load curves, tariffs, and revenue gauges`
   - [x] 6.3 `test(v2g): verify V2G visualizer exports valid PNG artifacts`
   - [x] 6.4 `docs(progress): mark Task 6 V2G visualizer completed`
-- [ ] Task 7: Package Exports, CLI Command Group & Pipeline Integration
-  - [ ] 7.1 `feat(v2g): export public V2G API from package init`
-  - [ ] 7.2 `feat(cli): implement nearfield360 v2g command group (info, schedule, arbitrage, render, audit)`
-  - [ ] 7.3 `feat(cli): register v2g CLI group and update release audit expected count to 27`
-  - [ ] 7.4 `feat(pipeline): integrate --v2g options into surround pipeline runner`
-  - [ ] 7.5 `test(cli): verify v2g CLI commands, JSON payloads, and visual outputs`
-  - [ ] 7.6 `test(pipeline): verify pipeline v2g integration workflow`
-  - [ ] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
+- [x] Task 7: Package Exports, CLI Command Group & Pipeline Integration
+  - [x] 7.1 `feat(v2g): export public V2G API from package init`
+  - [x] 7.2 `feat(cli): implement nearfield360 v2g command group (info, schedule, arbitrage, render, audit)`
+  - [x] 7.3 `feat(cli): register v2g CLI group and update release audit expected count to 27`
+  - [x] 7.4 `feat(pipeline): integrate --v2g options into surround pipeline runner`
+  - [x] 7.5 `test(cli): verify v2g CLI commands, JSON payloads, and visual outputs`
+  - [x] 7.6 `test(pipeline): verify pipeline v2g integration workflow`
+  - [x] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
 - [ ] Task 8: End-to-End Documentation, Self-Review & Delivery
   - [ ] 8.1 `docs: update README with Phase 35 vehicle-to-grid power flow usage examples`
   - [ ] 8.2 `docs(progress): document completed Phase 35 milestone, Decision Log, and verification gates`
