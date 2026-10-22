@@ -639,6 +639,16 @@ def run_pipeline(
             ),
         ),
     ] = False,
+    v2g: Annotated[
+        bool,
+        typer.Option(
+            "--v2g/--no-v2g",
+            help=(
+                "Simulate Vehicle-to-Grid (V2G) bidirectional power transfer, peak-shaving "
+                "arbitrage, and microgrid telemetry (ISO 15118-20 / OCPP 2.0.1)."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Run health, occupancy fusion, tracking, and risk over complete four-camera frames."""
     config = get_state(context).config
@@ -1400,6 +1410,36 @@ def run_pipeline(
         }
         timings["coop_ms"] = (time.perf_counter() - coop_stage_start) * 1000.0
 
+    v2g_payload: dict[str, Any] | None = None
+    if v2g:
+        v2g_stage_start = time.perf_counter()
+        from nearfield360.v2g.microgrid import (
+            FacilityMicrogridManager,
+            create_default_demonstrator_fleet,
+        )
+
+        v2g_manager = FacilityMicrogridManager(config=config.v2g)
+        demonstrator_fleet = create_default_demonstrator_fleet()
+        for idx, veh in enumerate(demonstrator_fleet):
+            v2g_manager.connect_vehicle(f"BAY-{idx + 1:02d}", veh)
+
+        v2g_report = v2g_manager.run_facility_simulation()
+        v2g_elapsed_ms = (time.perf_counter() - v2g_stage_start) * 1000.0
+
+        v2g_payload = {
+            "status": "COMPLETED",
+            "connected_bays": v2g_report.total_bays_connected,
+            "total_battery_capacity_kwh": v2g_report.total_battery_capacity_kwh,
+            "available_flexible_energy_kwh": v2g_report.available_flexible_energy_kwh,
+            "baseline_facility_peak_kw": v2g_report.baseline_facility_peak_kw,
+            "peak_shaved_demand_kw": v2g_report.peak_shaved_demand_kw,
+            "transformer_utilization_percent": v2g_report.transformer_utilization_percent,
+            "net_arbitrage_profit_dollars": v2g_report.net_arbitrage_profit_dollars,
+            "carbon_offset_kg": v2g_report.carbon_offset_kg,
+            "latency_ms": v2g_elapsed_ms,
+        }
+        timings["v2g_ms"] = v2g_elapsed_ms
+
     timings["total_ms"] = (time.perf_counter() - total_start) * 1000.0
 
     samples_payload: dict[str, Any] = {
@@ -1441,6 +1481,8 @@ def run_pipeline(
         samples_payload["gate"] = True
     if coop:
         samples_payload["coop"] = True
+    if v2g:
+        samples_payload["v2g"] = True
     if health_aware:
         samples_payload["health_aware"] = True
     if seg_model is not None:
@@ -1526,6 +1568,8 @@ def run_pipeline(
         payload["gate"] = gate_payload
     if coop_payload is not None:
         payload["coop"] = coop_payload
+    if v2g_payload is not None:
+        payload["v2g"] = v2g_payload
     if health_aware:
         payload["health"] = [r.model_dump(mode="json") for r in health_reports]
 
@@ -1590,6 +1634,13 @@ def run_pipeline(
             f"Coop complete: {c_telem['active_rpus']} RPUs active, "
             f"{c_telem['fused_track_count']} fused tracks, "
             f"{c_telem['blind_spot_hazard_count']} blind spot hazards."
+        )
+    if v2g and v2g_payload is not None:
+        typer.echo(
+            f"V2G complete: {v2g_payload['connected_bays']} bays, "
+            f"{v2g_payload['available_flexible_energy_kwh']:.1f} kWh flex, "
+            f"+${v2g_payload['net_arbitrage_profit_dollars']:.2f} profit, "
+            f"{v2g_payload['transformer_utilization_percent']:.1f}% xfmr util."
         )
     if summary["intrusions_detected"]:
         typer.secho(

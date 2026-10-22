@@ -992,3 +992,48 @@ def test_coop_config_rejects_excessive_latency(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 5"):
         load_config(config_path)
+
+
+def test_v2g_config_defaults() -> None:
+    config = load_config()
+
+    assert config.v2g.facility_transformer_limit_kw == 500.0
+    assert config.v2g.peak_shaving_target_kw == 350.0
+    assert config.v2g.min_departure_reserve_soc == 0.60
+    assert config.v2g.max_discharge_power_kw == 22.0
+    assert config.v2g.max_charge_power_kw == 50.0
+    assert config.v2g.battery_degradation_penalty_per_kwh == 0.04
+    assert config.v2g.grid_frequency_nominal_hz == 50.0
+    assert config.v2g.frequency_droop_gain_kw_per_hz == 25.0
+    assert config.v2g.arbitrage_interval_minutes == 15
+
+
+def test_v2g_config_environment_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("v2g:\n  facility_transformer_limit_kw: 750.0\n", encoding="utf-8")
+    monkeypatch.setenv("NEARFIELD360_V2G__PEAK_SHAVING_TARGET_KW", "420.0")
+    monkeypatch.setenv("NEARFIELD360_V2G__MIN_DEPARTURE_RESERVE_SOC", "0.75")
+    monkeypatch.setenv("NEARFIELD360_V2G__MAX_DISCHARGE_POWER_KW", "30.0")
+
+    config = load_config(config_path)
+
+    assert config.v2g.facility_transformer_limit_kw == 750.0
+    assert config.v2g.peak_shaving_target_kw == 420.0
+    assert config.v2g.min_departure_reserve_soc == 0.75
+    assert config.v2g.max_discharge_power_kw == 30.0
+
+
+def test_v2g_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("v2g:\n  facility_transformer_limit_kw: -50.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)
+
+
+def test_v2g_config_rejects_invalid_soc(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("v2g:\n  min_departure_reserve_soc: 1.5\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 1"):
+        load_config(config_path)

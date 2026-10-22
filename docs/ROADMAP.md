@@ -1115,3 +1115,132 @@ Deliver an end-to-end Infrastructure Cooperative Perception and Blind-Spot Occlu
    - [x] 9.2 `docs(progress): document completed Phase 34 milestone, Decision Log, and verification gates`
    - [x] 9.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
    - [x] 9.4 `docs(roadmap): mark Phase 34 fully completed and all acceptance criteria met`
+
+---
+
+## Phase 35: Vehicle-to-Grid (V2G) Bi-Directional Power Flow, Peak-Shaving Arbitrage & Automated Inverter Telemetry (ISO 15118-20 / OCPP 2.0.1)
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dynamic Peak-Shaving Arbitrage, and Smart Inverter Microgrid Telemetry subsystem for NearField360, conforming to ISO 15118-20 (Bi-directional Power Transfer / BPT) and OCPP 2.0.1 (SmartCharging Profiles). In automated valet parking facilities hosting large fleets of plugged-in electric vehicles, this system aggregates vehicle battery capacities into a virtual energy storage system (VESS/BESS). The engine models dynamic time-of-use (ToU) electricity tariffs, grid stress events, facility transformer peak thresholds, battery degradation cycle costs, and strict driver departure state-of-charge (SoC) reserves. During peak grid tariff hours or facility demand spikes, vehicles discharge power back into the facility microgrid (peak shaving) or earn export feed-in credits. During surplus generation or off-peak periods, vehicles charge rapidly. In an emergency grid outage, the facility operates in an islanded microgrid mode powered by fleet batteries.
+
+### 2. Scope
+
+- **Configuration (`V2GConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `facility_transformer_limit_kw`: Maximum facility transformer import power (e.g. 500.0 kW).
+  - `peak_shaving_target_kw`: Peak demand threshold above which discharging is triggered (e.g. 350.0 kW).
+  - `min_departure_reserve_soc`: Minimum battery state of charge guaranteed to customer at pickup (e.g. 0.60).
+  - `max_discharge_power_kw`: Maximum bi-directional discharge rate per AC/DC vehicle port (e.g. 22.0 kW).
+  - `max_charge_power_kw`: Maximum charge rate per port (e.g. 50.0 kW).
+  - `battery_degradation_penalty_per_kwh`: Cost per discharged kWh to account for Li-ion battery cycle aging (e.g. 0.04 $/kWh).
+  - `grid_frequency_nominal_hz`: Nominal AC grid frequency (e.g. 50.0 Hz).
+  - `frequency_droop_gain_kw_per_hz`: Droop response sensitivity for primary frequency support (e.g. 25.0 kW/Hz).
+  - `arbitrage_interval_minutes`: Temporal resolution for energy dispatch scheduling (e.g. 15 min).
+- **Domain Models & V2G Protocol Schemas (`src/nearfield360/v2g/models.py`)**:
+  - `V2GPowerMode` Enum: `STANDBY`, `CHARGE`, `DISCHARGE_PEAK_SHAVE`, `DISCHARGE_FREQUENCY_SUPPORT`, `ISLANDED_BACKUP`.
+  - `InverterPhase` Enum: `SINGLE_PHASE`, `THREE_PHASE`.
+  - `GridTariffWindow`: `start_hour`, `end_hour`, `import_price_per_kwh`, `export_price_per_kwh`, `carbon_intensity_g_per_kwh`.
+  - `VehicleBPTProfile`: `vehicle_id`, `battery_capacity_kwh`, `current_soc`, `min_departure_soc`, `max_discharge_kw`, `max_charge_kw`, `arrival_hour`, `departure_hour`, `degradation_cost_factor`.
+  - `InverterTelemetry`: `inverter_id`, `phase`, `active_power_kw`, `reactive_power_kvar`, `grid_frequency_hz`, `voltage_rms`, `dc_bus_voltage_v`, `efficiency_percent`, `timestamp`.
+  - `V2GTimeSlotDispatch`: `slot_index`, `hour`, `power_mode`, `active_power_kw`, `soc_end`, `import_tariff`, `export_tariff`, `cost_or_revenue_delta`.
+  - `V2GArbitrageSchedule`: `vehicle_id`, `dispatches`, `total_energy_charged_kwh`, `total_energy_discharged_kwh`, `net_cost_dollars`, `net_revenue_dollars`, `net_profit_dollars`, `final_soc`, `min_departure_soc_met`.
+  - `MicrogridFacilityReport`: `total_bays_connected`, `total_battery_capacity_kwh`, `available_flexible_energy_kwh`, `baseline_facility_peak_kw`, `peak_shaved_demand_kw`, `transformer_utilization_percent`, `net_arbitrage_profit_dollars`, `carbon_offset_kg`, `schedules`, `is_islanded`.
+- **Smart Inverter Controller & Droop Response (`src/nearfield360/v2g/inverter.py`)**:
+  - Bidirectional AC/DC power conversion efficiency curve with thermal losses.
+  - Frequency-Watt ($P(f)$) droop curve modulating active power during grid frequency excursions.
+  - Voltage-VAR ($Q(V)$) reactive power compensation maintaining facility power factor.
+- **Dynamic Arbitrage & Degradation-Constrained Scheduler (`src/nearfield360/v2g/arbitrage.py`)**:
+  - Multi-interval economic optimization over the vehicle dwell horizon.
+  - Strict enforcement of driver departure reserve SoC and cycle degradation economic break-even.
+- **Facility Microgrid Energy Aggregator & Peak Shaver (`src/nearfield360/v2g/microgrid.py`)**:
+  - Aggregates multi-vehicle fleet batteries into a unified Virtual Power Plant (VPP).
+  - Peak-shaving dispatch preventing facility transformer overload.
+  - Islanded emergency backup mode during grid outages.
+- **Tactical V2G Energy Dashboard & SLD Visualizer (`src/nearfield360/v2g/viz.py`)**:
+  - Dual-panel layout:
+    - Left panel: Facility electrical single-line diagram (SLD) showing transformer, AC bus, solar PV, and parking bays with directional power vectors (blue charging, amber discharging).
+    - Right panel: Microgrid energy HUD with transformer load curve, ToU tariff schedule, fleet SoC distribution, cumulative arbitrage revenue, and grid stability gauges.
+- **Package Exports, CLI Command Group & Surround Pipeline Integration (`src/nearfield360/v2g/__init__.py`, `src/nearfield360/cli/v2g.py`, `src/nearfield360/cli/pipeline.py`)**:
+  - Public symbols exported in `src/nearfield360/v2g/__init__.py`.
+  - Dedicated CLI group: `nearfield360 v2g` with subcommands: `info`, `schedule`, `arbitrage`, `render`, `audit`.
+  - Register `v2g` CLI command group in `src/nearfield360/cli/app.py`.
+  - Update release audit in `src/nearfield360/cli/release.py` to expect 27 command groups.
+  - Pipeline runner integration: `nearfield360 pipeline run --v2g` / `--no-v2g`.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, inverter controller, arbitrage scheduler, microgrid aggregator, visualizer, CLI commands, and pipeline integration.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `V2GConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for V2G power modes, tariff windows, vehicle BPT profiles, inverter telemetry, and arbitrage schedules | `uv run pytest tests/unit/v2g/test_v2g_models.py` |
+| AC-3 | `SmartInverter` computes bidirectional conversion, frequency-watt droop response, and reactive power compensation | `uv run pytest tests/unit/v2g/test_inverter.py` |
+| AC-4 | `ArbitrageScheduler` optimizes charging/discharging intervals, prevents unprofitable degradation, and guarantees departure reserve SoC | `uv run pytest tests/unit/v2g/test_arbitrage.py` |
+| AC-5 | `FacilityMicrogridManager` aggregates fleet capacity, caps transformer peak load, and supports islanded emergency operation | `uv run pytest tests/unit/v2g/test_microgrid.py` |
+| AC-6 | Tactical V2G energy visualizer renders facility electrical SLD, active bay power flows, and telemetry HUD to valid PNG | `uv run pytest tests/unit/v2g/test_v2g_viz.py` |
+| AC-7 | Dedicated CLI command group `nearfield360 v2g` executes `info`, `schedule`, `arbitrage`, `render`, and `audit` | `uv run pytest tests/unit/test_v2g_cli.py` |
+| AC-8 | Root CLI registers `v2g` command group, passing release audit with 27 groups | `uv run nearfield360 release audit` |
+| AC-9 | Surround pipeline runner integrates `--v2g` option and exports bidirectional power flow telemetry in report | `uv run pytest tests/unit/test_pipeline_v2g.py` |
+| AC-10 | All local CI-parity checks and remote CI workflow runs pass 100% | `uv run pytest`, `uv run mypy`, `uv run ruff check .`, `uv build` |
+
+### 4. Validation Plan
+
+1. Unit tests covering config, models, inverter, arbitrage, microgrid, viz, CLI, and pipeline.
+2. CLI integration tests verifying `nearfield360 v2g info`, `v2g schedule`, `v2g arbitrage`, `v2g render`, `v2g audit` with JSON/PNG outputs.
+3. Static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit: `uv run nearfield360 release audit`.
+5. Full test suite: `uv run pytest -q`.
+
+### 5. Exclusions
+
+- High-voltage DC contactor physical arc flash plasma simulation.
+- Real-time CAN bus ISO 15118-20 binary EXI packet deserialization on microcontroller hardware.
+- Wholesale electricity market automated bidding financial exchange API integrations.
+
+### 6. Task List & Micro-Commit Plan
+
+1. **Task 1: Roadmap & V2G Configuration Foundation**
+   - [x] 1.1 `docs(roadmap): establish Phase 35 vehicle-to-grid bidirectional power flow roadmap`
+   - [x] 1.2 `feat(config): add V2GConfig and update default yaml configuration`
+   - [x] 1.3 `test(config): add unit tests for V2GConfig validation and environment overrides`
+   - [x] 1.4 `docs(progress): mark Task 1 configuration foundation completed`
+2. **Task 2: V2G Domain Models & Telemetry Schemas**
+   - [x] 2.1 `feat(v2g): implement V2G power mode, inverter phase, and tariff window models`
+   - [x] 2.2 `feat(v2g): implement vehicle BPT profile and smart inverter telemetry models`
+   - [x] 2.3 `feat(v2g): implement arbitrage schedule and microgrid facility report models`
+   - [x] 2.4 `test(v2g): verify V2G domain models, constraints, and JSON serialization`
+   - [x] 2.5 `docs(progress): mark Task 2 domain models completed`
+3. **Task 3: Smart Inverter Controller & Droop Response**
+   - [x] 3.1 `feat(v2g): implement smart inverter AC/DC conversion and bidirectional power transfer`
+   - [x] 3.2 `feat(v2g): implement frequency-watt droop response and voltage-VAR reactive compensation`
+   - [x] 3.3 `test(v2g): verify inverter conversion efficiency, frequency droop, and reactive power`
+   - [x] 3.4 `docs(progress): mark Task 3 smart inverter controller completed`
+4. **Task 4: Dynamic Arbitrage & Degradation-Constrained Scheduler**
+   - [x] 4.1 `feat(v2g): implement time-of-use economic evaluation and battery degradation penalty`
+   - [x] 4.2 `feat(v2g): implement multi-interval arbitrage scheduler with departure SoC guarantee`
+   - [x] 4.3 `test(v2g): verify arbitrage schedule optimization, degradation avoidance, and departure SoC`
+   - [x] 4.4 `docs(progress): mark Task 4 arbitrage scheduler completed`
+5. **Task 5: Facility Microgrid Energy Aggregator & Peak Shaver**
+   - [x] 5.1 `feat(v2g): implement fleet battery capacity aggregation and facility base load modeling`
+   - [x] 5.2 `feat(v2g): implement transformer peak-shaving dispatch and islanded emergency backup`
+   - [x] 5.3 `test(v2g): verify microgrid peak shaving, transformer overload prevention, and islanding`
+   - [x] 5.4 `docs(progress): mark Task 5 microgrid aggregator completed`
+6. **Task 6: Tactical V2G Energy Dashboard & SLD Visualizer**
+   - [x] 6.1 `feat(v2g): implement facility electrical single-line diagram and bay power flow rendering`
+   - [x] 6.2 `feat(v2g): implement microgrid telemetry HUD with load curves, tariffs, and revenue gauges`
+   - [x] 6.3 `test(v2g): verify V2G visualizer exports valid PNG artifacts`
+   - [x] 6.4 `docs(progress): mark Task 6 V2G visualizer completed`
+7. **Task 7: Package Exports, CLI Command Group & Pipeline Integration**
+   - [x] 7.1 `feat(v2g): export public V2G API from package init`
+   - [x] 7.2 `feat(cli): implement nearfield360 v2g command group (info, schedule, arbitrage, render, audit)`
+   - [x] 7.3 `feat(cli): register v2g CLI group and update release audit expected count to 27`
+   - [x] 7.4 `feat(pipeline): integrate --v2g options into surround pipeline runner`
+   - [x] 7.5 `test(cli): verify v2g CLI commands, JSON payloads, and visual outputs`
+   - [x] 7.6 `test(pipeline): verify pipeline v2g integration workflow`
+   - [x] 7.7 `docs(progress): mark Task 7 package exports and CLI integration completed`
+8. **Task 8: End-to-End Documentation, Self-Review & Delivery**
+   - [x] 8.1 `docs: update README with Phase 35 vehicle-to-grid power flow usage examples`
+   - [x] 8.2 `docs(progress): document completed Phase 35 milestone, Decision Log, and verification gates`
+   - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
+   - [x] 8.4 `docs(roadmap): mark Phase 35 fully completed and all acceptance criteria met`

@@ -258,3 +258,13 @@ coop:
   occlusion_grid_resolution_m: 0.25
   rpu_broadcast_frequency_hz: 10.0
   track_covariance_inflation_factor: 1.25
+v2g:
+  facility_transformer_limit_kw: 500.0
+  peak_shaving_target_kw: 350.0
+  min_departure_reserve_soc: 0.60
+  max_discharge_power_kw: 22.0
+  max_charge_power_kw: 50.0
+  battery_degradation_penalty_per_kwh: 0.04
+  grid_frequency_nominal_hz: 50.0
+  frequency_droop_gain_kw_per_hz: 25.0
+  arbitrage_interval_minutes: 15
