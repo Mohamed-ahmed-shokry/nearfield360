@@ -268,3 +268,13 @@ v2g:
   grid_frequency_nominal_hz: 50.0
   frequency_droop_gain_kw_per_hz: 25.0
   arbitrage_interval_minutes: 15
+operations:
+  day_duration_hours: 24.0
+  simulation_time_step_s: 300.0
+  peak_morning_arrival_hour: 8.5
+  peak_evening_arrival_hour: 17.5
+  peak_arrivals_per_hour: 45.0
+  base_arrivals_per_hour: 6.0
+  parking_duration_mean_hours: 3.0
+  charging_activation_share: 0.30
+  billing_grace_minutes: 15

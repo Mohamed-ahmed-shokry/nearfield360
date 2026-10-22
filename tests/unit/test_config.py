@@ -1037,3 +1037,38 @@ def test_v2g_config_rejects_invalid_soc(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 1"):
         load_config(config_path)
+
+def test_operations_config_defaults() -> None:
+    config = load_config()
+
+    assert config.operations.day_duration_hours == 24.0
+    assert config.operations.simulation_time_step_s == 300.0
+    assert config.operations.peak_morning_arrival_hour == 8.5
+    assert config.operations.peak_evening_arrival_hour == 17.5
+    assert config.operations.peak_arrivals_per_hour == 45.0
+    assert config.operations.base_arrivals_per_hour == 6.0
+    assert config.operations.parking_duration_mean_hours == 3.0
+    assert config.operations.charging_activation_share == 0.30
+    assert config.operations.billing_grace_minutes == 15
+
+
+def test_operations_config_overrides(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "operations:\n  peak_arrivals_per_hour: 60.0\n  billing_grace_minutes: 30\n",
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.operations.peak_arrivals_per_hour == 60.0
+    assert config.operations.billing_grace_minutes == 30
+    assert config.operations.day_duration_hours == 24.0
+
+
+def test_operations_config_rejects_invalid_arrival_rate(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("operations:\n  peak_arrivals_per_hour: -5.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        load_config(config_path)

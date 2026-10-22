@@ -549,6 +549,24 @@ class V2GConfig(BaseModel):
     arbitrage_interval_minutes: int = Field(default=15, ge=1, le=60)
 
 
+class OperationsConfig(BaseModel):
+    """Parameters for coordinated day-level facility operations simulation
+    and cross-subsystem KPI aggregation.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    day_duration_hours: float = Field(default=24.0, gt=0.0, le=72.0, allow_inf_nan=False)
+    simulation_time_step_s: float = Field(default=300.0, ge=10.0, le=3600.0, allow_inf_nan=False)
+    peak_morning_arrival_hour: float = Field(default=8.5, gt=0.0, le=24.0, allow_inf_nan=False)
+    peak_evening_arrival_hour: float = Field(default=17.5, gt=0.0, le=24.0, allow_inf_nan=False)
+    peak_arrivals_per_hour: float = Field(default=45.0, gt=0.0, le=500.0, allow_inf_nan=False)
+    base_arrivals_per_hour: float = Field(default=6.0, ge=0.0, le=100.0, allow_inf_nan=False)
+    parking_duration_mean_hours: float = Field(default=3.0, gt=0.05, le=24.0, allow_inf_nan=False)
+    charging_activation_share: float = Field(default=0.30, ge=0.0, le=1.0, allow_inf_nan=False)
+    billing_grace_minutes: int = Field(default=15, ge=0, le=240)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -593,6 +611,7 @@ class ProjectConfig(BaseSettings):
     gate: GateConfig = Field(default_factory=GateConfig)
     coop: CoopConfig = Field(default_factory=CoopConfig)
     v2g: V2GConfig = Field(default_factory=V2GConfig)
+    operations: OperationsConfig = Field(default_factory=OperationsConfig)
 
     @classmethod
     def settings_customise_sources(
