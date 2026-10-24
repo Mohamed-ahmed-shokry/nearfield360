@@ -1290,10 +1290,10 @@ Local (mirrors `.github/workflows/ci.yml`): `uv lock --check`, `uv sync --locked
 
 1. [x] `docs(roadmap): plan Phase 36 facility operations control tower (item 27)` (README)
 2. [x] `feat(config): add OperationsConfig for day-level facility operations`
-3. [ ] Roadmap Phase 36 section, domain models completion and tests
-4. [ ] Demand generator and tests
-5. [ ] Simulator and tests
-6. [ ] KPI aggregation and tests
-7. [ ] Dashboard visualizer and tests
-8. [ ] Package exports, CLI group, registration, audit 28, tests
-9. [ ] README/PROGRESS docs, full CI-parity verification, push, draft PR
+3. [x] Roadmap Phase 36 section, domain models completion and tests
+4. [x] Demand generator and tests
+5. [x] Simulator and tests
+6. [x] KPI aggregation and tests
+7. [x] Dashboard visualizer and tests
+8. [x] Package exports, CLI group, registration, audit 28, tests
+9. [x] README/PROGRESS docs, full CI-parity verification, push, draft PR
