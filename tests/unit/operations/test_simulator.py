@@ -101,3 +101,53 @@ def test_energy_fee_nets_v2g_credit_and_never_negative() -> None:
     assert energy_fee_usd(10.0, 0.0) == 3.0
     assert energy_fee_usd(10.0, 5.0) == 2.4
     assert energy_fee_usd(1.0, 50.0) == 0.0
+
+
+def test_simulation_with_charging_and_v2g() -> None:
+    config = OperationsConfig()
+    # Arrival during V2G window (16:00 - 20:00 -> 17.0h = 61200s)
+    arrival_v2g = VehicleArrival(
+        vehicle_id="EV-CHG-1",
+        arrival_time_s=17.0 * 3600.0,
+        requested_dwell_hours=2.0,
+        requests_charging=True,
+    )
+    # Arrival outside V2G window (8:00 -> 28800s)
+    arrival_no_v2g = VehicleArrival(
+        vehicle_id="EV-CHG-2",
+        arrival_time_s=8.0 * 3600.0,
+        requested_dwell_hours=2.0,
+        requests_charging=True,
+    )
+    # Arrival with no charging
+    arrival_no_chg = VehicleArrival(
+        vehicle_id="EV-NOCHG",
+        arrival_time_s=8.0 * 3600.0,
+        requested_dwell_hours=2.0,
+        requests_charging=False,
+    )
+
+    journeys = simulate_journeys(
+        [arrival_v2g, arrival_no_v2g, arrival_no_chg], config, slot_capacity=10
+    )
+    j_map = {j.vehicle_id: j for j in journeys}
+    j_v2g = j_map["EV-CHG-1"]
+    j_no_v2g = j_map["EV-CHG-2"]
+    j_no_chg = j_map["EV-NOCHG"]
+
+    assert j_no_chg.charging_windows == 0
+    assert j_no_chg.energy_charged_kwh == 0.0
+    assert j_no_chg.energy_exported_kwh == 0.0
+    assert j_no_chg.energy_fee_usd == 0.0
+    assert j_no_chg.parking_fee_usd > 0.0
+
+    assert j_no_v2g.charging_windows == 1
+    assert j_no_v2g.energy_charged_kwh > 0.0
+    assert j_no_v2g.energy_exported_kwh == 0.0
+    assert j_no_v2g.energy_fee_usd > 0.0
+
+    assert j_v2g.charging_windows == 1
+    assert j_v2g.energy_charged_kwh > 0.0
+    assert j_v2g.energy_exported_kwh > 0.0
+    assert j_v2g.energy_fee_usd < j_no_v2g.energy_fee_usd
+
