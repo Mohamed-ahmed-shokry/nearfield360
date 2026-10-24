@@ -1038,6 +1038,7 @@ def test_v2g_config_rejects_invalid_soc(tmp_path: Path) -> None:
     with pytest.raises(ValidationError, match="less than or equal to 1"):
         load_config(config_path)
 
+
 def test_operations_config_defaults() -> None:
     config = load_config()
 

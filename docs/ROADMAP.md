@@ -1244,3 +1244,56 @@ Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dyna
    - [x] 8.2 `docs(progress): document completed Phase 35 milestone, Decision Log, and verification gates`
    - [x] 8.3 `test: verify full suite, strict typing, linting, formatting, coverage, and release audit`
    - [x] 8.4 `docs(roadmap): mark Phase 35 fully completed and all acceptance criteria met`
+
+
+## Phase 36: Facility Operations Control Tower, Coordinated Day-Run Simulation & Cross-Subsystem KPI Aggregation
+
+### 1. Objective & Expected Outcome
+
+Deliver a facility operations control tower that runs a seeded, deterministic day-level simulation of an automated valet parking facility and aggregates cross-subsystem KPIs. A stochastic demand generator (double-peaked arrival profile) feeds a coordinated simulator that moves each vehicle through gate arrival, slot dispatch, parking, optional charging window with V2G export, unparking, and settlement billing. The simulator emits hourly facility snapshots and a daily KPI report (throughput, peak occupancy, energy balance, revenue streams, service-level compliance). A unified dashboard PNG and the `nearfield360 ops` CLI group expose the result. The release audit then expects 28 CLI groups.
+
+### 2. Scope
+
+- **Configuration**: `OperationsConfig` in `src/nearfield360/config.py` and `configs/default.yaml` (done).
+- **Domain models (`src/nearfield360/operations/models.py`)**: `ServiceLevel`, `JourneyStage`, `VehicleArrival`, `VehicleJourneyRecord`, `HourlySnapshot`, `DailyKPIReport`, `OperationsDayReport`.
+- **Demand generator (`demand.py`)**: seeded, non-homogeneous Poisson arrivals with morning/evening Gaussian peaks over a base rate.
+- **Day-run simulator (`simulator.py`)**: capacity-constrained slot dispatch with queueing, blocked/degraded service levels, charging windows, V2G export energy, tariff-based energy fees and grace-period parking fees.
+- **KPI aggregation (`kpi.py`)**: hourly snapshots and the daily KPI report.
+- **Dashboard (`viz.py`)**: occupancy/arrival timeline, revenue and energy panels, service-level breakdown PNG.
+- **Package exports, CLI group `nearfield360 ops` (`info`, `simulate`, `render`, `audit`)**, registration in `app.py`, release audit expecting 28 groups.
+- **Verification suite**: unit tests for every module plus CLI tests.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `OperationsConfig` validated and present in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models validate inputs and round-trip JSON | `uv run pytest tests/unit/operations/test_operations_models.py` |
+| AC-3 | Demand generator is deterministic per seed and shows two arrival peaks | `uv run pytest tests/unit/operations/test_demand.py` |
+| AC-4 | Simulator conserves vehicles, respects capacity, and is deterministic per seed | `uv run pytest tests/unit/operations/test_simulator.py` |
+| AC-5 | KPI aggregation is consistent with journey records (revenue, energy, service levels) | `uv run pytest tests/unit/operations/test_kpi.py` |
+| AC-6 | Dashboard renders a valid PNG | `uv run pytest tests/unit/operations/test_operations_viz.py` |
+| AC-7 | `nearfield360 ops` executes `info`, `simulate`, `render`, `audit` | `uv run pytest tests/unit/test_ops_cli.py` |
+| AC-8 | Release audit passes with 28 groups | `uv run nearfield360 release audit` |
+| AC-9 | All local CI-parity checks and remote CI workflow runs pass 100% | pre-commit, `uv run pytest`, `uv build` |
+
+### 4. Validation & CI Plan
+
+Local (mirrors `.github/workflows/ci.yml`): `uv lock --check`, `uv sync --locked --group dev`, `uv run pre-commit run --all-files --show-diff-on-failure`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing --cov-report=xml`, `uv build`, `uv run twine check dist/*`. End-to-end: `nearfield360 ops simulate --seed 7 -o day.json --png day.png`.
+
+### 5. Exclusions
+
+- Surround pipeline integration (`pipeline run --ops`): deferred; the day-run is a facility-level simulation, not a per-frame perception concern.
+- Deep re-use of the fleet/charging/V2G engines inside the simulator: the simulator uses a compact analytic model of each subsystem (documented in the Decision Log) to stay deterministic and fast; engine-level co-simulation is a follow-up.
+
+### 6. Micro-Task Breakdown
+
+1. [x] `docs(roadmap): plan Phase 36 facility operations control tower (item 27)` (README)
+2. [x] `feat(config): add OperationsConfig for day-level facility operations`
+3. [ ] Roadmap Phase 36 section, domain models completion and tests
+4. [ ] Demand generator and tests
+5. [ ] Simulator and tests
+6. [ ] KPI aggregation and tests
+7. [ ] Dashboard visualizer and tests
+8. [ ] Package exports, CLI group, registration, audit 28, tests
+9. [ ] README/PROGRESS docs, full CI-parity verification, push, draft PR
