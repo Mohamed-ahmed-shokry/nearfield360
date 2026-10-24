@@ -47,6 +47,7 @@ the corresponding experiments have run.
 | Facility access control, barrier gate interlocks & vehicle clearance enveloping | Implemented | ISO 23374 gateway operations, optical ALPR plate recognition, UWB digital credential validation, 3D vehicle clearance envelope profiling (headroom/width/ground clearance), 4-loop inductive safety interlocks ($0^\circ \to 90^\circ$ boom kinematics, UL 325 immediate safety reversal, anti-tailgating lockout), dual-panel BEV gateway map and HUD visualizer (`nearfield360 gate`), and surround pipeline integration (`pipeline run --gate`) |
 | Infrastructure cooperative perception, ETSI CPM dispatch & blind-spot fusion | Implemented | ISO 23374 Type 2/3 and ETSI TR 103 562 Collective Perception Service (CPM), stationary Roadside Perception Units (RPUs) with 3D LiDAR/radar/fisheye, kinematic latency extrapolation, track-to-track Covariance Intersection (CI), line-of-sight raycasting & pillar occlusion shadows, preemptive collision warnings, dual-panel tactical BEV/HUD dashboard (`nearfield360 coop`), and surround pipeline runner integration (`pipeline run --coop`) |
 | Vehicle-to-Grid (V2G) bi-directional power flow, peak-shaving arbitrage & smart inverter telemetry | Implemented | ISO 15118-20 (Bi-directional Power Transfer / BPT) and OCPP 2.0.1 (SmartCharging), bi-directional AC/DC conversion with quadratic loss models, frequency-watt droop response, voltage-VAR reactive compensation, multi-interval dynamic arbitrage with customer departure reserve guarantees and battery degradation penalties ($C_{\text{deg}}$), facility microgrid load balancing with peak shaving and islanded emergency backup, electrical Single-Line Diagram (SLD) visualizer (`nearfield360 v2g`), and surround pipeline runner integration (`pipeline run --v2g`) |
+| Facility operations control tower, coordinated day-run simulation & cross-subsystem KPI aggregation | Implemented | Seeded stochastic arrival demand generator, coordinated day-level simulation orchestrating gate arrivals, slot dispatch, EV charging windows, V2G export and settlement billing, hourly facility snapshots, daily cross-subsystem KPI aggregation, unified tactical dashboard visualizer (`nearfield360 ops`), and release audit verification (28 CLI groups) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -533,8 +534,10 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     V2X/V2I message schemas (`V2XMessage`, `VehicleHeartbeat`, `DispatchAssignment`), dynamic slot reservation dispatcher (`SlotDispatcher`) with distance/congestion scoring and lease expirations, 4D spatiotemporal deconfliction engine (`DeconflictionEngine`) detecting swept-volume overlaps and computing priority yield actions, centralized fleet coordinator & discrete-time simulator (`FleetCoordinator`) with stochastic packet loss modeling, multi-vehicle BEV coordination dashboard (`viz.py`), dedicated CLI command group `nearfield360 fleet` (`info`, `dispatch`, `simulate`, `deconflict`), release audit verification (17 CLI command groups), and surround pipeline integration (`pipeline run --fleet`).
 26. ~~Autonomous EV charging dispatch, power grid management & automated bay scheduling.~~ Done:
     EV charging domain models (`ChargerBay`, `EVBatteryState`, `ChargingSession`, `FacilityPowerSummary`, `RelocationOrder`, `ChargingDispatchReport`), dynamic power balancer and peak-shaving engine (`GridPowerManager`), urgency-weighted charging scheduler and staging relocation queue manager (`ChargingScheduler`), non-linear CC/CV battery charging curve and robotic docking dwell simulator (`ChargingHardwareSimulator`), dual-panel BEV charging dashboard (`viz.py`), dedicated CLI command group `nearfield360 charging` (`info`, `grid`, `schedule`, `simulate`), release audit verification (18 CLI command groups), and surround pipeline integration (`pipeline run --charging`).
-27. **Facility operations control tower: coordinated day-run simulation, cross-subsystem KPI aggregation, and unified operational dashboard.** In progress:
+27. ~~Facility operations control tower: coordinated day-run simulation, cross-subsystem KPI aggregation, and unified operational dashboard.~~ Done:
     Seeded stochastic arrival-demand generator, coordinated day-level AVP operations simulation orchestrating gate arrivals, V2X slot dispatch/reservation, charging and V2G energy windows, and settlement billing, hourly facility activity snapshots, daily KPI aggregation (throughput, occupancy, energy balance, revenue streams, service-level compliance), unified operations dashboard visualizer, dedicated CLI command group `nearfield360 ops`, and release audit verification (28 CLI command groups).
+28. **Hardware-in-the-loop (HIL) automated test harness and vehicle CAN bus gateway.** Planned:
+    Synthetic CAN/Ethernet frame generator conforming to ISO 11898, automated ECU fault injection, real-time hardware clock synchronization, and end-to-end integration test harness.
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -1066,6 +1069,34 @@ Execute the integrated four-camera surround perception pipeline with V2G microgr
 
 ```powershell
 uv run nearfield360 pipeline run --root data/woodscape --output outputs/pipeline_v2g.json --v2g
+```
+
+### Facility Operations Control Tower, Coordinated Day-Run Simulation & Cross-Subsystem KPI Aggregation
+
+Inspect facility operations control tower configuration, simulation step, and arrival parameters:
+
+```powershell
+uv run nearfield360 ops info
+uv run nearfield360 ops info --json
+```
+
+Simulate a full coordinated day-run orchestrating gate arrivals, slot dispatch, EV charging, V2G export, and settlement billing:
+
+```powershell
+uv run nearfield360 ops simulate --seed 42 --capacity 120 --output outputs/operations_day_report.json --png outputs/operations_dashboard.png
+```
+
+Render tactical facility operations control tower dashboard PNG:
+
+```powershell
+uv run nearfield360 ops render --seed 42 --capacity 120 --output outputs/operations_dashboard.png
+```
+
+Run operations control tower subsystem audit and model verification:
+
+```powershell
+uv run nearfield360 ops audit
+uv run nearfield360 ops audit --json --output outputs/ops_audit.json
 ```
 
 ## License
