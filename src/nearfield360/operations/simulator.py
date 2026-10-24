@@ -19,6 +19,27 @@ MANUAL_PLATE_REVIEW_S = 40.0
 LOW_PLATE_CONFIDENCE = 0.85
 QUEUE_PATIENCE_S = 900.0
 RETRIEVAL_LATENCY_S = 120.0
+PARKING_RATE_USD_PER_HOUR = 2.50
+ENERGY_PRICE_USD_PER_KWH = 0.30
+V2G_CREDIT_USD_PER_KWH = 0.12
+CHARGER_POWER_KW = 11.0
+CHARGER_EFFICIENCY = 0.90
+MAX_CHARGE_WINDOW_HOURS = 3.0
+MAX_ENERGY_PER_SESSION_KWH = 60.0
+V2G_EXPORT_FRACTION = 0.15
+V2G_WINDOW_HOURS = (16.0, 20.0)
+
+
+def parking_fee_usd(dwell_hours: float, grace_minutes: int) -> float:
+    """Return the parking fee after subtracting the free grace period."""
+    billable_hours = max(0.0, dwell_hours - grace_minutes / 60.0)
+    return round(billable_hours * PARKING_RATE_USD_PER_HOUR, 2)
+
+
+def energy_fee_usd(charged_kwh: float, exported_kwh: float) -> float:
+    """Return the energy fee: imported energy price minus V2G export credit (never negative)."""
+    net = charged_kwh * ENERGY_PRICE_USD_PER_KWH - exported_kwh * V2G_CREDIT_USD_PER_KWH
+    return round(max(0.0, net), 2)
 
 
 def simulate_journeys(
