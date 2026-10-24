@@ -71,3 +71,20 @@ class VehicleJourneyRecord(BaseModel):
     energy_exported_kwh: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
     parking_fee_usd: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
     energy_fee_usd: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+
+
+class HourlySnapshot(BaseModel):
+    """Facility activity captured at the end of one simulated hour."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    hour: int = Field(..., ge=0)
+    arrivals: int = Field(..., ge=0)
+    departures: int = Field(..., ge=0)
+    blocked: int = Field(..., ge=0)
+    occupied_slots: int = Field(..., ge=0)
+    queue_length: int = Field(..., ge=0)
+    charging_vehicles: int = Field(..., ge=0)
+    facility_load_kw: float = Field(..., ge=0.0, allow_inf_nan=False)
+    export_kw: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    revenue_usd: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
