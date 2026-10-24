@@ -2534,3 +2534,80 @@ Deliver an end-to-end Vehicle-to-Grid (V2G) Bi-Directional Energy Transfer, Dyna
 | Mypy Strict Typing | `uv run mypy` | 0 errors in 191 source files |
 | Package Build Artifacts | `uv build` | Wheel & sdist built |
 | Remote GitHub Actions CI | `gh run list --branch phase/v2g-bidirectional-power-flow` | 100% Green |
+
+---
+
+## Phase 36: Facility Operations Control Tower, Coordinated Day-Run Simulation & Cross-Subsystem KPI Aggregation
+
+### 1. Overview & Objective
+Phase 36 delivers a Facility Operations Control Tower for NearField360: an end-to-end coordinated day-level simulation that models continuous vehicle operations across gate access control, dynamic slot allocation and dispatch, EV charging sessions, V2G export windows, and settlement billing. The system aggregates cross-subsystem metrics into hourly activity snapshots and daily KPI reports (throughput, peak occupancy ratio, dispatch wait distribution, net grid energy flow, total revenue streams, and service-level agreement compliance). A 1280x720 tactical visualizer renders multi-panel operational curves, and a dedicated `nearfield360 ops` CLI command group exposes info, simulation, rendering, and audit capabilities, expanding the verified release audit CLI surface to 28 command groups.
+
+### 2. Implemented Subsystems
+- **Configuration Foundation (`OperationsConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `day_duration_hours`: Simulation horizon duration (24.0 h).
+  - `simulation_time_step_s`: Time step resolution (300.0 s).
+  - `peak_morning_arrival_hour`: Morning peak center (8.5 h).
+  - `peak_evening_arrival_hour`: Evening peak center (17.5 h).
+  - `peak_arrivals_per_hour`: Peak arrival intensity (45.0 veh/hr).
+  - `base_arrivals_per_hour`: Off-peak baseline arrival rate (6.0 veh/hr).
+  - `parking_duration_mean_hours`: Mean vehicle dwell duration (3.0 h).
+  - `charging_activation_share`: Proportion of arriving vehicles requesting EV charging (30%).
+  - `billing_grace_minutes`: Grace period before parking billing applies (15 min).
+- **Domain Models & Serialization (`src/nearfield360/operations/models.py`)**:
+  - `ServiceLevel` enum: `NOMINAL`, `DEGRADED_DISPATCH`, `RELOCATED`, `CURBSIDE_HANDOVER`, `BLOCKED`.
+  - `JourneyStage` enum: `ARRIVED`, `DISPATCHED`, `PARKED`, `CHARGING_WINDOW`, `UNPARKING`, `SETTLED`, `DEPARTED`.
+  - `VehicleArrival`: Gate arrival event with arrival timestamp, plate detection confidence, requested dwell, and charging request.
+  - `VehicleJourneyRecord`: Complete journey trace tracking slot assignment, gate review delay, queue wait, energy charged/exported, and itemized billing fees.
+  - `HourlySnapshot`: Hour-by-hour operational metrics including arrivals, departures, blocked vehicles, occupied slots, queue length, charging count, electrical load (kW), export (kW), and revenue.
+  - `DailyKPIReport`: High-level aggregated KPIs including throughput, peak occupancy ratio, mean/p95 dispatch wait times, net grid energy, itemized revenues, and SLA compliance ratio.
+  - `OperationsDayReport`: Complete day-run export container serializable to JSON.
+- **Seeded Stochastic Arrival Demand Generator (`src/nearfield360/operations/demand.py`)**:
+  - Non-homogeneous Poisson process simulated via Lewis-Shedler thinning algorithm.
+  - Periodic Gaussian morning and evening arrival rate profile over a continuous baseline.
+  - Exponential vehicle dwell time distribution clipped to realistic operational limits.
+- **Coordinated Day-Run Simulator (`src/nearfield360/operations/simulator.py`)**:
+  - Dynamic capacity-constrained slot allocation with priority queue release tracking.
+  - Queue patience modeling causing balking/blocked status when wait exceeds threshold.
+  - Manual plate review latency penalty for low ALPR confidence scores.
+  - Automated EV charging session modeling with energy capping and time-of-use V2G export window matching.
+  - Itemized parking and energy billing calculation factoring in customer grace periods and export credits.
+- **Cross-Subsystem KPI Aggregator (`src/nearfield360/operations/kpi.py`)**:
+  - Computes 24 hourly snapshots conserving total arrivals, departures, and balked counts.
+  - Computes comprehensive daily KPI reports verifying fleet conservation, financial balancing, and SLA compliance.
+- **Tactical Operations Dashboard Visualizer (`src/nearfield360/operations/viz.py`)**:
+  - 1280x720 high-contrast tactical visualizer with status cards, hourly occupancy curves, facility electrical load vs V2G export timelines, and service-level compliance distribution bars.
+- **CLI Group & Packaging Integration (`src/nearfield360/cli/ops.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Registered `nearfield360 ops` with subcommands: `info`, `simulate`, `render`, `audit`.
+  - Release audit expanded and verified for 28 CLI command groups.
+
+### 3. Key Findings & Autonomous Decision Log
+1. **Decision**: Analytical Co-Simulation of Cross-Subsystem Interactions
+   - *Alternatives Considered*: Direct step-by-step instantiation of physical perception pipelines and 3D simulation loops across all 24 hours.
+   - *Rationale & Evidence*: A 24-hour facility operations control tower operates at macroscopic scheduling timescales (minutes to hours), managing hundreds of vehicles. Running raw neural network inference and continuous SLAM across 24 simulated hours would require hours of CPU compute and GPU dependencies. An analytical co-simulation model accurately preserves gate review delays, slot queue constraints, charging power curves, V2G export windows, and billing rules while executing in under 2 seconds deterministically.
+
+2. **Decision**: Distinct Test Module Naming to Prevent Pytest Import Collisions
+   - *Alternatives Considered*: Re-using `test_simulator.py` in the new `operations` test subfolder.
+   - *Rationale & Evidence*: Pytest's default collection imports test files using module basenames; having `tests/unit/control/test_simulator.py` and `tests/unit/operations/test_simulator.py` caused an import file mismatch error in multi-platform CI matrices. Renaming the operations simulator test file to `test_ops_simulator.py` cleanly resolved the collision.
+
+3. **Decision**: Pre-Commit Formatting & Strict Typing Parity
+   - *Alternatives Considered*: Bypassing pre-commit checks locally.
+   - *Rationale & Evidence*: The GitHub Actions CI quality workflow runs `uv run pre-commit run --all-files --show-diff-on-failure`. Enforcing zero trailing newlines, normalized LF line endings, ruff formatting, and strict mypy compliance ensures 100% CI parity across Ubuntu and Windows runners.
+
+### 4. Verification & Quality Gates
+| Check | Command | Result |
+| --- | --- | --- |
+| Operations Config Validation | `uv run pytest tests/unit/test_config.py` | 92 passed |
+| Operations Domain Models & Enums | `uv run pytest tests/unit/operations/test_operations_models.py` | 13 passed |
+| Arrival Demand Generator | `uv run pytest tests/unit/operations/test_demand.py` | 8 passed |
+| Coordinated Journey Simulator | `uv run pytest tests/unit/operations/test_ops_simulator.py` | 10 passed |
+| Snapshot & KPI Aggregator | `uv run pytest tests/unit/operations/test_kpi.py` | 2 passed |
+| Dashboard Visualizer PNG Render | `uv run pytest tests/unit/operations/test_operations_viz.py` | 1 passed |
+| Operations CLI Command Group | `uv run pytest tests/unit/test_ops_cli.py` | 4 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 28 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1480 passed, 5 skipped |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Distribution Smoke Test | `uv build` | Success |
+| Remote CI Workflow Status | GitHub Actions PR #18 | 100% Green |
+
