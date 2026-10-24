@@ -88,3 +88,39 @@ class HourlySnapshot(BaseModel):
     facility_load_kw: float = Field(..., ge=0.0, allow_inf_nan=False)
     export_kw: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
     revenue_usd: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+
+
+class DailyKPIReport(BaseModel):
+    """Cross-subsystem key performance indicators for one simulated day."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    total_arrivals: int = Field(..., ge=0)
+    completed_journeys: int = Field(..., ge=0)
+    blocked_vehicles: int = Field(..., ge=0)
+    throughput_per_hour: float = Field(..., ge=0.0, allow_inf_nan=False)
+    peak_occupancy: int = Field(..., ge=0)
+    peak_occupancy_ratio: float = Field(..., ge=0.0, le=1.0, allow_inf_nan=False)
+    mean_dispatch_wait_s: float = Field(..., ge=0.0, allow_inf_nan=False)
+    p95_dispatch_wait_s: float = Field(..., ge=0.0, allow_inf_nan=False)
+    energy_charged_kwh: float = Field(..., ge=0.0, allow_inf_nan=False)
+    energy_exported_kwh: float = Field(..., ge=0.0, allow_inf_nan=False)
+    net_grid_energy_kwh: float = Field(..., allow_inf_nan=False)
+    parking_revenue_usd: float = Field(..., ge=0.0, allow_inf_nan=False)
+    energy_revenue_usd: float = Field(..., ge=0.0, allow_inf_nan=False)
+    total_revenue_usd: float = Field(..., ge=0.0, allow_inf_nan=False)
+    service_level_counts: dict[str, int] = Field(default_factory=dict)
+    sla_compliance_ratio: float = Field(..., ge=0.0, le=1.0, allow_inf_nan=False)
+
+
+class OperationsDayReport(BaseModel):
+    """Full output of a coordinated day-run: KPIs, hourly snapshots and journeys."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    seed: int
+    slot_capacity: int = Field(..., ge=1)
+    day_duration_hours: float = Field(..., gt=0.0, allow_inf_nan=False)
+    kpis: DailyKPIReport
+    snapshots: list[HourlySnapshot] = Field(default_factory=list)
+    journeys: list[VehicleJourneyRecord] = Field(default_factory=list)
