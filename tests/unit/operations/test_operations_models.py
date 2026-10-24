@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from nearfield360.operations.models import (
+    HourlySnapshot,
     JourneyStage,
     ServiceLevel,
     VehicleArrival,
@@ -65,4 +66,29 @@ def test_journey_record_rejects_negative_energy() -> None:
             arrival_time_s=0.0,
             requested_dwell_hours=1.0,
             energy_charged_kwh=-1.0,
+        )
+
+
+def test_hourly_snapshot_round_trip_and_validation() -> None:
+    snap = HourlySnapshot(
+        hour=8,
+        arrivals=40,
+        departures=5,
+        blocked=1,
+        occupied_slots=120,
+        queue_length=2,
+        charging_vehicles=30,
+        facility_load_kw=210.5,
+    )
+    assert HourlySnapshot.model_validate_json(snap.model_dump_json()) == snap
+    with pytest.raises(ValidationError):
+        HourlySnapshot(
+            hour=-1,
+            arrivals=0,
+            departures=0,
+            blocked=0,
+            occupied_slots=0,
+            queue_length=0,
+            charging_vehicles=0,
+            facility_load_kw=0.0,
         )
