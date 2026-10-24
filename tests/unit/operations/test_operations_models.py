@@ -6,8 +6,10 @@ import pytest
 from pydantic import ValidationError
 
 from nearfield360.operations.models import (
+    DailyKPIReport,
     HourlySnapshot,
     JourneyStage,
+    OperationsDayReport,
     ServiceLevel,
     VehicleArrival,
     VehicleJourneyRecord,
@@ -92,3 +94,40 @@ def test_hourly_snapshot_round_trip_and_validation() -> None:
             charging_vehicles=0,
             facility_load_kw=0.0,
         )
+
+
+def _kpis(**overrides: object) -> DailyKPIReport:
+    data: dict[str, object] = {
+        "total_arrivals": 10,
+        "completed_journeys": 9,
+        "blocked_vehicles": 1,
+        "throughput_per_hour": 0.4,
+        "peak_occupancy": 5,
+        "peak_occupancy_ratio": 0.5,
+        "mean_dispatch_wait_s": 12.0,
+        "p95_dispatch_wait_s": 30.0,
+        "energy_charged_kwh": 100.0,
+        "energy_exported_kwh": 10.0,
+        "net_grid_energy_kwh": 90.0,
+        "parking_revenue_usd": 50.0,
+        "energy_revenue_usd": 20.0,
+        "total_revenue_usd": 70.0,
+        "sla_compliance_ratio": 0.9,
+    }
+    data.update(overrides)
+    return DailyKPIReport(**data)  # type: ignore[arg-type]
+
+
+def test_kpi_report_rejects_ratio_out_of_range() -> None:
+    with pytest.raises(ValidationError):
+        _kpis(peak_occupancy_ratio=1.2)
+    with pytest.raises(ValidationError):
+        _kpis(sla_compliance_ratio=-0.1)
+
+
+def test_day_report_round_trip() -> None:
+    report = OperationsDayReport(seed=7, slot_capacity=10, day_duration_hours=24.0, kpis=_kpis())
+    restored = OperationsDayReport.model_validate_json(report.model_dump_json())
+    assert restored == report
+    with pytest.raises(ValidationError):
+        OperationsDayReport(seed=1, slot_capacity=0, day_duration_hours=24.0, kpis=_kpis())
