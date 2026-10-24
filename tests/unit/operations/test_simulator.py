@@ -11,6 +11,8 @@ from nearfield360.operations.simulator import (
     DISPATCH_LATENCY_S,
     MANUAL_PLATE_REVIEW_S,
     QUEUE_PATIENCE_S,
+    energy_fee_usd,
+    parking_fee_usd,
     simulate_journeys,
 )
 
@@ -86,3 +88,16 @@ def test_vehicle_conservation_and_determinism() -> None:
     assert first == second
     assert len(first) == len(arrivals)
     assert {j.vehicle_id for j in first} == {a.vehicle_id for a in arrivals}
+
+
+def test_parking_fee_applies_grace_period() -> None:
+    assert parking_fee_usd(0.2, grace_minutes=15) == 0.0
+    assert parking_fee_usd(0.5, grace_minutes=15) == 0.62
+    assert parking_fee_usd(0.2, grace_minutes=30) == 0.0
+    assert parking_fee_usd(3.0, grace_minutes=0) == 7.5
+
+
+def test_energy_fee_nets_v2g_credit_and_never_negative() -> None:
+    assert energy_fee_usd(10.0, 0.0) == 3.0
+    assert energy_fee_usd(10.0, 5.0) == 2.4
+    assert energy_fee_usd(1.0, 50.0) == 0.0
