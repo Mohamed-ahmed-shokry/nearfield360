@@ -102,6 +102,27 @@ def simulate_journeys(
             level = ServiceLevel.NOMINAL
 
         inside = departed_s <= horizon_s
+
+        # Energy and billing computation for non-blocked vehicles
+        charging_windows = 0
+        charged_kwh = 0.0
+        exported_kwh = 0.0
+        if arrival.requests_charging:
+            charge_duration_hours = min(arrival.requested_dwell_hours, MAX_CHARGE_WINDOW_HOURS)
+            raw_energy = charge_duration_hours * CHARGER_POWER_KW * CHARGER_EFFICIENCY
+            charged_kwh = round(min(raw_energy, MAX_ENERGY_PER_SESSION_KWH), 2)
+            charging_windows = 1
+
+            # Check if vehicle dwell intersects V2G export window
+            parked_hour = (parked_s / 3600.0) % 24.0
+            unpark_hour = (unpark_s / 3600.0) % 24.0
+            v2g_start, v2g_end = V2G_WINDOW_HOURS
+            if max(parked_hour, v2g_start) < min(unpark_hour, v2g_end):
+                exported_kwh = round(charged_kwh * V2G_EXPORT_FRACTION, 2)
+
+        p_fee = parking_fee_usd(arrival.requested_dwell_hours, config.billing_grace_minutes)
+        e_fee = energy_fee_usd(charged_kwh, exported_kwh)
+
         journeys.append(
             VehicleJourneyRecord(
                 vehicle_id=arrival.vehicle_id,
@@ -114,6 +135,11 @@ def simulate_journeys(
                 parked_time_s=parked_s,
                 unpark_time_s=unpark_s,
                 departed_time_s=departed_s if inside else None,
+                charging_windows=charging_windows,
+                energy_charged_kwh=charged_kwh,
+                energy_exported_kwh=exported_kwh,
+                parking_fee_usd=p_fee,
+                energy_fee_usd=e_fee,
             )
         )
     return journeys
