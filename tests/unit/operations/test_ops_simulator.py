@@ -150,4 +150,3 @@ def test_simulation_with_charging_and_v2g() -> None:
     assert j_v2g.energy_charged_kwh > 0.0
     assert j_v2g.energy_exported_kwh > 0.0
     assert j_v2g.energy_fee_usd < j_no_v2g.energy_fee_usd
-

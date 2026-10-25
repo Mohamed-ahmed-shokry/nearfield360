@@ -137,6 +137,7 @@ def _run_checks() -> list[dict[str, Any]]:
         "map",
         "mission",
         "occupancy",
+        "ops",
         "pipeline",
         "plan",
         "release",
