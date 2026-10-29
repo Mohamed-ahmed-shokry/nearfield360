@@ -567,6 +567,20 @@ class OperationsConfig(BaseModel):
     billing_grace_minutes: int = Field(default=15, ge=0, le=240)
 
 
+class CANConfig(BaseModel):
+    """Parameters for Hardware-in-the-Loop (HIL) vehicle CAN bus gateway and fault injection."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    bus_bitrate_kbps: int = Field(default=500, ge=125, le=1000)
+    data_bitrate_kbps: int = Field(default=2000, ge=500, le=8000)
+    sample_point_percent: float = Field(default=80.0, ge=50.0, le=95.0, allow_inf_nan=False)
+    cycle_time_ms: float = Field(default=20.0, ge=1.0, le=1000.0, allow_inf_nan=False)
+    fault_injection_rate: float = Field(default=0.0, ge=0.0, le=1.0, allow_inf_nan=False)
+    max_bus_load_percent: float = Field(default=85.0, ge=10.0, le=100.0, allow_inf_nan=False)
+    clock_jitter_max_us: float = Field(default=500.0, ge=0.0, le=10000.0, allow_inf_nan=False)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -612,6 +626,7 @@ class ProjectConfig(BaseSettings):
     coop: CoopConfig = Field(default_factory=CoopConfig)
     v2g: V2GConfig = Field(default_factory=V2GConfig)
     operations: OperationsConfig = Field(default_factory=OperationsConfig)
+    can: CANConfig = Field(default_factory=CANConfig)
 
     @classmethod
     def settings_customise_sources(

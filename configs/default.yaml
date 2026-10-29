@@ -278,3 +278,11 @@ operations:
   parking_duration_mean_hours: 3.0
   charging_activation_share: 0.30
   billing_grace_minutes: 15
+can:
+  bus_bitrate_kbps: 500
+  data_bitrate_kbps: 2000
+  sample_point_percent: 80.0
+  cycle_time_ms: 20.0
+  fault_injection_rate: 0.0
+  max_bus_load_percent: 85.0
+  clock_jitter_max_us: 500.0
