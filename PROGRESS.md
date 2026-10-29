@@ -2610,3 +2610,75 @@ Phase 36 delivers a Facility Operations Control Tower for NearField360: an end-t
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Distribution Smoke Test | `uv build` | Success |
 | Remote CI Workflow Status | GitHub Actions PR #18 | 100% Green |
+
+---
+
+## Phase 37: Hardware-in-the-Loop (HIL) Automated Test Harness & Vehicle CAN Bus Gateway (ISO 11898)
+
+### 1. Overview & Objective
+Phase 37 delivers an end-to-end Hardware-in-the-Loop (HIL) automated test harness and vehicle CAN bus gateway for NearField360 conforming to ISO 11898 (CAN 2.0B / CAN FD physical and data link layers) and SAE J1939 / AUTOSAR protocol standards. The system enables deterministic frame serialization, cyclic timer scheduling, checksum/CRC validation, bus load tracking, and an automated fault injection engine (bit flipping, frame drops, jitter delay, corrupted CRCs). A dual-panel HIL tactical oscilloscope visualizer renders CAN frame timing jitter, bus load curves, and ECU fault alerts. The CLI group `nearfield360 can` exposes frame inspection, transmission simulations, fault injection, and bus auditing, expanding the verified release audit CLI surface to 29 command groups.
+
+### 2. Implemented Subsystems
+- **Configuration Foundation (`CANConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `bus_bitrate_kbps`: Nominal CAN bus bitrate (default: 500 kbps).
+  - `data_bitrate_kbps`: CAN FD fast data phase bitrate (default: 2000 kbps).
+  - `sample_point_percent`: Nominal bit timing sample point (default: 80.0%).
+  - `cycle_time_ms`: Periodic broadcast cycle interval (default: 20.0 ms).
+  - `fault_injection_rate`: Stochastic fault injection probability (default: 0.0).
+  - `max_bus_load_percent`: Overload warning threshold (default: 85.0%).
+  - `clock_jitter_max_us`: Maximum simulated hardware clock timing jitter (default: 500.0 us).
+- **Domain Models & Protocol Schemas (`src/nearfield360/can/models.py`)**:
+  - `CANFrameType` enum: `STANDARD` (11-bit ID), `EXTENDED` (29-bit ID), `CAN_FD_STANDARD`, `CAN_FD_EXTENDED`.
+  - `CANFaultType` enum: `NONE`, `CORRUPTED_CRC`, `FRAME_DROP`, `TIMING_JITTER`, `BIT_FLIP`, `DLC_MISMATCH`.
+  - `CANFrame`: `arbitration_id`, `is_extended_id`, `is_fd`, `payload`, `dlc`, `timestamp_us`, `crc`, `fault_type`.
+  - `VehicleControlSignal`: `steering_angle_rad`, `throttle_pct`, `brake_pct`, `gear`, `speed_mps`, `heartbeat_counter`.
+  - `VehicleFeedbackSignal`: `wheel_speed_fl_mps`, `wheel_speed_fr_mps`, `wheel_speed_rl_mps`, `wheel_speed_rr_mps`, `yaw_rate_rads`, `longitudinal_accel_mps2`, `ultrasound_distances_m`.
+  - `CANBusTelemetry`: `frames_sent`, `frames_received`, `dropped_frames`, `corrupted_frames`, `bus_load_percent`, `mean_jitter_us`, `peak_jitter_us`, `is_overloaded`.
+  - `HILSimulationReport`: `duration_s`, `target_ecus`, `telemetry`, `fault_injection_log`, `ecu_health_status`.
+- **CAN Frame Serialization & CRC Engine (`src/nearfield360/can/codec.py`)**:
+  - SAE J1850 CRC-8 checksum calculation engine with polynomial 0x1D, init 0xFF, xorout 0xFF.
+  - Bit-level packing of vehicle control commands (steering, throttle, brake, gear, heartbeat) into 8-byte CAN payloads.
+  - Bit-level unpacking of wheel speeds, ultrasonic distances, and IMU kinematics with strict physical range validation.
+- **Fault Injection & Clock Jitter Engine (`src/nearfield360/can/faults.py`)**:
+  - Deterministic synthetic fault injection engine supporting bit flips, frame drops, CRC corruption, and Gaussian timing jitter.
+  - Configurable fault injection rate and random seed for test repeatability.
+- **HIL Gateway & Real-Time Scheduler (`src/nearfield360/can/gateway.py`)**:
+  - Deterministic discrete-event CAN bus scheduler managing cyclic broadcasts (e.g. 50 Hz control, 100 Hz IMU feedback, 20 Hz sonar).
+  - Real-time bus bandwidth utilization calculator based on 128 bit times per standard frame.
+  - Tracks transmission delays, frame drop rates, and bus overload conditions.
+- **Tactical HIL Oscilloscope & CAN Telemetry Visualizer (`src/nearfield360/can/viz.py`)**:
+  - 1280x720 dual-panel high-contrast display: left panel renders simulated CAN bus differential signaling oscilloscope (CAN_H / CAN_L) and arrival jitter scatter; right panel displays bus load history, error counters, and ECU health status cards.
+- **CLI Group & Packaging Integration (`src/nearfield360/cli/can.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `encode`, `simulate`, `render`, `audit`.
+  - Registered `can` command group in root app and expanded release audit to verify 29 command groups.
+
+### 3. Key Findings & Autonomous Decision Log
+1. **Decision**: SAE J1850 CRC-8 for Drive-by-Wire Control Frame Integrity
+   - *Alternatives Considered*: Standard Python `binascii.crc32` or generic parity bits.
+   - *Rationale & Evidence*: Automotive steer-by-wire and brake-by-wire protocols (AUTOSAR E2E Profile 1/2) mandate CRC-8 with polynomial 0x1D ($x^8 + x^4 + x^3 + x^2 + 1$) to detect single-bit and burst transmission corruptions in 8-byte data payloads. Implementing this exact standard ensures strict automotive fidelity without external C driver dependencies.
+
+2. **Decision**: ISO 11898 Physical Bit-Time Model for Bus Load Tracking
+   - *Alternatives Considered*: Raw payload byte count divided by theoretical byte rate.
+   - *Rationale & Evidence*: CAN bus protocol overhead includes SOF (1 bit), arbitration ID (11/29 bits), RTR/IDE/r0 (3 bits), DLC (4 bits), CRC field (15 bits + delimiter), ACK (2 bits), and End of Frame (7 bits), plus dynamic bit stuffing (on average 20%). A standard 8-byte CAN 2.0B frame occupies ~128 bit times. Modeling this exact bit time allows accurate calculation of bus utilization against nominal bitrates (e.g., 500 kbps), matching physical vector network analyzers.
+
+3. **Decision**: Software-Simulated Gateway Without Mandatory SocketCAN Linux Bindings
+   - *Alternatives Considered*: Direct dependency on Linux `python-can` with SocketCAN `vcan0` kernel devices.
+   - *Rationale & Evidence*: NearField360 runs in cross-platform environments across Linux and Windows CI runners. Relying on privileged kernel modules would cause hard failures in containerized or non-Linux environments. Implementing a self-contained discrete-event scheduling engine provides cross-platform deterministic testability with 100% CI parity.
+
+### 4. Verification & Quality Gates
+| Check | Command | Result |
+| --- | --- | --- |
+| CAN Config Validation | `uv run pytest tests/unit/test_config.py` | 94 passed |
+| CAN Domain Models & Enums | `uv run pytest tests/unit/can/test_can_models.py` | 5 passed |
+| CAN Frame Codec & CRC Engine | `uv run pytest tests/unit/can/test_codec.py` | 5 passed |
+| Fault Injection & Jitter Engine | `uv run pytest tests/unit/can/test_faults.py` | 4 passed |
+| HIL Gateway & Scheduler | `uv run pytest tests/unit/can/test_gateway.py` | 5 passed |
+| Tactical Oscilloscope Visualizer | `uv run pytest tests/unit/can/test_can_viz.py` | 2 passed |
+| CAN CLI Command Group | `uv run pytest tests/unit/test_can_cli.py` | 5 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 29 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1506 passed, 5 skipped |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Distribution Smoke Test | `uv build` | Success |
+| Remote CI Workflow Status | GitHub Actions PR #19 | Verified Green |
