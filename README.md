@@ -536,8 +536,10 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     EV charging domain models (`ChargerBay`, `EVBatteryState`, `ChargingSession`, `FacilityPowerSummary`, `RelocationOrder`, `ChargingDispatchReport`), dynamic power balancer and peak-shaving engine (`GridPowerManager`), urgency-weighted charging scheduler and staging relocation queue manager (`ChargingScheduler`), non-linear CC/CV battery charging curve and robotic docking dwell simulator (`ChargingHardwareSimulator`), dual-panel BEV charging dashboard (`viz.py`), dedicated CLI command group `nearfield360 charging` (`info`, `grid`, `schedule`, `simulate`), release audit verification (18 CLI command groups), and surround pipeline integration (`pipeline run --charging`).
 27. ~~Facility operations control tower: coordinated day-run simulation, cross-subsystem KPI aggregation, and unified operational dashboard.~~ Done:
     Seeded stochastic arrival-demand generator, coordinated day-level AVP operations simulation orchestrating gate arrivals, V2X slot dispatch/reservation, charging and V2G energy windows, and settlement billing, hourly facility activity snapshots, daily KPI aggregation (throughput, occupancy, energy balance, revenue streams, service-level compliance), unified operations dashboard visualizer, dedicated CLI command group `nearfield360 ops`, and release audit verification (28 CLI command groups).
-28. **Hardware-in-the-loop (HIL) automated test harness and vehicle CAN bus gateway.** Planned:
-    Synthetic CAN/Ethernet frame generator conforming to ISO 11898, automated ECU fault injection, real-time hardware clock synchronization, and end-to-end integration test harness.
+28. ~~Hardware-in-the-loop (HIL) automated test harness and vehicle CAN bus gateway.~~ Done:
+    Synthetic ISO 11898 CAN 2.0B / CAN FD frame codec with SAE J1850 CRC-8 checksum verification, domain models for drive-by-wire steering/throttle/brake actuation, ultrasonic distance telemetry, and wheel speed metrics, synthetic fault injection engine (bit flips, frame drops, CRC corruption, timing jitter), discrete-event HIL gateway scheduler with bus load calculation (nominal 500 kbps), dual-panel tactical oscilloscope and CAN telemetry dashboard renderer, dedicated CLI command group `nearfield360 can`, and release audit verification (29 CLI command groups).
+29. **Synthetic radar and raw ultrasonic sensor simulation with range-Doppler map generation.** Planned:
+    FMCW radar point-cloud and range-Doppler FFT matrix generation, multipath clutter modeling, high-frequency ultrasonic time-of-flight acoustic beam simulation, and cross-modal radar-vision-acoustic sensor fusion.
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -1097,6 +1099,41 @@ Run operations control tower subsystem audit and model verification:
 ```powershell
 uv run nearfield360 ops audit
 uv run nearfield360 ops audit --json --output outputs/ops_audit.json
+```
+
+### Hardware-in-the-Loop (HIL) Automated Test Harness & Vehicle CAN Bus Gateway (ISO 11898)
+
+Inspect vehicle CAN bus configuration, arbitration bitrates, payload limits, and fault injection rates:
+
+```powershell
+uv run nearfield360 can info
+uv run nearfield360 can info --json
+```
+
+Encode vehicle drive-by-wire steering, throttle, braking commands, and ultrasonic sensor signals into CRC-validated ISO 11898 frames:
+
+```powershell
+uv run nearfield360 can encode --arbitration-id 0x102 --steering 15.5 --throttle 0.40 --brake 0.0 --mode autonomous
+uv run nearfield360 can encode --arbitration-id 0x200 --fl-dist 0.85 --fr-dist 0.90 --rl-dist 1.20 --rr-dist 1.15 --json
+```
+
+Simulate discrete-event HIL gateway bus load, frame scheduling, and fault injection over a time horizon:
+
+```powershell
+uv run nearfield360 can simulate --duration 5.0 --frequency-hz 50.0 --bit-flip-prob 0.01 --jitter-std 0.001 --output outputs/hil_can_sim.json
+```
+
+Render tactical 1280x720 HIL bus oscilloscope and CAN telemetry dashboard to PNG:
+
+```powershell
+uv run nearfield360 can render --duration 4.0 --frequency-hz 50.0 --bit-flip-prob 0.02 --png outputs/hil_can_dashboard.png
+```
+
+Run comprehensive ISO 11898 / SAE J1850 HIL gateway codec and scheduler safety audit:
+
+```powershell
+uv run nearfield360 can audit
+uv run nearfield360 can audit --json --output outputs/hil_can_audit.json
 ```
 
 ## License
