@@ -1073,3 +1073,47 @@ def test_operations_config_rejects_invalid_arrival_rate(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="greater than 0"):
         load_config(config_path)
+
+
+def test_can_config_defaults() -> None:
+    config = load_config()
+
+    assert config.can.bus_bitrate_kbps == 500
+    assert config.can.data_bitrate_kbps == 2000
+    assert config.can.sample_point_percent == 80.0
+    assert config.can.cycle_time_ms == 20.0
+    assert config.can.fault_injection_rate == 0.0
+    assert config.can.max_bus_load_percent == 85.0
+    assert config.can.clock_jitter_max_us == 500.0
+
+
+def test_can_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "can:\n  bus_bitrate_kbps: 250\n  fault_injection_rate: 0.05\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_CAN__MAX_BUS_LOAD_PERCENT", "90.0")
+
+    config = load_config(config_path)
+
+    assert config.can.bus_bitrate_kbps == 250
+    assert config.can.fault_injection_rate == 0.05
+    assert config.can.max_bus_load_percent == 90.0
+    assert config.can.cycle_time_ms == 20.0
+
+
+def test_can_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("can:\n  bus_bitrate_kbps: 50\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 125"):
+        load_config(config_path)
+
+
+def test_can_config_rejects_invalid_fault_rate(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("can:\n  fault_injection_rate: 1.5\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 1"):
+        load_config(config_path)

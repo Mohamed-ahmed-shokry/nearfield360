@@ -1297,3 +1297,92 @@ Local (mirrors `.github/workflows/ci.yml`): `uv lock --check`, `uv sync --locked
 7. [x] Dashboard visualizer and tests
 8. [x] Package exports, CLI group, registration, audit 28, tests
 9. [x] README/PROGRESS docs, full CI-parity verification, push, draft PR
+
+---
+
+## Phase 37: Hardware-in-the-Loop (HIL) Automated Test Harness & Vehicle CAN Bus Gateway (ISO 11898)
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end Hardware-in-the-Loop (HIL) automated test harness and vehicle CAN bus gateway for NearField360 conforming to ISO 11898 (CAN 2.0B / CAN FD physical and data link layers) and SAE J1939 / AUTOSAR protocol standards. In automated valet parking deployments, vehicle guidance commands computed by trajectory planners (`SteeringCommand`, `AccelerationCommand`, `GearCommand`) and low-level sensor feedback (wheel ticks, IMU rates, ultrasound distances) are bridged across real or simulated vehicle CAN buses. The gateway provides deterministic frame serialization, cyclic timer scheduling, checksum/CRC validation, bus load tracking, and an automated fault injection engine (bit flipping, frame drops, jitter delay, corrupted CRCs). A dual-panel HIL tactical oscilloscope visualizer renders CAN frame timing jitter, bus load curves, and ECU fault alerts. The CLI group `nearfield360 can` exposes frame inspection, transmission simulations, fault injection, and bus auditing, expanding the verified release audit CLI surface to 29 command groups.
+
+### 2. Scope
+
+- **Configuration (`CANConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `bus_bitrate_kbps`: Nominal CAN bus bitrate (default: 500 kbps).
+  - `data_bitrate_kbps`: CAN FD fast data phase bitrate (default: 2000 kbps).
+  - `sample_point_percent`: Nominal bit timing sample point (default: 80.0%).
+  - `cycle_time_ms`: Periodic broadcast cycle interval (default: 20.0 ms).
+  - `fault_injection_rate`: Stochastic fault injection probability (default: 0.0).
+  - `max_bus_load_percent`: Overload warning threshold (default: 85.0%).
+  - `clock_jitter_max_us`: Maximum simulated hardware clock timing jitter (default: 500.0 us).
+- **Domain Models & Protocol Schemas (`src/nearfield360/can/models.py`)**:
+  - `CANFrameType` Enum: `STANDARD` (11-bit ID), `EXTENDED` (29-bit ID), `CAN_FD_STANDARD`, `CAN_FD_EXTENDED`.
+  - `CANFaultType` Enum: `NONE`, `CORRUPTED_CRC`, `FRAME_DROP`, `TIMING_JITTER`, `BIT_FLIP`, `DLC_MISMATCH`.
+  - `CANFrame`: `arbitration_id`, `is_extended_id`, `is_fd`, `payload`, `dlc`, `timestamp_us`, `crc`, `fault_type`.
+  - `VehicleControlSignal`: `steering_angle_rad`, `throttle_pct`, `brake_pct`, `gear`, `speed_mps`, `heartbeat_counter`.
+  - `VehicleFeedbackSignal`: `wheel_speed_fl_mps`, `wheel_speed_fr_mps`, `wheel_speed_rl_mps`, `wheel_speed_rr_mps`, `yaw_rate_rads`, `longitudinal_accel_mps2`, `ultrasound_distances_m`.
+  - `CANBusTelemetry`: `frames_sent`, `frames_received`, `dropped_frames`, `corrupted_frames`, `bus_load_percent`, `mean_jitter_us`, `peak_jitter_us`, `is_overloaded`.
+  - `HILSimulationReport`: `duration_s`, `target_ecus`, `telemetry`, `fault_injection_log`, `ecu_health_status`.
+- **CAN Frame Serialization & CRC Engine (`src/nearfield360/can/codec.py`)**:
+  - Encodes `VehicleControlSignal` into standard CAN / CAN FD byte buffers (packing steering, throttle, brake, gear, rolling counter, and CRC-8/CRC-16).
+  - Decodes byte buffers into `VehicleFeedbackSignal` with range and checksum verification.
+- **Fault Injection & Clock Jitter Engine (`src/nearfield360/can/faults.py`)**:
+  - Injects deterministic synthetic faults into frame streams: CRC corruption, payload bit-flipping, delayed transmission timing, or frame drops.
+- **HIL Gateway & Real-Time Scheduler (`src/nearfield360/can/gateway.py`)**:
+  - Deterministic discrete-event CAN bus scheduler managing cyclic broadcasts (e.g. 50 Hz control, 100 Hz IMU feedback, 20 Hz sonar).
+  - Tracks bus bandwidth utilization and detects timing deadline violations.
+- **Tactical HIL Oscilloscope & CAN Telemetry Visualizer (`src/nearfield360/can/viz.py`)**:
+  - 1280x720 dual-panel display: left panel shows CAN bus timing oscilloscope and frame arrival jitter scatter; right panel displays bus load history, frame error counters, and ECU node health statuses.
+- **CLI Command Group `nearfield360 can` & Release Audit (`src/nearfield360/cli/can.py`, `src/nearfield360/cli/release.py`)**:
+  - Commands: `info`, `encode`, `simulate`, `render`, `audit`.
+  - Register `can` command group in root app, updating release audit expected count to 29 groups.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, codec packing/unpacking, fault injection, gateway scheduling, visualizer, CLI commands, and release audit.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `CANConfig` validated with strict Pydantic bounds and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models for CAN frames, control/feedback signals, and HIL telemetry validate and round-trip JSON | `uv run pytest tests/unit/can/test_can_models.py` |
+| AC-3 | `CANCodec` bit-packs and unpacks vehicle control and feedback signals with correct CRC verification | `uv run pytest tests/unit/can/test_codec.py` |
+| AC-4 | `FaultInjector` reliably applies bit flips, CRC corruption, and timing jitter per configuration | `uv run pytest tests/unit/can/test_faults.py` |
+| AC-5 | `CANGateway` schedules multi-ECU cyclic broadcasts and accurately computes bus load and jitter metrics | `uv run pytest tests/unit/can/test_gateway.py` |
+| AC-6 | Tactical HIL visualizer renders timing oscilloscope, load curves, and node health to a valid PNG | `uv run pytest tests/unit/can/test_can_viz.py` |
+| AC-7 | Dedicated CLI group `nearfield360 can` executes `info`, `encode`, `simulate`, `render`, and `audit` | `uv run pytest tests/unit/test_can_cli.py` |
+| AC-8 | Root CLI registers `can` command group, passing release audit with 29 groups | `uv run nearfield360 release audit` |
+| AC-9 | All local CI-parity checks and remote CI workflow runs pass 100% | `pre-commit`, `pytest`, `build` |
+
+### 4. Validation & CI Plan
+
+1. Local checks: `uv lock --check`, `uv run pre-commit run --all-files`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing --cov-report=xml`, `uv build`, `uv run twine check dist/*`.
+2. End-to-end CLI execution: `nearfield360 can simulate --duration-s 1.0 --fault-rate 0.05 --output outputs/hil_report.json --png outputs/hil_oscilloscope.png`.
+
+### 5. Exclusions
+
+- Native Linux SocketCAN kernel C bindings (`can0` vcan kernel modules) requiring root privilege or specific Linux kernels.
+- Proprietary Vector CANoe / PEAK-System USB hardware vendor drivers.
+
+### 6. Micro-Task Breakdown
+
+1. [ ] `docs(roadmap): define Phase 37 HIL test harness and vehicle CAN bus gateway scope`
+2. [ ] `feat(config): add CANConfig schema and default configuration parameters`
+3. [ ] `test(config): verify CANConfig defaults, bounds, and environment overrides`
+4. [ ] `feat(can): implement CAN frame, fault type, and signal domain models`
+5. [ ] `test(can): verify CAN domain models validation, constraints, and JSON serialization`
+6. [ ] `feat(can): implement CAN bit-packing, serialization, and CRC validation codec`
+7. [ ] `test(can): verify CAN codec signal packing, unpacking, and CRC verification`
+8. [ ] `feat(can): implement synthetic fault injection and timing jitter engine`
+9. [ ] `test(can): verify bit flips, CRC corruption, and jitter fault injection`
+10. [ ] `feat(can): implement discrete-event HIL CAN gateway and bus load scheduler`
+11. [ ] `test(can): verify gateway periodic scheduling, bus load tracking, and drops`
+12. [ ] `feat(can): implement tactical HIL oscilloscope and CAN telemetry dashboard visualizer`
+13. [ ] `test(can): verify tactical HIL visualizer renders valid PNG artifacts`
+14. [ ] `feat(can): export public CAN API from package init`
+15. [ ] `feat(cli): implement nearfield360 can command group (info, encode, simulate, render, audit)`
+16. [ ] `feat(cli): register can CLI group and update release audit expected count to 29`
+17. [ ] `test(cli): verify can CLI command group execution and JSON outputs`
+18. [ ] `docs(readme): add CAN gateway capability, roadmap status, and usage commands`
+19. [ ] `docs(progress): record Phase 37 implementation, Decision Log, and quality gates`
+20. [ ] `docs(roadmap): mark Phase 37 micro-tasks and acceptance criteria completed`
