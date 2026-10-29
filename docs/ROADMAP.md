@@ -1366,23 +1366,23 @@ Deliver an end-to-end Hardware-in-the-Loop (HIL) automated test harness and vehi
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 37 HIL test harness and vehicle CAN bus gateway scope`
-2. [ ] `feat(config): add CANConfig schema and default configuration parameters`
-3. [ ] `test(config): verify CANConfig defaults, bounds, and environment overrides`
-4. [ ] `feat(can): implement CAN frame, fault type, and signal domain models`
-5. [ ] `test(can): verify CAN domain models validation, constraints, and JSON serialization`
-6. [ ] `feat(can): implement CAN bit-packing, serialization, and CRC validation codec`
-7. [ ] `test(can): verify CAN codec signal packing, unpacking, and CRC verification`
-8. [ ] `feat(can): implement synthetic fault injection and timing jitter engine`
-9. [ ] `test(can): verify bit flips, CRC corruption, and jitter fault injection`
-10. [ ] `feat(can): implement discrete-event HIL CAN gateway and bus load scheduler`
-11. [ ] `test(can): verify gateway periodic scheduling, bus load tracking, and drops`
-12. [ ] `feat(can): implement tactical HIL oscilloscope and CAN telemetry dashboard visualizer`
-13. [ ] `test(can): verify tactical HIL visualizer renders valid PNG artifacts`
-14. [ ] `feat(can): export public CAN API from package init`
-15. [ ] `feat(cli): implement nearfield360 can command group (info, encode, simulate, render, audit)`
-16. [ ] `feat(cli): register can CLI group and update release audit expected count to 29`
-17. [ ] `test(cli): verify can CLI command group execution and JSON outputs`
-18. [ ] `docs(readme): add CAN gateway capability, roadmap status, and usage commands`
-19. [ ] `docs(progress): record Phase 37 implementation, Decision Log, and quality gates`
-20. [ ] `docs(roadmap): mark Phase 37 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 37 HIL test harness and vehicle CAN bus gateway scope`
+2. [x] `feat(config): add CANConfig schema and default configuration parameters`
+3. [x] `test(config): verify CANConfig defaults, bounds, and environment overrides`
+4. [x] `feat(can): implement CAN frame, fault type, and signal domain models`
+5. [x] `test(can): verify CAN domain models validation, constraints, and JSON serialization`
+6. [x] `feat(can): implement CAN bit-packing, serialization, and CRC validation codec`
+7. [x] `test(can): verify CAN codec signal packing, unpacking, and CRC verification`
+8. [x] `feat(can): implement synthetic fault injection and timing jitter engine`
+9. [x] `test(can): verify bit flips, CRC corruption, and jitter fault injection`
+10. [x] `feat(can): implement discrete-event HIL CAN gateway and bus load scheduler`
+11. [x] `test(can): verify gateway periodic scheduling, bus load tracking, and drops`
+12. [x] `feat(can): implement tactical HIL oscilloscope and CAN telemetry dashboard visualizer`
+13. [x] `test(can): verify tactical HIL visualizer renders valid PNG artifacts`
+14. [x] `feat(can): export public CAN API from package init`
+15. [x] `feat(cli): implement nearfield360 can command group (info, encode, simulate, render, audit)`
+16. [x] `feat(cli): register can CLI group and update release audit expected count to 29`
+17. [x] `test(cli): verify can CLI command group execution and JSON outputs`
+18. [x] `docs(readme): add CAN gateway capability, roadmap status, and usage commands`
+19. [x] `docs(progress): record Phase 37 implementation, Decision Log, and quality gates`
+20. [x] `docs(roadmap): mark Phase 37 micro-tasks and acceptance criteria completed`

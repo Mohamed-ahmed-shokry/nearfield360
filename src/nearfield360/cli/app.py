@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from nearfield360 import __version__
 from nearfield360.cli.billing import billing_app
+from nearfield360.cli.can import can_app
 from nearfield360.cli.charging import charging_app
 from nearfield360.cli.control import control_app
 from nearfield360.cli.coop import coop_app
@@ -63,6 +64,7 @@ app = typer.Typer(
 )
 config_app = typer.Typer(help="Inspect and validate project configuration.", no_args_is_help=True)
 app.add_typer(billing_app, name="billing")
+app.add_typer(can_app, name="can")
 app.add_typer(charging_app, name="charging")
 app.add_typer(config_app, name="config")
 app.add_typer(control_app, name="control")
