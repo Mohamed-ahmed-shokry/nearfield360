@@ -286,3 +286,19 @@ can:
   fault_injection_rate: 0.0
   max_bus_load_percent: 85.0
   clock_jitter_max_us: 500.0
+sensor:
+  carrier_frequency_ghz: 77.0
+  sweep_bandwidth_mhz: 1500.0
+  chirp_duration_us: 50.0
+  num_chirps: 128
+  samples_per_chirp: 256
+  cfar_guard_cells: 2
+  cfar_train_cells: 4
+  cfar_threshold_factor: 1.25
+  radar_max_range_m: 50.0
+  ultrasonic_frequency_khz: 48.0
+  ultrasonic_beam_angle_deg: 60.0
+  ultrasonic_min_range_m: 0.15
+  ultrasonic_max_range_m: 4.5
+  speed_of_sound_mps: 343.0
+  num_ultrasonic_sensors: 12
