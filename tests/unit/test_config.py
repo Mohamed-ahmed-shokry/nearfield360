@@ -1117,3 +1117,55 @@ def test_can_config_rejects_invalid_fault_rate(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 1"):
         load_config(config_path)
+
+
+def test_sensor_config_defaults() -> None:
+    config = load_config()
+
+    assert config.sensor.carrier_frequency_ghz == 77.0
+    assert config.sensor.sweep_bandwidth_mhz == 250.0
+    assert config.sensor.chirp_duration_us == 50.0
+    assert config.sensor.num_chirps == 128
+    assert config.sensor.samples_per_chirp == 256
+    assert config.sensor.cfar_guard_cells == 2
+    assert config.sensor.cfar_train_cells == 4
+    assert config.sensor.cfar_threshold_factor == 1.25
+    assert config.sensor.radar_max_range_m == 50.0
+    assert config.sensor.ultrasonic_frequency_khz == 48.0
+    assert config.sensor.ultrasonic_beam_angle_deg == 60.0
+    assert config.sensor.ultrasonic_min_range_m == 0.15
+    assert config.sensor.ultrasonic_max_range_m == 4.5
+    assert config.sensor.speed_of_sound_mps == 343.0
+    assert config.sensor.num_ultrasonic_sensors == 12
+
+
+def test_sensor_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "sensor:\n  carrier_frequency_ghz: 79.0\n  radar_max_range_m: 80.0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_SENSOR__NUM_ULTRASONIC_SENSORS", "8")
+
+    config = load_config(config_path)
+
+    assert config.sensor.carrier_frequency_ghz == 79.0
+    assert config.sensor.radar_max_range_m == 80.0
+    assert config.sensor.num_ultrasonic_sensors == 8
+    assert config.sensor.sweep_bandwidth_mhz == 250.0
+
+
+def test_sensor_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("sensor:\n  carrier_frequency_ghz: -77.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 1"):
+        load_config(config_path)
+
+
+def test_sensor_config_rejects_invalid_num_sensors(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("sensor:\n  num_ultrasonic_sensors: 2\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 4"):
+        load_config(config_path)

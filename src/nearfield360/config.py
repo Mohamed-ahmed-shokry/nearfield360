@@ -581,6 +581,28 @@ class CANConfig(BaseModel):
     clock_jitter_max_us: float = Field(default=500.0, ge=0.0, le=10000.0, allow_inf_nan=False)
 
 
+class SensorConfig(BaseModel):
+    """Parameters for synthetic FMCW radar and ultrasonic sensor simulation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    carrier_frequency_ghz: float = Field(default=77.0, gt=1.0, le=100.0, allow_inf_nan=False)
+    sweep_bandwidth_mhz: float = Field(default=250.0, gt=10.0, le=4000.0, allow_inf_nan=False)
+    chirp_duration_us: float = Field(default=50.0, gt=1.0, le=1000.0, allow_inf_nan=False)
+    num_chirps: int = Field(default=128, ge=16, le=512)
+    samples_per_chirp: int = Field(default=256, ge=32, le=1024)
+    cfar_guard_cells: int = Field(default=2, ge=1, le=8)
+    cfar_train_cells: int = Field(default=4, ge=2, le=16)
+    cfar_threshold_factor: float = Field(default=1.25, gt=1.0, le=10.0, allow_inf_nan=False)
+    radar_max_range_m: float = Field(default=50.0, gt=5.0, le=250.0, allow_inf_nan=False)
+    ultrasonic_frequency_khz: float = Field(default=48.0, gt=20.0, le=100.0, allow_inf_nan=False)
+    ultrasonic_beam_angle_deg: float = Field(default=60.0, gt=10.0, le=120.0, allow_inf_nan=False)
+    ultrasonic_min_range_m: float = Field(default=0.15, gt=0.01, le=1.0, allow_inf_nan=False)
+    ultrasonic_max_range_m: float = Field(default=4.5, gt=1.0, le=15.0, allow_inf_nan=False)
+    speed_of_sound_mps: float = Field(default=343.0, gt=300.0, le=400.0, allow_inf_nan=False)
+    num_ultrasonic_sensors: int = Field(default=12, ge=4, le=24)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -627,6 +649,7 @@ class ProjectConfig(BaseSettings):
     v2g: V2GConfig = Field(default_factory=V2GConfig)
     operations: OperationsConfig = Field(default_factory=OperationsConfig)
     can: CANConfig = Field(default_factory=CANConfig)
+    sensor: SensorConfig = Field(default_factory=SensorConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -698,6 +721,7 @@ __all__ = [
     "RiskConfig",
     "RobustnessConfig",
     "RuntimeConfig",
+    "SensorConfig",
     "TeleopConfig",
     "TenantConfig",
     "TrackingConfig",
