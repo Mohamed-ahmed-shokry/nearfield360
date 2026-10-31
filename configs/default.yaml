@@ -288,7 +288,7 @@ can:
   clock_jitter_max_us: 500.0
 sensor:
   carrier_frequency_ghz: 77.0
-  sweep_bandwidth_mhz: 1500.0
+  sweep_bandwidth_mhz: 250.0
   chirp_duration_us: 50.0
   num_chirps: 128
   samples_per_chirp: 256

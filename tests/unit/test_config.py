@@ -1123,7 +1123,7 @@ def test_sensor_config_defaults() -> None:
     config = load_config()
 
     assert config.sensor.carrier_frequency_ghz == 77.0
-    assert config.sensor.sweep_bandwidth_mhz == 1500.0
+    assert config.sensor.sweep_bandwidth_mhz == 250.0
     assert config.sensor.chirp_duration_us == 50.0
     assert config.sensor.num_chirps == 128
     assert config.sensor.samples_per_chirp == 256
@@ -1152,7 +1152,7 @@ def test_sensor_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert config.sensor.carrier_frequency_ghz == 79.0
     assert config.sensor.radar_max_range_m == 80.0
     assert config.sensor.num_ultrasonic_sensors == 8
-    assert config.sensor.sweep_bandwidth_mhz == 1500.0
+    assert config.sensor.sweep_bandwidth_mhz == 250.0
 
 
 def test_sensor_config_rejects_invalid_values(tmp_path: Path) -> None:

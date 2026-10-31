@@ -587,7 +587,7 @@ class SensorConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     carrier_frequency_ghz: float = Field(default=77.0, gt=1.0, le=100.0, allow_inf_nan=False)
-    sweep_bandwidth_mhz: float = Field(default=1500.0, gt=10.0, le=4000.0, allow_inf_nan=False)
+    sweep_bandwidth_mhz: float = Field(default=250.0, gt=10.0, le=4000.0, allow_inf_nan=False)
     chirp_duration_us: float = Field(default=50.0, gt=1.0, le=1000.0, allow_inf_nan=False)
     num_chirps: int = Field(default=128, ge=16, le=512)
     samples_per_chirp: int = Field(default=256, ge=32, le=1024)

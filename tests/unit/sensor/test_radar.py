@@ -10,12 +10,12 @@ from nearfield360.sensor.radar import SPEED_OF_LIGHT, FMCWRadarSimulator
 
 
 def test_radar_simulator_init_constants() -> None:
-    config = SensorConfig(carrier_frequency_ghz=77.0, sweep_bandwidth_mhz=1500.0)
+    config = SensorConfig(carrier_frequency_ghz=77.0, sweep_bandwidth_mhz=250.0)
     sim = FMCWRadarSimulator(config)
 
     assert sim.fc == 77.0e9
     assert abs(sim.wavelength - (SPEED_OF_LIGHT / 77.0e9)) < 1e-9
-    assert sim.bandwidth == 1500.0e6
+    assert sim.bandwidth == 250.0e6
     assert sim.num_chirps == 128
     assert sim.samples_per_chirp == 256
 
@@ -33,7 +33,7 @@ def test_simulate_baseband_shape_and_type() -> None:
 def test_compute_range_doppler_detects_peak_at_target() -> None:
     config = SensorConfig(
         carrier_frequency_ghz=77.0,
-        sweep_bandwidth_mhz=1500.0,
+        sweep_bandwidth_mhz=250.0,
         num_chirps=128,
         samples_per_chirp=256,
     )
@@ -61,9 +61,9 @@ def test_compute_range_doppler_detects_peak_at_target() -> None:
     detected_range = range_axis_m[peak_range_idx]
     detected_velocity = doppler_axis_mps[peak_doppler_idx]
 
-    # Verification: peak is close to true values (within resolution bin)
-    assert abs(detected_range - target_range) < 0.3  # within 30 cm
-    assert abs(detected_velocity - target_velocity) < 0.5  # within 0.5 m/s
+    # Verification: peak is close to true values (within resolution bin delta_r = 0.6m)
+    assert abs(detected_range - target_range) < 0.7
+    assert abs(detected_velocity - target_velocity) < 0.5
 
 
 def test_generate_map_serializable() -> None:
