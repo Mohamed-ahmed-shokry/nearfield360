@@ -21,7 +21,7 @@ class CACFARDetector:
         guard_cells: int = 2,
         train_cells: int = 4,
         threshold_factor: float = 1.25,
-        min_snr_db: float = 8.0,
+        min_snr_db: float = 15.0,
     ) -> None:
         self.guard = guard_cells
         self.train = train_cells
