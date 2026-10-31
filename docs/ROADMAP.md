@@ -1386,3 +1386,101 @@ Deliver an end-to-end Hardware-in-the-Loop (HIL) automated test harness and vehi
 18. [x] `docs(readme): add CAN gateway capability, roadmap status, and usage commands`
 19. [x] `docs(progress): record Phase 37 implementation, Decision Log, and quality gates`
 20. [x] `docs(roadmap): mark Phase 37 micro-tasks and acceptance criteria completed`
+
+---
+
+## Phase 38: Synthetic Radar & Raw Ultrasonic Sensor Simulation with Range-Doppler Map Generation
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end synthetic sensor simulation subsystem modeling 77 GHz automotive Frequency-Modulated Continuous-Wave (FMCW) radar transceivers and high-frequency (40–50 kHz) ultrasonic acoustic transducer arrays for automated valet parking and low-speed maneuvering in NearField360. The subsystem models physical RF wave propagation (beat frequency synthesis, Doppler frequency shifts, Radar Cross Section (RCS), thermal receiver noise, and multipath ground clutter) and generates raw 2D Range-Doppler spectrum matrices via fast-time and slow-time 2D Fast Fourier Transforms. A 2D Cell-Averaging Constant False Alarm Rate (CA-CFAR) detector filters spectral noise and extracts 4D radar point clouds (range, azimuth, radial velocity, RCS). In parallel, an acoustic time-of-flight (ToF) simulation models directivity beam cones, ambient temperature sound velocity, and distance attenuation across a multi-transducer bumper array. A cross-modal fusion engine associates radar Doppler returns and ultrasonic range echoes with camera-derived BEV obstacles. A dual-panel 1280x720 tactical visualizer renders the Range-Doppler power spectrum and vehicle BEV acoustic beam footprint, while the CLI group `nearfield360 sensor` expands the verified release audit CLI surface to 30 command groups.
+
+### 2. Scope
+
+- **Configuration (`SensorConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - Radar parameters: `carrier_frequency_ghz` (77.0 GHz), `sweep_bandwidth_mhz` (1500.0 MHz), `chirp_duration_us` (50.0 us), `num_chirps` (128), `samples_per_chirp` (256), `cfar_guard_cells` (2), `cfar_train_cells` (4), `cfar_threshold_factor` (1.25), `max_range_m` (50.0 m).
+  - Ultrasonic parameters: `ultrasonic_frequency_khz` (48.0 kHz), `beam_angle_deg` (60.0 deg), `min_range_m` (0.15 m), `max_range_m` (4.5 m), `speed_of_sound_mps` (343.0 m/s), `num_sensors` (12).
+- **Domain Models & Sensor Schemas (`src/nearfield360/sensor/models.py`)**:
+  - `RadarTarget`: `range_m`, `radial_velocity_mps`, `azimuth_rad`, `rcs_dbm2`.
+  - `RadarPointCloud`: `points` (list of `RadarTarget`), `timestamp_s`, `sensor_id`, `noise_floor_db`.
+  - `RangeDopplerMap`: `matrix_db` (2D float matrix [chirps, samples]), `range_bins_m`, `doppler_bins_mps`, `min_power_db`, `max_power_db`.
+  - `UltrasonicEcho`: `sensor_id`, `sensor_pose_vehicle` (x, y, yaw), `range_m`, `echo_amplitude`, `in_detection_cone: bool`.
+  - `UltrasonicArrayFrame`: `echoes` (list of `UltrasonicEcho`), `ambient_temp_c`, `timestamp_s`.
+  - `FusedSensorObstacle`: `obstacle_id`, `x_m`, `y_m`, `radial_velocity_mps`, `min_range_m`, `source_modalities` (e.g. radar, ultrasonic, camera), `confidence`.
+  - `SensorSimulationReport`: `radar_point_cloud`, `range_doppler_summary`, `ultrasonic_summary`, `fused_obstacles_count`.
+- **FMCW Radar Signal & Range-Doppler Matrix Engine (`src/nearfield360/sensor/radar.py`)**:
+  - Computes linear frequency ramp slope $S = B / T_c$.
+  - Generates complex beat signals: $s_b(t) = A \exp(j 2 \pi (f_b t + f_d n T_c + \phi_0))$.
+  - Implements 2D FFT (Fast-time windowed FFT for Range + Slow-time windowed FFT for Doppler velocity).
+  - Adds synthetic Gaussian noise and ground clutter backscatter.
+- **2D CA-CFAR Peak Detector & Point Cloud Extractor (`src/nearfield360/sensor/cfar.py`)**:
+  - 2D sliding cell-averaging CFAR over Range-Doppler power matrix.
+  - Separates cell under test (CUT), guard cells, and training cells.
+  - Dynamically extracts point cloud with sub-bin parabolic interpolation for precision.
+- **Ultrasonic Acoustic Wave Propagation & Array Simulator (`src/nearfield360/sensor/ultrasonic.py`)**:
+  - 12-sensor layout around vehicle perimeter (4 front, 4 rear, 2 front flank, 2 rear flank).
+  - Cone directivity function: $\cos^n(\theta)$.
+  - Time-of-flight range calculation with temperature correction: $c = 331.3 \sqrt{1 + T / 273.15}$.
+  - Multi-path echo detection and threshold gating.
+- **Cross-Modal Sensor Fusion Engine (`src/nearfield360/sensor/fusion.py`)**:
+  - Spatial Euclidean & kinematic association between radar point clouds, ultrasonic distance arcs, and obstacle boundaries.
+  - Produces fused obstacle detections with enriched radial velocity and near-field boundary distance.
+- **Tactical Sensor Dashboard Visualizer (`src/nearfield360/sensor/viz.py`)**:
+  - 1280x720 dual-panel PNG renderer:
+    - Left panel: Range-Doppler 2D power spectrum heatmap with velocity axis, range axis, and detected CFAR point overlays.
+    - Right panel: Vehicle BEV showing ultrasonic sensor beam lobes (colored by detection proximity), radar point cloud scatter with velocity vectors, and obstacles.
+- **CLI Command Group `nearfield360 sensor` & Release Audit (`src/nearfield360/cli/sensor.py`, `src/nearfield360/cli/release.py`)**:
+  - Commands: `info`, `radar`, `ultrasonic`, `fuse`, `render`, `audit`.
+  - Register `sensor` command group in root app, updating release audit expected count to 30 groups.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, FMCW physics & FFT, CA-CFAR detection, ultrasonic acoustic propagation, cross-modal fusion, visualizer, CLI commands, and release audit.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `SensorConfig` defined with strict Pydantic bounds and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models for radar targets, Range-Doppler maps, ultrasonic echoes, and fused obstacles validate and round-trip JSON | `uv run pytest tests/unit/sensor/test_sensor_models.py` |
+| AC-3 | `FMCWRadarSimulator` generates beat signals and produces correct 2D Range-Doppler FFT spectrum with expected range/velocity peaks | `uv run pytest tests/unit/sensor/test_radar.py` |
+| AC-4 | `CACFARDetector` reliably detects simulated targets above noise floor while filtering clutter | `uv run pytest tests/unit/sensor/test_cfar.py` |
+| AC-5 | `UltrasonicArraySimulator` models 12-sensor layout, acoustic cone directivity, temperature scaling, and multi-sensor ToF echoes | `uv run pytest tests/unit/sensor/test_ultrasonic.py` |
+| AC-6 | `CrossModalSensorFusion` associates radar velocities and ultrasonic distances into unified obstacle representations | `uv run pytest tests/unit/sensor/test_sensor_fusion.py` |
+| AC-7 | Tactical sensor visualizer renders dual-panel Range-Doppler heatmap and ultrasonic BEV to a valid PNG | `uv run pytest tests/unit/sensor/test_sensor_viz.py` |
+| AC-8 | Dedicated CLI group `nearfield360 sensor` executes `info`, `radar`, `ultrasonic`, `fuse`, `render`, and `audit` | `uv run pytest tests/unit/test_sensor_cli.py` |
+| AC-9 | Root CLI registers `sensor` command group, passing release audit with 30 groups | `uv run nearfield360 release audit` |
+| AC-10 | All local CI-parity checks and remote CI workflow runs pass 100% | `pre-commit`, `pytest`, `build` |
+
+### 4. Validation & CI Plan
+
+1. Local checks: `uv lock --check`, `uv run pre-commit run --all-files`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing --cov-report=xml`, `uv build`, `uv run twine check dist/*`.
+2. End-to-end CLI execution: `nearfield360 sensor render --output outputs/sensor_dashboard.png`.
+
+### 5. Exclusions
+
+- Full Maxwell 3D electromagnetic finite-difference time-domain (FDTD) wave propagation solvers.
+- Commercial automotive radar raw raw I/Q streaming hardware drivers over PCIe.
+
+### 6. Micro-Task Breakdown
+
+1. [ ] `docs(roadmap): define Phase 38 synthetic radar and ultrasonic sensor simulation scope`
+2. [ ] `feat(config): add SensorConfig schema and default radar/ultrasonic configuration parameters`
+3. [ ] `test(config): verify SensorConfig defaults, bounds, and environment overrides`
+4. [ ] `feat(sensor): implement FMCW radar and ultrasonic sensor domain models`
+5. [ ] `test(sensor): verify sensor domain models validation, constraints, and JSON serialization`
+6. [ ] `feat(sensor): implement FMCW radar signal generator and 2D range-Doppler matrix engine`
+7. [ ] `test(sensor): verify FMCW chirp synthesis, beat frequency, and range-Doppler FFT`
+8. [ ] `feat(sensor): implement 2D CA-CFAR detector and 4D radar point cloud extractor`
+9. [ ] `test(sensor): verify CA-CFAR target detection, thresholding, and point cloud output`
+10. [ ] `feat(sensor): implement ultrasonic acoustic beam propagation and time-of-flight echo engine`
+11. [ ] `test(sensor): verify ultrasonic directivity cone, distance attenuation, and echo returns`
+12. [ ] `feat(sensor): implement cross-modal radar-ultrasonic-vision sensor fusion engine`
+13. [ ] `test(sensor): verify cross-modal association, obstacle bounds, and metric spatial updates`
+14. [ ] `feat(sensor): implement tactical radar range-Doppler and ultrasonic BEV dashboard visualizer`
+15. [ ] `test(sensor): verify tactical sensor visualizer renders valid PNG artifacts`
+16. [ ] `feat(sensor): export public sensor API from package init`
+17. [ ] `feat(cli): implement nearfield360 sensor command group (info, radar, ultrasonic, fuse, render, audit)`
+18. [ ] `feat(cli): register sensor CLI group and update release audit expected count to 30`
+19. [ ] `test(cli): verify sensor CLI command group execution and JSON outputs`
+20. [ ] `docs(readme): add sensor simulation capability, roadmap status, and usage commands`
+21. [ ] `docs(progress): record Phase 38 implementation, Decision Log, and quality gates`
+22. [ ] `docs(roadmap): mark Phase 38 micro-tasks and acceptance criteria completed`
