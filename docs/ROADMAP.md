@@ -1462,25 +1462,25 @@ Deliver an end-to-end synthetic sensor simulation subsystem modeling 77 GHz auto
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 38 synthetic radar and ultrasonic sensor simulation scope`
-2. [ ] `feat(config): add SensorConfig schema and default radar/ultrasonic configuration parameters`
-3. [ ] `test(config): verify SensorConfig defaults, bounds, and environment overrides`
-4. [ ] `feat(sensor): implement FMCW radar and ultrasonic sensor domain models`
-5. [ ] `test(sensor): verify sensor domain models validation, constraints, and JSON serialization`
-6. [ ] `feat(sensor): implement FMCW radar signal generator and 2D range-Doppler matrix engine`
-7. [ ] `test(sensor): verify FMCW chirp synthesis, beat frequency, and range-Doppler FFT`
-8. [ ] `feat(sensor): implement 2D CA-CFAR detector and 4D radar point cloud extractor`
-9. [ ] `test(sensor): verify CA-CFAR target detection, thresholding, and point cloud output`
-10. [ ] `feat(sensor): implement ultrasonic acoustic beam propagation and time-of-flight echo engine`
-11. [ ] `test(sensor): verify ultrasonic directivity cone, distance attenuation, and echo returns`
-12. [ ] `feat(sensor): implement cross-modal radar-ultrasonic-vision sensor fusion engine`
-13. [ ] `test(sensor): verify cross-modal association, obstacle bounds, and metric spatial updates`
-14. [ ] `feat(sensor): implement tactical radar range-Doppler and ultrasonic BEV dashboard visualizer`
-15. [ ] `test(sensor): verify tactical sensor visualizer renders valid PNG artifacts`
-16. [ ] `feat(sensor): export public sensor API from package init`
-17. [ ] `feat(cli): implement nearfield360 sensor command group (info, radar, ultrasonic, fuse, render, audit)`
-18. [ ] `feat(cli): register sensor CLI group and update release audit expected count to 30`
-19. [ ] `test(cli): verify sensor CLI command group execution and JSON outputs`
-20. [ ] `docs(readme): add sensor simulation capability, roadmap status, and usage commands`
-21. [ ] `docs(progress): record Phase 38 implementation, Decision Log, and quality gates`
-22. [ ] `docs(roadmap): mark Phase 38 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 38 synthetic radar and ultrasonic sensor simulation scope`
+2. [x] `feat(config): add SensorConfig schema and default radar/ultrasonic configuration parameters`
+3. [x] `test(config): verify SensorConfig defaults, bounds, and environment overrides`
+4. [x] `feat(sensor): implement FMCW radar and ultrasonic sensor domain models`
+5. [x] `test(sensor): verify sensor domain models validation, constraints, and JSON serialization`
+6. [x] `feat(sensor): implement FMCW radar signal generator and 2D range-Doppler matrix engine`
+7. [x] `test(sensor): verify FMCW chirp synthesis, beat frequency, and range-Doppler FFT`
+8. [x] `feat(sensor): implement 2D CA-CFAR detector and 4D radar point cloud extractor`
+9. [x] `test(sensor): verify CA-CFAR target detection, thresholding, and point cloud output`
+10. [x] `feat(sensor): implement ultrasonic acoustic beam propagation and time-of-flight echo engine`
+11. [x] `test(sensor): verify ultrasonic directivity cone, distance attenuation, and echo returns`
+12. [x] `feat(sensor): implement cross-modal radar-ultrasonic-vision sensor fusion engine`
+13. [x] `test(sensor): verify cross-modal association, obstacle bounds, and metric spatial updates`
+14. [x] `feat(sensor): implement tactical radar range-Doppler and ultrasonic BEV dashboard visualizer`
+15. [x] `test(sensor): verify tactical sensor visualizer renders valid PNG artifacts`
+16. [x] `feat(sensor): export public sensor API from package init`
+17. [x] `feat(cli): implement nearfield360 sensor command group (info, radar, ultrasonic, fuse, render, audit)`
+18. [x] `feat(cli): register sensor CLI group and update release audit expected count to 30`
+19. [x] `test(cli): verify sensor CLI command group execution and JSON outputs`
+20. [x] `docs(readme): add sensor simulation capability, roadmap status, and usage commands`
+21. [x] `docs(progress): record Phase 38 implementation, Decision Log, and quality gates`
+22. [x] `docs(roadmap): mark Phase 38 micro-tasks and acceptance criteria completed`
