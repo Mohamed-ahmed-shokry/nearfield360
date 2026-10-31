@@ -2682,3 +2682,87 @@ Phase 37 delivers an end-to-end Hardware-in-the-Loop (HIL) automated test harnes
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Distribution Smoke Test | `uv build` | Success |
 | Remote CI Workflow Status | GitHub Actions PR #19 | Verified Green |
+
+---
+
+## Phase 38: Synthetic Radar & Raw Ultrasonic Sensor Simulation with Range-Doppler Map Generation
+
+### 1. Overview & Objective
+Phase 38 delivers an end-to-end synthetic sensor simulation subsystem modeling 77 GHz automotive Frequency-Modulated Continuous-Wave (FMCW) radar transceivers and perimeter 12-transducer ultrasonic acoustic arrays for automated valet parking and low-speed maneuvering. The subsystem models physical RF wave propagation (beat frequency synthesis, Doppler frequency shifts, Radar Cross Section (RCS), thermal receiver noise, and multipath ground clutter) and generates raw 2D Range-Doppler spectrum matrices via fast-time and slow-time 2D Fast Fourier Transforms. A 2D Cell-Averaging Constant False Alarm Rate (CA-CFAR) detector filters spectral noise and extracts 4D radar point clouds (range, azimuth, radial velocity, RCS). In parallel, an acoustic time-of-flight (ToF) simulation models directivity beam cones, ambient temperature sound velocity, and distance attenuation across a multi-transducer bumper array. A cross-modal fusion engine associates radar Doppler returns and ultrasonic range echoes with camera-derived BEV obstacles. A dual-panel 1280x720 tactical visualizer renders the Range-Doppler power spectrum and vehicle BEV acoustic beam footprint, while the CLI group `nearfield360 sensor` expands the verified release audit CLI surface to 30 command groups.
+
+### 2. Implemented Subsystems
+- **Configuration Foundation (`SensorConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `carrier_frequency_ghz`: 77.0 GHz nominal automotive radar band.
+  - `sweep_bandwidth_mhz`: 250.0 MHz nominal chirp bandwidth ($R_{\max} = 76.8\text{ m}$).
+  - `chirp_duration_us`: 50.0 us chirp duration.
+  - `num_chirps`: 128 chirps per frame (Doppler velocity bins).
+  - `samples_per_chirp`: 256 ADC samples per chirp (fast-time range bins).
+  - `cfar_guard_cells` / `cfar_train_cells` / `cfar_threshold_factor`: 2 guard, 4 train, 1.25 multiplier.
+  - `radar_max_range_m`: 50.0 m range limit.
+  - `ultrasonic_frequency_khz`: 48.0 kHz acoustic pulse frequency.
+  - `ultrasonic_beam_angle_deg`: 60.0 deg radiation cone.
+  - `ultrasonic_min_range_m` / `ultrasonic_max_range_m`: 0.15 m to 4.5 m operational bracket.
+  - `speed_of_sound_mps`: 343.0 m/s nominal acoustic velocity.
+  - `num_ultrasonic_sensors`: 12 sensors around vehicle perimeter.
+- **Domain Models & Protocol Schemas (`src/nearfield360/sensor/models.py`)**:
+  - `SensorPose`: Mounting location $(x, y)$ and heading angle in vehicle coordinates.
+  - `RadarTarget`: Range (m), radial velocity (m/s), azimuth (rad), RCS ($\text{dBm}^2$), SNR (dB).
+  - `RadarPointCloud`: Collection of detected radar point targets with sensor ID and noise floor.
+  - `RangeDopplerMap`: 2D matrix of power in dB with metric range and Doppler velocity axis coordinates.
+  - `UltrasonicEcho`: Transducer ID, sensor pose, distance (m), echo amplitude, detection cone status.
+  - `UltrasonicArrayFrame`: Collection of 12 transducer echoes with ambient temperature ($^\circ\text{C}$).
+  - `FusedSensorObstacle`: Fused obstacle estimate with position, radial velocity, modalities, and confidence.
+  - `SensorSimulationReport`: Aggregated report serializable to JSON.
+- **FMCW Radar Signal & 2D Range-Doppler Matrix Engine (`src/nearfield360/sensor/radar.py`)**:
+  - `FMCWRadarSimulator`: Synthesizes complex baseband de-chirped beat signal matrix $[N_c, N_s]$ with range beat frequency $f_b = S \frac{2 R}{c}$ and Doppler phase accumulation $\Delta \phi = 2 \pi f_d m T_c$.
+  - 2D Fast Fourier Transform: Hanning windowed fast-time FFT along samples + Hanning windowed slow-time FFT along chirps with FFT shift.
+  - Computes physical metric range resolution ($\Delta R = c / (2 B) = 0.60\text{ m}$) and Doppler velocity resolution ($v_{\max} = \lambda / (4 T_c) \approx 19.5\text{ m/s}$).
+- **2D CA-CFAR Peak Detector & Point Cloud Extractor (`src/nearfield360/sensor/cfar.py`)**:
+  - `CACFARDetector`: 2D sliding-window cell-averaging constant false alarm rate detector.
+  - Computes sliding reference noise power using box filtering over outer and guard kernels.
+  - Enforces 3x3 local maximum non-maximum suppression (NMS) to eliminate peak smearing.
+  - Computes target SNR and estimates Radar Cross Section (RCS).
+- **Ultrasonic Acoustic Array Simulator (`src/nearfield360/sensor/ultrasonic.py`)**:
+  - `UltrasonicArraySimulator`: Models 12 perimeter sensors (4 front bumper, 4 rear bumper, 2 front flank, 2 rear flank).
+  - Computes temperature-compensated acoustic velocity: $c(T) = 331.3 \sqrt{1 + T / 273.15}\text{ m/s}$.
+  - Beam directivity function with cosine attenuation over 60-degree cone and spherical spreading attenuation.
+- **Cross-Modal Sensor Fusion Engine (`src/nearfield360/sensor/fusion.py`)**:
+  - `CrossModalSensorFusion`: Spatial Euclidean association between radar points, ultrasonic echoes, and camera tracks.
+  - Merges co-located detections, enriching ultrasonic obstacle distance with radar Doppler velocity and camera confirmation.
+- **Tactical Sensor Dashboard Visualizer (`src/nearfield360/sensor/viz.py`)**:
+  - 1280x720 dual-panel high-contrast HUD display: left panel renders turbo-colormapped 2D Range-Doppler power spectrum with target overlays; right panel displays vehicle footprint, 12 ultrasonic acoustic beam lobes (green=clear, red=obstacle), radar point cloud scatter, and fused obstacle bounding boxes.
+- **CLI Group & Packaging Integration (`src/nearfield360/cli/sensor.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `radar`, `ultrasonic`, `fuse`, `render`, `audit`.
+  - Registered `sensor` command group in root app and expanded release audit to verify 30 command groups.
+
+### 3. Key Findings & Autonomous Decision Log
+1. **Decision**: 250 MHz FMCW Chirp Bandwidth for Unambiguous 50 m Operational Range
+   - *Alternatives Considered*: 1500 MHz ultra-wideband sweep.
+   - *Rationale & Evidence*: In an FMCW radar with $N_s = 256$ ADC samples and chirp duration $T_c = 50\ \mu\text{s}$, the Nyquist sampling limit dictates maximum unambiguous range $R_{\max} = \frac{c N_s}{4 B}$. With $B = 1500\text{ MHz}$, $R_{\max} \approx 12.8\text{ m}$, causing targets beyond 13 meters to alias into lower frequencies. Tuning nominal sweep bandwidth to $B = 250\text{ MHz}$ achieves $R_{\max} = 76.8\text{ m}$ with $\Delta R = 0.60\text{ m}$ range resolution, perfectly covering the 50 m automated parking operational envelope.
+
+2. **Decision**: 2D Uniform Box-Filter Convolution with 3x3 Morphological NMS for CA-CFAR
+   - *Alternatives Considered*: Pure nested Python loops or scipy-dependent filters.
+   - *Rationale & Evidence*: Nested element-by-element loops over $128 \times 128$ power cells take hundreds of milliseconds in Python. Using `cv2.boxFilter` with outer and guard kernels computes linear training cell sums in under 1 ms without introducing new package dependencies, while 3x3 morphological dilation ensures clean non-maximum suppression.
+
+3. **Decision**: Temperature-Compensated Speed of Sound for Precision Ultrasonic ToF
+   - *Alternatives Considered*: Constant static $340\text{ m/s}$ acoustic velocity.
+   - *Rationale & Evidence*: Acoustic propagation speed varies substantially with temperature ($318\text{ m/s}$ at $-20^\circ\text{C}$ vs $343\text{ m/s}$ at $20^\circ\text{C}$, a 7.8% discrepancy). In near-field parking maneuvers where clearance is under 30 cm, an uncompensated speed of sound introduces multi-centimeter ranging errors. Modeling $c(T) = 331.3 \sqrt{1 + T / 273.15}$ maintains millimeter accuracy across operating climates.
+
+### 4. Verification & Quality Gates
+| Check | Command | Result |
+| --- | --- | --- |
+| Sensor Config Validation | `uv run pytest tests/unit/test_config.py` | 106 passed |
+| Sensor Domain Models & Schemas | `uv run pytest tests/unit/sensor/test_sensor_models.py` | 5 passed |
+| FMCW Radar 2D FFT Engine | `uv run pytest tests/unit/sensor/test_radar.py` | 4 passed |
+| 2D CA-CFAR Detector & Point Cloud | `uv run pytest tests/unit/sensor/test_cfar.py` | 3 passed |
+| Ultrasonic Array Acoustic Simulator | `uv run pytest tests/unit/sensor/test_ultrasonic.py` | 5 passed |
+| Cross-Modal Sensor Fusion Engine | `uv run pytest tests/unit/sensor/test_sensor_fusion.py` | 3 passed |
+| Tactical Dashboard Visualizer | `uv run pytest tests/unit/sensor/test_sensor_viz.py` | 1 passed |
+| Sensor CLI Command Group | `uv run pytest tests/unit/test_sensor_cli.py` | 6 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 30 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1,539 passed, 1 skipped |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
+| Remote CI Workflow Status | GitHub Actions PR #21 | Pending Push |
