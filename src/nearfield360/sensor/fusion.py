@@ -137,24 +137,32 @@ class CrossModalSensorFusion:
 
         # 4. Associate camera obstacles if provided
         if camera_obstacles:
-            for cam_obs in camera_obstacles:
-                cx = cam_obs.get("x", 0.0)
-                cy = cam_obs.get("y", 0.0)
-                # Associate with closest fused obstacle
-                matched_fused: FusedSensorObstacle | None = None
-                best_gate = self.association_gate_m
-
-                for fo in fused_obstacles:
+            updated_fused: list[FusedSensorObstacle] = []
+            for fo in fused_obstacles:
+                matched_cam = False
+                for cam_obs in camera_obstacles:
+                    cx = cam_obs.get("x", 0.0)
+                    cy = cam_obs.get("y", 0.0)
                     d = math.hypot(fo.x_m - cx, fo.y_m - cy)
-                    if d < best_gate:
-                        best_gate = d
-                        matched_fused = fo
+                    if d < self.association_gate_m:
+                        matched_cam = True
+                        break
 
-                if matched_fused is not None:
-                    if "camera" not in matched_fused.source_modalities:
-                        matched_fused.source_modalities.append("camera")
-                    # Boost confidence when confirmed by camera vision
-                    matched_fused.confidence = min(0.99, matched_fused.confidence + 0.05)
+                if matched_cam:
+                    mods = list(fo.source_modalities)
+                    if "camera" not in mods:
+                        mods.append("camera")
+                    updated_fused.append(
+                        fo.model_copy(
+                            update={
+                                "source_modalities": mods,
+                                "confidence": min(0.99, round(fo.confidence + 0.05, 2)),
+                            }
+                        )
+                    )
+                else:
+                    updated_fused.append(fo)
+            fused_obstacles = updated_fused
 
         return SensorSimulationReport(
             timestamp_s=timestamp_s,
