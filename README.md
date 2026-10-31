@@ -538,8 +538,10 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     Seeded stochastic arrival-demand generator, coordinated day-level AVP operations simulation orchestrating gate arrivals, V2X slot dispatch/reservation, charging and V2G energy windows, and settlement billing, hourly facility activity snapshots, daily KPI aggregation (throughput, occupancy, energy balance, revenue streams, service-level compliance), unified operations dashboard visualizer, dedicated CLI command group `nearfield360 ops`, and release audit verification (28 CLI command groups).
 28. ~~Hardware-in-the-loop (HIL) automated test harness and vehicle CAN bus gateway.~~ Done:
     Synthetic ISO 11898 CAN 2.0B / CAN FD frame codec with SAE J1850 CRC-8 checksum verification, domain models for drive-by-wire steering/throttle/brake actuation, ultrasonic distance telemetry, and wheel speed metrics, synthetic fault injection engine (bit flips, frame drops, CRC corruption, timing jitter), discrete-event HIL gateway scheduler with bus load calculation (nominal 500 kbps), dual-panel tactical oscilloscope and CAN telemetry dashboard renderer, dedicated CLI command group `nearfield360 can`, and release audit verification (29 CLI command groups).
-29. **Synthetic radar and raw ultrasonic sensor simulation with range-Doppler map generation.** Planned:
-    FMCW radar point-cloud and range-Doppler FFT matrix generation, multipath clutter modeling, high-frequency ultrasonic time-of-flight acoustic beam simulation, and cross-modal radar-vision-acoustic sensor fusion.
+29. ~~Synthetic radar and raw ultrasonic sensor simulation with range-Doppler map generation.~~ Done:
+    FMCW 77 GHz radar transceiver simulation with physical beat frequency synthesis, 2D Fast Fourier Transform (fast-time range FFT + slow-time Doppler velocity FFT), 2D CA-CFAR peak detection engine extracting 4D point clouds (range, velocity, azimuth, SNR, RCS), perimeter 12-sensor ultrasonic transducer array simulation with acoustic beam directivity and temperature-compensated time-of-flight echoes, cross-modal sensor fusion engine, 1280x720 tactical dual-panel visualizer (`outputs/sensor_dashboard.png`), dedicated CLI command group `nearfield360 sensor`, and release audit verification (30 CLI command groups).
+30. **ISO 26262 ASIL-D functional safety supervisor, heartbeat watchdog & plausibility monitor.** Planned:
+    Deterministic E/E safety state machine, cyclic heartbeat watchdog with deadline monitoring, sensor plausibility cross-checking, actuator fault reaction, and fail-silent emergency stop orchestration.
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -1134,6 +1136,48 @@ Run comprehensive ISO 11898 / SAE J1850 HIL gateway codec and scheduler safety a
 ```powershell
 uv run nearfield360 can audit
 uv run nearfield360 can audit --json --output outputs/hil_can_audit.json
+```
+
+### Synthetic FMCW Radar, Ultrasonic Transducer Array & Range-Doppler Simulation
+
+Inspect radar transceiver parameters, sweep bandwidth, chirp duration, and ultrasonic array geometry:
+
+```powershell
+uv run nearfield360 sensor info
+uv run nearfield360 sensor info --json
+```
+
+Simulate 77 GHz FMCW radar transmission, 2D FFT, and CA-CFAR point cloud detection:
+
+```powershell
+uv run nearfield360 sensor radar --range 15.0 --velocity -2.5 --rcs 15.0
+uv run nearfield360 sensor radar --range 25.0 --velocity 4.0 --json --output outputs/radar_cloud.json
+```
+
+Simulate 12-sensor perimeter ultrasonic array acoustic wave propagation and ToF distance echoes:
+
+```powershell
+uv run nearfield360 sensor ultrasonic --front-dist 0.85 --rear-dist 1.20 --temp 20.0
+uv run nearfield360 sensor ultrasonic --json --output outputs/ultrasonic_echoes.json
+```
+
+Perform multi-modal radar, ultrasonic, and camera obstacle fusion in vehicle coordinates:
+
+```powershell
+uv run nearfield360 sensor fuse --range 10.0 --velocity -1.8 --uss-dist 1.05 --output outputs/fused_sensor_report.json
+```
+
+Render tactical 1280x720 2D Range-Doppler spectrum heatmap and vehicle BEV acoustic beam dashboard:
+
+```powershell
+uv run nearfield360 sensor render --range 14.0 --velocity -3.2 --uss-dist 0.85 --png outputs/sensor_dashboard.png
+```
+
+Run comprehensive radar physics, 2D CA-CFAR detection, and ultrasonic array verification audit:
+
+```powershell
+uv run nearfield360 sensor audit
+uv run nearfield360 sensor audit --json --output outputs/sensor_audit.json
 ```
 
 ## License
