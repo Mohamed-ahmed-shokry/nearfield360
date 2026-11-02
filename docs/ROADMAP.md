@@ -1561,23 +1561,23 @@ Deliver an end-to-end ISO 26262 ASIL-D functional safety supervisor, cyclic hard
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 39 ISO 26262 ASIL-D safety supervisor and watchdog scope`
-2. [ ] `feat(config): add SafetyConfig schema and default configuration parameters`
-3. [ ] `test(config): verify SafetyConfig defaults, bounds, and environment overrides`
-4. [ ] `feat(safety): implement safety state machine, watchdog, and plausibility domain models`
-5. [ ] `test(safety): verify safety domain models validation, state transitions, and JSON serialization`
-6. [ ] `feat(safety): implement cyclic hardware heartbeat watchdog with deadline monitoring`
-7. [ ] `test(safety): verify watchdog deadline tracking, jitter measurement, and timeout expiration`
-8. [ ] `feat(safety): implement sensor plausibility cross-checker and kinematic invariant validator`
-9. [ ] `test(safety): verify plausibility checks on frozen telemetry, steering rate, and velocity mismatch`
-10. [ ] `feat(safety): implement ASIL-D safety supervisor state machine and emergency control override`
-11. [ ] `test(safety): verify safety state transitions, degraded perception, and safe stop overrides`
-12. [ ] `feat(safety): implement tactical ASIL-D safety HUD and watchdog timeline dashboard visualizer`
-13. [ ] `test(safety): verify tactical safety visualizer renders valid PNG artifacts`
-14. [ ] `feat(safety): export public safety API from package init`
-15. [ ] `feat(cli): implement nearfield360 safety command group (info, watchdog, plausibility, simulate, render, audit)`
-16. [ ] `feat(cli): register safety CLI group and update release audit expected count to 31`
-17. [ ] `test(cli): verify safety CLI command group execution and JSON outputs`
-18. [ ] `docs(readme): add functional safety capability, roadmap status, and usage commands`
-19. [ ] `docs(progress): record Phase 39 implementation, Decision Log, and quality gates`
-20. [ ] `docs(roadmap): mark Phase 39 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 39 ISO 26262 ASIL-D safety supervisor and watchdog scope`
+2. [x] `feat(config): add SafetyConfig schema and default configuration parameters`
+3. [x] `test(config): verify SafetyConfig defaults, bounds, and environment overrides`
+4. [x] `feat(safety): implement safety state machine, watchdog, and plausibility domain models`
+5. [x] `test(safety): verify safety domain models validation, state transitions, and JSON serialization`
+6. [x] `feat(safety): implement cyclic hardware heartbeat watchdog with deadline monitoring`
+7. [x] `test(safety): verify watchdog deadline tracking, jitter measurement, and timeout expiration`
+8. [x] `feat(safety): implement sensor plausibility cross-checker and kinematic invariant validator`
+9. [x] `test(safety): verify plausibility checks on frozen telemetry, steering rate, and velocity mismatch`
+10. [x] `feat(safety): implement ASIL-D safety supervisor state machine and emergency control override`
+11. [x] `test(safety): verify safety state transitions, degraded perception, and safe stop overrides`
+12. [x] `feat(safety): implement tactical ASIL-D safety HUD and watchdog timeline dashboard visualizer`
+13. [x] `test(safety): verify tactical safety visualizer renders valid PNG artifacts`
+14. [x] `feat(safety): export public safety API from package init`
+15. [x] `feat(cli): implement nearfield360 safety command group (info, watchdog, plausibility, simulate, render, audit)`
+16. [x] `feat(cli): register safety CLI group and update release audit expected count to 31`
+17. [x] `test(cli): verify safety CLI command group execution and JSON outputs`
+18. [x] `docs(readme): add functional safety capability, roadmap status, and usage commands`
+19. [x] `docs(progress): record Phase 39 implementation, Decision Log, and quality gates`
+20. [x] `docs(roadmap): mark Phase 39 micro-tasks and acceptance criteria completed`
