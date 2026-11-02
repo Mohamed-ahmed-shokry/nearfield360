@@ -12,6 +12,7 @@ from nearfield360.cli.state import get_state
 from nearfield360.safety.models import (
     ECUNodeId,
     HeartbeatPing,
+    HeartbeatStatus,
     SafetyState,
 )
 from nearfield360.safety.plausibility import PlausibilityChecker
@@ -96,17 +97,18 @@ def safety_watchdog(
     config = get_state(context).config.safety
     watchdog = HeartbeatWatchdog(config)
 
-    # Simulate periodic broadcasts
-    timestamps = [0.0, 0.05, 0.10, 0.15]
-    for ts in timestamps:
-        for node in DEFAULT_NODE_PERIODS_MS:
-            if dropped_node and node.value == dropped_node and ts > 0.05:
-                continue
-            watchdog.record_heartbeat(
-                HeartbeatPing(node_id=node, sequence_num=int(ts * 20), timestamp_s=ts)
-            )
+    # Initial periodic broadcasts
+    for node in DEFAULT_NODE_PERIODS_MS:
+        watchdog.record_heartbeat(HeartbeatPing(node_id=node, sequence_num=1, timestamp_s=0.1))
 
-    eval_time = 0.35  # Advance beyond timeout
+    # Subsequent broadcast at 0.60: non-dropped nodes refresh
+    eval_time = 0.60
+    for node in DEFAULT_NODE_PERIODS_MS:
+        if dropped_node and node.value == dropped_node:
+            continue
+        watchdog.record_heartbeat(
+            HeartbeatPing(node_id=node, sequence_num=2, timestamp_s=eval_time)
+        )
     statuses = watchdog.evaluate(eval_time)
     is_crit, crit_reason = watchdog.check_critical_expiration(statuses)
 
@@ -205,39 +207,50 @@ def safety_simulate(
     sup = SafetySupervisor(config=config, start_time_s=0.0)
 
     # 1. Boot phase
+    boot_t = config.self_test_dwell_s + 0.05
     for node in DEFAULT_NODE_PERIODS_MS:
         tracker = sup.watchdog.trackers[node]
-        tracker.last_heartbeat_s = 0.1
+        tracker.last_heartbeat_s = boot_t
         tracker.has_received_first = True
+        tracker.status = HeartbeatStatus.HEALTHY
 
     # Advance through self-test dwell
-    sup.step(current_time_s=config.self_test_dwell_s + 0.1)
+    sup.step(current_time_s=boot_t)
 
     # 2. Scenario Execution
     if scenario == "nominal":
+        sim_t = boot_t + 0.1
         for node in DEFAULT_NODE_PERIODS_MS:
-            sup.watchdog.trackers[node].last_heartbeat_s = 1.0
-        rep = sup.step(1.0, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.05})
+            tracker = sup.watchdog.trackers[node]
+            tracker.last_heartbeat_s = sim_t
+            tracker.status = HeartbeatStatus.HEALTHY
+        rep = sup.step(sim_t, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.05})
 
     elif scenario == "critical_timeout":
-        # Let vehicle controller expire by advancing time past timeout
+        sim_t = boot_t + 1.0
         for node in DEFAULT_NODE_PERIODS_MS:
             if node != ECUNodeId.VEHICLE_CONTROLLER:
-                sup.watchdog.trackers[node].last_heartbeat_s = 1.0
-        rep = sup.step(1.0, kinematics={"wheel_speed_mps": 3.0})
+                tracker = sup.watchdog.trackers[node]
+                tracker.last_heartbeat_s = sim_t
+                tracker.status = HeartbeatStatus.HEALTHY
+        rep = sup.step(sim_t, kinematics={"wheel_speed_mps": 3.0})
 
     elif scenario == "kinematic_violation":
+        sim_t = boot_t + 0.1
         for node in DEFAULT_NODE_PERIODS_MS:
-            sup.watchdog.trackers[node].last_heartbeat_s = 1.0
+            tracker = sup.watchdog.trackers[node]
+            tracker.last_heartbeat_s = sim_t
+            tracker.status = HeartbeatStatus.HEALTHY
         # Initialize kinematics
-        sup.step(0.95, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.0})
+        sup.step(sim_t - 0.05, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.0})
         # Sudden massive steering jump
-        rep = sup.step(1.0, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.8})
+        rep = sup.step(sim_t, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.8})
 
     elif scenario == "fail_latch":
+        sim_t = boot_t + 0.1
         # Trigger emergency stop then come to standstill
-        sup.trigger_emergency_stop("Manual safety trigger", timestamp_s=0.8)
-        rep = sup.step(1.0, kinematics={"wheel_speed_mps": 0.0})
+        sup.trigger_emergency_stop("Manual safety trigger", timestamp_s=sim_t)
+        rep = sup.step(sim_t + 0.1, kinematics={"wheel_speed_mps": 0.0})
 
     else:
         raise typer.BadParameter(
@@ -282,28 +295,42 @@ def safety_render(
     config = get_state(context).config.safety
     sup = SafetySupervisor(config=config, start_time_s=0.0)
 
+    boot_t = config.self_test_dwell_s + 0.05
     for node in DEFAULT_NODE_PERIODS_MS:
         tracker = sup.watchdog.trackers[node]
-        tracker.last_heartbeat_s = 0.1
+        tracker.last_heartbeat_s = boot_t
         tracker.has_received_first = True
+        tracker.status = HeartbeatStatus.HEALTHY
 
-    sup.step(current_time_s=config.self_test_dwell_s + 0.1)
+    sup.step(current_time_s=boot_t)
 
     if scenario == "critical_timeout":
+        sim_t = boot_t + 1.0
         for node in DEFAULT_NODE_PERIODS_MS:
             if node != ECUNodeId.VEHICLE_CONTROLLER:
-                sup.watchdog.trackers[node].last_heartbeat_s = 1.0
-        rep = sup.step(1.0, kinematics={"wheel_speed_mps": 2.0})
+                tracker = sup.watchdog.trackers[node]
+                tracker.last_heartbeat_s = sim_t
+                tracker.status = HeartbeatStatus.HEALTHY
+        rep = sup.step(sim_t, kinematics={"wheel_speed_mps": 2.0})
     elif scenario == "fail_latch":
-        sup.trigger_emergency_stop("Emergency safe stop", timestamp_s=0.8)
-        rep = sup.step(1.0, kinematics={"wheel_speed_mps": 0.0})
+        sim_t = boot_t + 0.1
+        sup.trigger_emergency_stop("Emergency safe stop", timestamp_s=sim_t)
+        rep = sup.step(sim_t + 0.1, kinematics={"wheel_speed_mps": 0.0})
     elif scenario == "kinematic_violation":
-        sup.step(0.95, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.0})
-        rep = sup.step(1.0, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.8})
-    else:
+        sim_t = boot_t + 0.1
         for node in DEFAULT_NODE_PERIODS_MS:
-            sup.watchdog.trackers[node].last_heartbeat_s = 1.0
-        rep = sup.step(1.0, kinematics={"wheel_speed_mps": 2.5, "steering_angle_rad": 0.02})
+            tracker = sup.watchdog.trackers[node]
+            tracker.last_heartbeat_s = sim_t
+            tracker.status = HeartbeatStatus.HEALTHY
+        sup.step(sim_t - 0.05, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.0})
+        rep = sup.step(sim_t, kinematics={"wheel_speed_mps": 3.0, "steering_angle_rad": 0.8})
+    else:
+        sim_t = boot_t + 0.1
+        for node in DEFAULT_NODE_PERIODS_MS:
+            tracker = sup.watchdog.trackers[node]
+            tracker.last_heartbeat_s = sim_t
+            tracker.status = HeartbeatStatus.HEALTHY
+        rep = sup.step(sim_t, kinematics={"wheel_speed_mps": 2.5, "steering_angle_rad": 0.02})
 
     render_safety_dashboard(rep, output_path=png)
     typer.echo(f"Rendered tactical safety HUD dashboard to {png}")
