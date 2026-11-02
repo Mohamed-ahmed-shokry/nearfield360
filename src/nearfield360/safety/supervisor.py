@@ -206,7 +206,10 @@ class SafetySupervisor:
                 ECUNodeId.TRAJECTORY_PLANNER,
             ):
                 health = node_healths.get(node.value)
-                if health is None or health.status != HeartbeatStatus.HEALTHY:
+                if health is None or health.status in (
+                    HeartbeatStatus.MISSED,
+                    HeartbeatStatus.EXPIRED,
+                ):
                     all_critical_present = False
                     break
 
