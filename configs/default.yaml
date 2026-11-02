@@ -302,3 +302,12 @@ sensor:
   ultrasonic_max_range_m: 4.5
   speed_of_sound_mps: 343.0
   num_ultrasonic_sensors: 12
+safety:
+  heartbeat_timeout_ms: 150.0
+  max_consecutive_misses: 3
+  max_steering_rate_rads: 0.60
+  max_acceleration_mps2: 3.50
+  speed_discrepancy_tolerance_mps: 1.20
+  safe_stop_deceleration_mps2: 2.50
+  degraded_speed_limit_mps: 2.0
+  self_test_dwell_s: 0.50

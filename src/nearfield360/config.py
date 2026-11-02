@@ -603,6 +603,23 @@ class SensorConfig(BaseModel):
     num_ultrasonic_sensors: int = Field(default=12, ge=4, le=24)
 
 
+class SafetyConfig(BaseModel):
+    """Parameters for ISO 26262 ASIL-D functional safety supervisor and watchdog."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    heartbeat_timeout_ms: float = Field(default=150.0, gt=10.0, le=2000.0, allow_inf_nan=False)
+    max_consecutive_misses: int = Field(default=3, ge=1, le=10)
+    max_steering_rate_rads: float = Field(default=0.60, gt=0.05, le=3.0, allow_inf_nan=False)
+    max_acceleration_mps2: float = Field(default=3.50, gt=0.5, le=10.0, allow_inf_nan=False)
+    speed_discrepancy_tolerance_mps: float = Field(
+        default=1.20, gt=0.1, le=5.0, allow_inf_nan=False
+    )
+    safe_stop_deceleration_mps2: float = Field(default=2.50, gt=0.5, le=8.0, allow_inf_nan=False)
+    degraded_speed_limit_mps: float = Field(default=2.0, gt=0.2, le=10.0, allow_inf_nan=False)
+    self_test_dwell_s: float = Field(default=0.50, ge=0.05, le=5.0, allow_inf_nan=False)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -650,6 +667,7 @@ class ProjectConfig(BaseSettings):
     operations: OperationsConfig = Field(default_factory=OperationsConfig)
     can: CANConfig = Field(default_factory=CANConfig)
     sensor: SensorConfig = Field(default_factory=SensorConfig)
+    safety: SafetyConfig = Field(default_factory=SafetyConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -721,6 +739,7 @@ __all__ = [
     "RiskConfig",
     "RobustnessConfig",
     "RuntimeConfig",
+    "SafetyConfig",
     "SensorConfig",
     "TeleopConfig",
     "TenantConfig",
