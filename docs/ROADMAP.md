@@ -1484,3 +1484,100 @@ Deliver an end-to-end synthetic sensor simulation subsystem modeling 77 GHz auto
 20. [x] `docs(readme): add sensor simulation capability, roadmap status, and usage commands`
 21. [x] `docs(progress): record Phase 38 implementation, Decision Log, and quality gates`
 22. [x] `docs(roadmap): mark Phase 38 micro-tasks and acceptance criteria completed`
+
+---
+
+## Phase 39: ISO 26262 ASIL-D Functional Safety Supervisor, Cyclic Heartbeat Watchdog & Plausibility Monitor
+
+### 1. Objective & Expected Outcome
+
+Deliver an end-to-end ISO 26262 ASIL-D functional safety supervisor, cyclic hardware heartbeat watchdog, and sensor plausibility monitoring subsystem for NearField360. In safety-critical automated valet parking deployments (ISO 23374 / ISO 26262 Part 4/6), autonomous motion requires continuous runtime verification of ECU computational health, communication deadlines, kinematic plausibility, and actuator safety invariants. The subsystem establishes a deterministic 5-state safety state machine (`BOOT_SELF_TEST`, `NORMAL_OPERATION`, `DEGRADED_PERCEPTION`, `EMERGENCY_SAFE_STOP`, `FAIL_SILENT_LATCH`), monitors cyclic heartbeats across ECUs (cameras, radar, ultrasonic, planning, CAN gateway, actuation), validates sensor data plausibility (detecting frozen telemetry, wheel speed vs. radar Doppler discrepancies, acceleration overshoots, and steering rate runaway), and executes emergency minimum-risk stop overrides ($a \le -2.5 \text{ m/s}^2$). A dual-panel 1280x720 tactical safety HUD displays real-time watchdog timelines, state machine transitions, and plausibility gauges. The dedicated CLI group `nearfield360 safety` expands the verified release audit CLI surface to 31 command groups.
+
+### 2. Scope
+
+- **Configuration (`SafetyConfig` in `src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `heartbeat_timeout_ms`: Maximum allowed latency before declaring an ECU heartbeat lost (default: 150.0 ms).
+  - `max_consecutive_misses`: Number of consecutive missed heartbeats before emergency fallback (default: 3).
+  - `max_steering_rate_rads`: Maximum physically plausible steering slew rate (default: 0.60 rad/s).
+  - `max_acceleration_mps2`: Dynamic longitudinal acceleration plausibility bound (default: 3.50 m/s^2).
+  - `speed_discrepancy_tolerance_mps`: Max allowable error between CAN wheel speeds and radar velocity (default: 1.20 m/s).
+  - `safe_stop_deceleration_mps2`: Safe emergency braking deceleration (default: 2.50 m/s^2).
+  - `degraded_speed_limit_mps`: Velocity ceiling during degraded perception (default: 2.0 m/s).
+- **Domain Models & Schemas (`src/nearfield360/safety/models.py`)**:
+  - `SafetyState` Enum: `BOOT_SELF_TEST`, `NORMAL_OPERATION`, `DEGRADED_PERCEPTION`, `EMERGENCY_SAFE_STOP`, `FAIL_SILENT_LATCH`.
+  - `ECUNodeId` Enum: `PERCEPTION_SURROUND`, `RADAR_TRANSCEIVER`, `ULTRASONIC_ARRAY`, `TRAJECTORY_PLANNER`, `CAN_GATEWAY`, `VEHICLE_CONTROLLER`, `TELEOP_SUPERVISOR`.
+  - `HeartbeatStatus` Enum: `HEALTHY`, `WARN_JITTER`, `MISSED`, `EXPIRED`.
+  - `HeartbeatRecord`: `node_id`, `sequence_num`, `timestamp_s`, `latency_ms`, `status`.
+  - `PlausibilityViolation`: `violation_type`, `description`, `measured_value`, `limit_value`, `severity`.
+  - `SafetyTransitionRecord`: `from_state`, `to_state`, `reason`, `timestamp_s`.
+  - `SafetySupervisorReport`: `active_state`, `heartbeat_statuses`, `active_violations`, `transition_history`, `actuator_override_engaged`.
+- **Cyclic Heartbeat Watchdog Engine (`src/nearfield360/safety/watchdog.py`)**:
+  - Tracks registration and periodic heartbeat pings from all registered ECUs.
+  - Computes microsecond-accurate latency, inter-arrival jitter, and detects missed deadlines.
+  - Triggers warning or timeout failure when consecutive misses exceed thresholds.
+- **Sensor Plausibility Cross-Checker (`src/nearfield360/safety/plausibility.py`)**:
+  - Evaluates vehicle telemetry against kinematic physical invariants.
+  - Detects frozen telemetry (identical values during vehicle displacement).
+  - Checks wheel speed vs. radar Doppler velocity agreement.
+  - Validates steering slew rate ($|\Delta \delta / \Delta t| \le \dot{\delta}_{\max}$) and acceleration limits.
+- **ASIL-D Safety Supervisor State Machine (`src/nearfield360/safety/supervisor.py`)**:
+  - Deterministic state machine governing transitions between operating modes.
+  - Triggers safe degradation when non-critical sensors fail.
+  - Enforces fail-safe emergency stopping overrides when critical watchdog or plausibility limits are violated.
+  - Enforces fail-silent latching requiring clean self-test reset.
+- **Tactical Safety HUD & Watchdog Timeline Visualizer (`src/nearfield360/safety/viz.py`)**:
+  - 1280x720 dual-panel PNG renderer:
+    - Left panel: ECU node heartbeat timeline, deadline latency curves, jitter bars, and status badges.
+    - Right panel: ASIL-D state transition graph with active state highlighted, violation audit log, and plausibility gauge cluster.
+- **CLI Command Group `nearfield360 safety` & Release Audit (`src/nearfield360/cli/safety.py`, `src/nearfield360/cli/release.py`)**:
+  - Commands: `info`, `watchdog`, `plausibility`, `simulate`, `render`, `audit`.
+  - Register `safety` command group in root app, updating release audit expected count to 31 groups.
+- **Comprehensive Verification Suite**:
+  - Unit tests covering configuration, domain models, watchdog deadline tracking, plausibility checks, state machine transitions, visualizer, CLI commands, and release audit.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `SafetyConfig` defined with strict Pydantic bounds and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models for safety states, ECU heartbeats, plausibility violations, and supervisor reports validate and round-trip JSON | `uv run pytest tests/unit/safety/test_safety_models.py` |
+| AC-3 | `HeartbeatWatchdog` tracks cyclic node arrivals, measures jitter, and triggers expiration after consecutive misses | `uv run pytest tests/unit/safety/test_watchdog.py` |
+| AC-4 | `PlausibilityChecker` catches frozen telemetry, steering rate violations, and velocity discrepancies | `uv run pytest tests/unit/safety/test_plausibility.py` |
+| AC-5 | `SafetySupervisor` transitions across ASIL-D states and generates emergency brake overrides on critical faults | `uv run pytest tests/unit/safety/test_supervisor.py` |
+| AC-6 | Tactical safety HUD visualizer renders watchdog timeline, state machine graph, and gauges to a valid PNG | `uv run pytest tests/unit/safety/test_safety_viz.py` |
+| AC-7 | Dedicated CLI group `nearfield360 safety` executes `info`, `watchdog`, `plausibility`, `simulate`, `render`, and `audit` | `uv run pytest tests/unit/test_safety_cli.py` |
+| AC-8 | Root CLI registers `safety` command group, passing release audit with 31 groups | `uv run nearfield360 release audit` |
+| AC-9 | All local CI-parity checks and remote CI workflow runs pass 100% | `pre-commit`, `pytest`, `build` |
+
+### 4. Validation & CI Plan
+
+1. Local checks: `uv lock --check`, `uv run pre-commit run --all-files`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing --cov-report=xml`, `uv build`, `uv run twine check dist/*`.
+2. End-to-end CLI execution: `nearfield360 safety simulate --scenario watchdog_timeout --png outputs/safety_dashboard.png --output outputs/safety_report.json`.
+
+### 5. Exclusions
+
+- Direct physical hardware watchdog reset line (WDT pin) toggle over GPIO.
+- Vendor-specific AUTOSAR Classic OS task preemption hooks.
+
+### 6. Micro-Task Breakdown
+
+1. [ ] `docs(roadmap): define Phase 39 ISO 26262 ASIL-D safety supervisor and watchdog scope`
+2. [ ] `feat(config): add SafetyConfig schema and default configuration parameters`
+3. [ ] `test(config): verify SafetyConfig defaults, bounds, and environment overrides`
+4. [ ] `feat(safety): implement safety state machine, watchdog, and plausibility domain models`
+5. [ ] `test(safety): verify safety domain models validation, state transitions, and JSON serialization`
+6. [ ] `feat(safety): implement cyclic hardware heartbeat watchdog with deadline monitoring`
+7. [ ] `test(safety): verify watchdog deadline tracking, jitter measurement, and timeout expiration`
+8. [ ] `feat(safety): implement sensor plausibility cross-checker and kinematic invariant validator`
+9. [ ] `test(safety): verify plausibility checks on frozen telemetry, steering rate, and velocity mismatch`
+10. [ ] `feat(safety): implement ASIL-D safety supervisor state machine and emergency control override`
+11. [ ] `test(safety): verify safety state transitions, degraded perception, and safe stop overrides`
+12. [ ] `feat(safety): implement tactical ASIL-D safety HUD and watchdog timeline dashboard visualizer`
+13. [ ] `test(safety): verify tactical safety visualizer renders valid PNG artifacts`
+14. [ ] `feat(safety): export public safety API from package init`
+15. [ ] `feat(cli): implement nearfield360 safety command group (info, watchdog, plausibility, simulate, render, audit)`
+16. [ ] `feat(cli): register safety CLI group and update release audit expected count to 31`
+17. [ ] `test(cli): verify safety CLI command group execution and JSON outputs`
+18. [ ] `docs(readme): add functional safety capability, roadmap status, and usage commands`
+19. [ ] `docs(progress): record Phase 39 implementation, Decision Log, and quality gates`
+20. [ ] `docs(roadmap): mark Phase 39 micro-tasks and acceptance criteria completed`
