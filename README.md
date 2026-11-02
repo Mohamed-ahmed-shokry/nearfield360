@@ -540,8 +540,10 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     Synthetic ISO 11898 CAN 2.0B / CAN FD frame codec with SAE J1850 CRC-8 checksum verification, domain models for drive-by-wire steering/throttle/brake actuation, ultrasonic distance telemetry, and wheel speed metrics, synthetic fault injection engine (bit flips, frame drops, CRC corruption, timing jitter), discrete-event HIL gateway scheduler with bus load calculation (nominal 500 kbps), dual-panel tactical oscilloscope and CAN telemetry dashboard renderer, dedicated CLI command group `nearfield360 can`, and release audit verification (29 CLI command groups).
 29. ~~Synthetic radar and raw ultrasonic sensor simulation with range-Doppler map generation.~~ Done:
     FMCW 77 GHz radar transceiver simulation with physical beat frequency synthesis, 2D Fast Fourier Transform (fast-time range FFT + slow-time Doppler velocity FFT), 2D CA-CFAR peak detection engine extracting 4D point clouds (range, velocity, azimuth, SNR, RCS), perimeter 12-sensor ultrasonic transducer array simulation with acoustic beam directivity and temperature-compensated time-of-flight echoes, cross-modal sensor fusion engine, 1280x720 tactical dual-panel visualizer (`outputs/sensor_dashboard.png`), dedicated CLI command group `nearfield360 sensor`, and release audit verification (30 CLI command groups).
-30. **ISO 26262 ASIL-D functional safety supervisor, heartbeat watchdog & plausibility monitor.** Planned:
-    Deterministic E/E safety state machine, cyclic heartbeat watchdog with deadline monitoring, sensor plausibility cross-checking, actuator fault reaction, and fail-silent emergency stop orchestration.
+30. ~~ISO 26262 ASIL-D functional safety supervisor, heartbeat watchdog & plausibility monitor.~~ Done:
+    Deterministic E/E safety state machine (`BOOT_SELF_TEST`, `NORMAL_OPERATION`, `DEGRADED_PERCEPTION`, `EMERGENCY_SAFE_STOP`, `FAIL_SILENT_LATCH`), cyclic hardware heartbeat watchdog with microsecond deadline and jitter tracking, multi-invariant sensor plausibility validator (frozen telemetry detection, steering slew limit, longitudinal acceleration bounds, wheel vs secondary speed cross-checking), fail-safe actuator override enforcement (emergency deceleration, speed capping, steering clamping, hazard lights), tactical 1280x720 safety HUD visualizer (`viz.py`), dedicated CLI command group `nearfield360 safety` (`info`, `watchdog`, `plausibility`, `simulate`, `render`, `audit`), and release audit verification (31 CLI command groups).
+31. **UN R156 software update management system (SUMS) & cryptographic ECU firmware verification.** Planned:
+    Automated vehicle firmware delta packaging, Ed25519 cryptographic signature verification, A/B flash partition rollback guard, and dual-layer OTA campaign orchestration.
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -1178,6 +1180,51 @@ Run comprehensive radar physics, 2D CA-CFAR detection, and ultrasonic array veri
 ```powershell
 uv run nearfield360 sensor audit
 uv run nearfield360 sensor audit --json --output outputs/sensor_audit.json
+```
+
+### ISO 26262 ASIL-D Functional Safety Supervisor & Heartbeat Watchdog
+
+Inspect functional safety parameters, deadline thresholds, and ASIL-D critical ECU node allocations:
+
+```powershell
+uv run nearfield360 safety info
+uv run nearfield360 safety info --json
+```
+
+Evaluate cyclic hardware heartbeat watchdog tracking across simulated ECU broadcasts:
+
+```powershell
+uv run nearfield360 safety watchdog
+uv run nearfield360 safety watchdog --dropped-node vehicle_controller --json
+```
+
+Verify kinematic and sensor plausibility against steering slew and acceleration bounds:
+
+```powershell
+uv run nearfield360 safety plausibility --steering-rate 0.25 --acceleration 1.2 --speed-diff 0.1
+uv run nearfield360 safety plausibility --steering-rate 1.5 --json
+```
+
+Run an end-to-end multi-step safety supervisor lifecycle simulation:
+
+```powershell
+uv run nearfield360 safety simulate --scenario nominal --output outputs/safety_sim_nominal.json
+uv run nearfield360 safety simulate --scenario critical_timeout --json
+uv run nearfield360 safety simulate --scenario fail_latch --png outputs/safety_hud.png
+```
+
+Render tactical 1280x720 ASIL-D safety HUD dashboard to PNG:
+
+```powershell
+uv run nearfield360 safety render --scenario nominal --png outputs/safety_hud_nominal.png
+uv run nearfield360 safety render --scenario fail_latch --png outputs/safety_hud_latched.png
+```
+
+Perform ISO 26262 ASIL-D functional safety compliance verification audit:
+
+```powershell
+uv run nearfield360 safety audit
+uv run nearfield360 safety audit --json --output outputs/safety_audit.json
 ```
 
 ## License
