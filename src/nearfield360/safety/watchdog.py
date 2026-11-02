@@ -87,6 +87,22 @@ class HeartbeatWatchdog:
         for node_id, period_ms in DEFAULT_NODE_PERIODS_MS.items():
             self.trackers[node_id] = NodeTracker(node_id, period_ms)
 
+    def reset(self) -> None:
+        """Reset all trackers to initial unreceived state."""
+        for tracker in self.trackers.values():
+            tracker.last_heartbeat_s = 0.0
+            tracker.last_sequence_num = -1
+            tracker.latency_ms = 0.0
+            tracker.jitter_ms = 0.0
+            tracker.consecutive_misses = 0
+            tracker.status = HeartbeatStatus.HEALTHY
+            tracker.has_received_first = False
+
+    @property
+    def node_records(self) -> dict[str, NodeHealthStatus]:
+        """Current health statuses of all tracked nodes."""
+        return {node_id.value: tracker.to_status() for node_id, tracker in self.trackers.items()}
+
     def register_node(self, node_id: ECUNodeId, expected_period_ms: float = 50.0) -> None:
         """Register an ECU node with an expected periodic broadcast interval."""
         self.trackers[node_id] = NodeTracker(node_id, expected_period_ms)
