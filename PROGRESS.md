@@ -2765,4 +2765,97 @@ Phase 38 delivers an end-to-end synthetic sensor simulation subsystem modeling 7
 | Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
-| Remote CI Workflow Status | GitHub Actions PR #21 | Pending Push |
+| Remote CI Workflow Status | GitHub Actions PR #21 | Clean Green |
+
+---
+
+## Phase 39: ISO 26262 ASIL-D Functional Safety Supervisor, Cyclic Heartbeat Watchdog & Plausibility Monitor (Roadmap Item 30)
+
+**Status:** Completed  
+**Repository Branch:** `phase/safety-supervisor-watchdog` (PR #23)  
+**Test Suite:** 1,562 passed, 1 skipped (0 failures)  
+**Type Checking:** `mypy --strict` clean  
+**Linting & Style:** `ruff check` and `ruff format` clean  
+**Test Coverage:** > 88% overall codebase coverage  
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 39 implements the automotive ISO 26262 ASIL-D functional safety supervisor and cyclic electronic control unit (ECU) watchdog architecture for automated valet parking operations:
+
+1. **Safety Configuration & Bounds (`SafetyConfig`)**: Strict parameters for heartbeat timeout (150ms), consecutive misses tolerance (3 cycles), steering slew limits (0.6 rad/s), acceleration limits (3.5 m/s²), velocity cross-check tolerance (1.2 m/s), emergency safe stop deceleration (2.5 m/s²), and degraded crawl speed (2.0 m/s).
+2. **Deterministic E/E Safety State Machine (`SafetySupervisor`)**: ASIL-D supervisor orchestrating states across `BOOT_SELF_TEST`, `NORMAL_OPERATION`, `DEGRADED_PERCEPTION`, `EMERGENCY_SAFE_STOP`, and `FAIL_SILENT_LATCH`.
+3. **Cyclic Heartbeat Watchdog (`HeartbeatWatchdog`)**: Microsecond deadline monitoring, inter-arrival latency tracking, jitter measurement, and consecutive miss detection across all 7 automotive ECUs (`VEHICLE_CONTROLLER`, `CAN_GATEWAY`, `TRAJECTORY_PLANNER`, `PERCEPTION_SURROUND`, `RADAR_TRANSCEIVER`, `ULTRASONIC_ARRAY`, `TELEOP_SUPERVISOR`).
+4. **Sensor Plausibility & Kinematic Invariant Cross-Checker (`PlausibilityChecker`)**: Detection of frozen telemetry, future timestamps, stale signals, steering rack slew breaches, acceleration envelope breaches, and wheel speed vs. secondary sensor velocity discrepancies.
+5. **Fail-Safe Actuator Overrides (`ActuatorSafetyOverride`)**: Enforces maximum safe stop deceleration ($2.50\text{ m/s}^2$), steering rack clamping, speed ceiling capping, and emergency hazard flashers during fault reactions.
+6. **Tactical Safety HUD Visualizer (`render_safety_dashboard`)**: 1280x720 dual-panel diagnostic display rendering ECU node health matrix, actuator override status cards, state transition audit trail, and active plausibility violations.
+7. **CLI Integration & Release Audit**: CLI command group `nearfield360 safety` (`info`, `watchdog`, `plausibility`, `simulate`, `render`, `audit`) registered in root app with release audit expansion to 31 groups.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- **Safety Configuration Schema (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `heartbeat_timeout_ms`: 150.0 ms deadline limit.
+  - `max_consecutive_misses`: 3 misses before node expiration.
+  - `max_steering_rate_rads`: 0.60 rad/s physical steering slew limit.
+  - `max_acceleration_mps2`: 3.50 m/s² longitudinal acceleration ceiling.
+  - `speed_discrepancy_tolerance_mps`: 1.20 m/s cross-sensor speed mismatch tolerance.
+  - `safe_stop_deceleration_mps2`: 2.50 m/s² emergency brake deceleration.
+  - `degraded_speed_limit_mps`: 2.0 m/s crawl speed limit during degraded sensor operation.
+  - `self_test_dwell_s`: 0.50 s dwell duration during boot self-test.
+- **Domain Models & Protocol Schemas (`src/nearfield360/safety/models.py`)**:
+  - `SafetyState`: StrEnum (`BOOT_SELF_TEST`, `NORMAL_OPERATION`, `DEGRADED_PERCEPTION`, `EMERGENCY_SAFE_STOP`, `FAIL_SILENT_LATCH`).
+  - `ECUNodeId`: StrEnum representing 7 automotive ECU pipelines.
+  - `HeartbeatStatus`: StrEnum (`HEALTHY`, `WARN_JITTER`, `MISSED`, `EXPIRED`).
+  - `ViolationSeverity`: StrEnum (`INFO`, `WARNING`, `CRITICAL`, `FATAL`).
+  - `HeartbeatPing`, `NodeHealthStatus`, `PlausibilityViolation`, `SafetyTransitionRecord`, `ActuatorSafetyOverride`, `SafetySupervisorReport`.
+- **Cyclic Heartbeat Watchdog (`src/nearfield360/safety/watchdog.py`)**:
+  - `HeartbeatWatchdog`: Tracks periodic arrivals, computes jitter deviations against nominal period, registers dynamic nodes, evaluates deadline compliance, and flags critical ECU failures.
+- **Sensor Plausibility Checker (`src/nearfield360/safety/plausibility.py`)**:
+  - `PlausibilityChecker`: Verifies timestamp freshness, detects frozen sensor values via sliding variance window, checks steering rack slew rate, checks longitudinal acceleration, and validates wheel vs. radar velocity agreement.
+- **ASIL-D Safety Supervisor State Machine (`src/nearfield360/safety/supervisor.py`)**:
+  - `SafetySupervisor`: Coordinates system lifecycle, steps cyclic safety evaluation, transitions into `DEGRADED_PERCEPTION` on non-critical faults, triggers `EMERGENCY_SAFE_STOP` on critical watchdog or kinematic breaches, engages `FAIL_SILENT_LATCH` upon standstill, and supports authorized diagnostic reset.
+- **Tactical Safety HUD Visualizer (`src/nearfield360/safety/viz.py`)**:
+  - `render_safety_dashboard`: 1280x720 tactical OpenCV dashboard displaying watchdog status cards, actuator overrides, transition history, and active violations.
+- **CLI Command Group & Release Audit (`src/nearfield360/cli/safety.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `watchdog`, `plausibility`, `simulate`, `render`, `audit`.
+  - Registered `safety` CLI group in root app and expanded release audit check to verify 31 command groups.
+
+---
+
+### 3. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Elapsed-Time Multi-Cycle Miss Calculation in Watchdog
+   - *Alternatives Considered*: Incrementing `consecutive_misses` by 1 per discrete `evaluate()` tick.
+   - *Rationale & Evidence*: In asynchronous or variable-rate control loops, relying on discrete `evaluate()` ticks means an ECU that stopped responding 600 ms ago would require three distinct polling invocations before reaching `EXPIRED`. By calculating `missed_count = max(1, int(elapsed_s / timeout_s))`, an extended outage immediately transitions the node to `EXPIRED` on the very first evaluation following the deadline breach, strictly fulfilling the ASIL-D fault detection time interval (FDTI < 200 ms).
+
+2. **Decision**: Irrevocable Fail-Silent Latch Upon Emergency Standstill
+   - *Alternatives Considered*: Allowing automated reboot or recovery back to `NORMAL_OPERATION` if sensor signals stabilize.
+   - *Rationale & Evidence*: ISO 26262-4 §6.4.4 requires that safety mechanisms preventing catastrophic vehicle hazards must maintain a safe state until manual inspection or authorized override occurs. Once an emergency safe stop has commanded maximal deceleration to standstill ($v < 0.05\text{ m/s}$), the supervisor engages `FAIL_SILENT_LATCH`. Automated state transitions are locked out, the park pawl and brake pressure remain clamped, and only an authorized cryptographic diagnostic key can reset the system to boot self-test.
+
+3. **Decision**: Dual-Tiered Degradation (Degraded Perception vs Emergency Safe Stop)
+   - *Alternatives Considered*: Immediate emergency braking on any sensor anomaly.
+   - *Rationale & Evidence*: Abrupt emergency braking on minor non-critical glitches (such as a temporary video streaming jitter on `TELEOP_SUPERVISOR` or an out-of-range ultrasonic reading) introduces nuisance stops and rear-end collision risk in parking facilities. By partitioning ECUs into critical safety nodes (`VEHICLE_CONTROLLER`, `CAN_GATEWAY`, `TRAJECTORY_PLANNER`) versus non-critical monitoring nodes (`TELEOP_SUPERVISOR`, `PERCEPTION_SURROUND`), non-critical faults gracefully reduce vehicle maximum velocity to `degraded_speed_limit_mps` ($2.0\text{ m/s}$) while keeping the vehicle steerable, whereas critical failures invoke immediate emergency stopping.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Safety Config Validation | `uv run pytest tests/unit/test_config.py` | 107 passed |
+| Safety Domain Models & Schemas | `uv run pytest tests/unit/safety/test_safety_models.py` | 6 passed |
+| Cyclic Heartbeat Watchdog | `uv run pytest tests/unit/safety/test_watchdog.py` | 4 passed |
+| Plausibility & Kinematic Checker | `uv run pytest tests/unit/safety/test_plausibility.py` | 5 passed |
+| Safety Supervisor State Machine | `uv run pytest tests/unit/safety/test_supervisor.py` | 4 passed |
+| Tactical Safety HUD Visualizer | `uv run pytest tests/unit/safety/test_safety_viz.py` | 2 passed |
+| Safety CLI Command Group | `uv run pytest tests/unit/test_safety_cli.py` | 6 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 31 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1,562 passed, 1 skipped |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
+| Remote CI Workflow Status | GitHub Actions PR #23 | Pending Push |
