@@ -120,8 +120,8 @@ class HeartbeatWatchdog:
             jitter_s = abs(delta_s - tracker.expected_period_s)
             tracker.jitter_ms = jitter_s * 1000.0
 
-            # Jitter warning if deviation exceeds 50% of expected cycle
-            if tracker.jitter_ms > (tracker.expected_period_s * 500.0):
+            # Jitter warning if deviation exceeds 80% of expected cycle
+            if tracker.jitter_ms > (tracker.expected_period_s * 800.0):
                 tracker.status = HeartbeatStatus.WARN_JITTER
             else:
                 tracker.status = HeartbeatStatus.HEALTHY
@@ -150,13 +150,13 @@ class HeartbeatWatchdog:
             tracker.latency_ms = elapsed_s * 1000.0
 
             if elapsed_s > self.timeout_s:
-                # Deadline missed
-                tracker.consecutive_misses += 1
+                missed_count = max(1, int(elapsed_s / self.timeout_s))
+                tracker.consecutive_misses = missed_count
                 if tracker.consecutive_misses >= self.max_misses:
                     tracker.status = HeartbeatStatus.EXPIRED
                 else:
                     tracker.status = HeartbeatStatus.MISSED
-            elif tracker.status == HeartbeatStatus.MISSED:
+            elif tracker.status in (HeartbeatStatus.MISSED, HeartbeatStatus.EXPIRED):
                 tracker.status = HeartbeatStatus.HEALTHY
 
             results[node_id.value] = tracker.to_status()
