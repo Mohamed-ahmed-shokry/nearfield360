@@ -2771,12 +2771,12 @@ Phase 38 delivers an end-to-end synthetic sensor simulation subsystem modeling 7
 
 ## Phase 39: ISO 26262 ASIL-D Functional Safety Supervisor, Cyclic Heartbeat Watchdog & Plausibility Monitor (Roadmap Item 30)
 
-**Status:** Completed  
-**Repository Branch:** `phase/safety-supervisor-watchdog` (PR #23)  
-**Test Suite:** 1,562 passed, 1 skipped (0 failures)  
-**Type Checking:** `mypy --strict` clean  
-**Linting & Style:** `ruff check` and `ruff format` clean  
-**Test Coverage:** > 88% overall codebase coverage  
+**Status:** Completed
+**Repository Branch:** `phase/safety-supervisor-watchdog` (PR #23)
+**Test Suite:** 1,562 passed, 1 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** > 88% overall codebase coverage
 
 ---
 
