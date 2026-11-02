@@ -1169,3 +1169,48 @@ def test_sensor_config_rejects_invalid_num_sensors(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="greater than or equal to 4"):
         load_config(config_path)
+
+
+def test_safety_config_defaults() -> None:
+    config = load_config()
+
+    assert config.safety.heartbeat_timeout_ms == 150.0
+    assert config.safety.max_consecutive_misses == 3
+    assert config.safety.max_steering_rate_rads == 0.60
+    assert config.safety.max_acceleration_mps2 == 3.50
+    assert config.safety.speed_discrepancy_tolerance_mps == 1.20
+    assert config.safety.safe_stop_deceleration_mps2 == 2.50
+    assert config.safety.degraded_speed_limit_mps == 2.0
+    assert config.safety.self_test_dwell_s == 0.50
+
+
+def test_safety_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "safety:\n  heartbeat_timeout_ms: 200.0\n  max_consecutive_misses: 5\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_SAFETY__SAFE_STOP_DECELERATION_MPS2", "3.0")
+
+    config = load_config(config_path)
+
+    assert config.safety.heartbeat_timeout_ms == 200.0
+    assert config.safety.max_consecutive_misses == 5
+    assert config.safety.safe_stop_deceleration_mps2 == 3.0
+    assert config.safety.max_steering_rate_rads == 0.60
+
+
+def test_safety_config_rejects_invalid_values(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("safety:\n  heartbeat_timeout_ms: 5.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 10"):
+        load_config(config_path)
+
+
+def test_safety_config_rejects_invalid_misses(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("safety:\n  max_consecutive_misses: 0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 1"):
+        load_config(config_path)
