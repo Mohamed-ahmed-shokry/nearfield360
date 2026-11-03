@@ -1637,23 +1637,23 @@ Establish an automotive-grade, regulation-compliant Software Update Management S
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 40 UN R156 SUMS and firmware verification scope`
-2. [ ] `feat(config): add OTAConfig schema and default configuration parameters`
-3. [ ] `test(config): verify OTAConfig defaults, bounds, and environment overrides`
-4. [ ] `feat(ota): implement UN R156 firmware manifest, partition, and campaign domain models`
-5. [ ] `test(ota): verify OTA domain models validation, serialization, and RXSWIN schemas`
-6. [ ] `feat(ota): implement cryptographic firmware verification engine and monotonic anti-rollback check`
-7. [ ] `test(ota): verify SHA-256 payload integrity, signature verification, and anti-rollback guard`
-8. [ ] `feat(ota): implement dual-slot A/B partition manager and fail-safe rollback logic`
-9. [ ] `test(ota): verify A/B slot staging, active pointer switching, and automated rollback`
-10. [ ] `feat(ota): implement safety preflight interlocks and OTA update lifecycle executive`
-11. [ ] `test(ota): verify preflight interlocks, lifecycle execution, and post-update health check`
-12. [ ] `feat(ota): implement tactical UN R156 OTA HUD dashboard visualizer`
-13. [ ] `test(ota): verify tactical OTA visualizer renders valid 1280x720 PNG artifacts`
-14. [ ] `feat(ota): export public OTA API from package init`
-15. [ ] `feat(cli): implement nearfield360 ota command group (info, manifest, verify, preflight, apply, render, audit)`
-16. [ ] `feat(cli): register ota CLI group and update release audit expected count to 32`
-17. [ ] `test(cli): verify ota CLI command group execution and JSON outputs`
-18. [ ] `docs(readme): add UN R156 OTA capability, roadmap status, and usage commands`
-19. [ ] `docs(progress): record Phase 40 implementation, Decision Log, and quality gates`
-20. [ ] `docs(roadmap): mark Phase 40 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 40 UN R156 SUMS and firmware verification scope`
+2. [x] `feat(config): add OTAConfig schema and default configuration parameters`
+3. [x] `test(config): verify OTAConfig defaults, bounds, and environment overrides`
+4. [x] `feat(ota): implement UN R156 firmware manifest, partition, and campaign domain models`
+5. [x] `test(ota): verify OTA domain models validation, serialization, and RXSWIN schemas`
+6. [x] `feat(ota): implement cryptographic firmware verification engine and monotonic anti-rollback check`
+7. [x] `test(ota): verify SHA-256 payload integrity, signature verification, and anti-rollback guard`
+8. [x] `feat(ota): implement dual-slot A/B partition manager and fail-safe rollback logic`
+9. [x] `test(ota): verify A/B slot staging, active pointer switching, and automated rollback`
+10. [x] `feat(ota): implement safety preflight interlocks and OTA update lifecycle executive`
+11. [x] `test(ota): verify preflight interlocks, lifecycle execution, and post-update health check`
+12. [x] `feat(ota): implement tactical UN R156 OTA HUD dashboard visualizer`
+13. [x] `test(ota): verify tactical OTA visualizer renders valid 1280x720 PNG artifacts`
+14. [x] `feat(ota): export public OTA API from package init`
+15. [x] `feat(cli): implement nearfield360 ota command group (info, manifest, verify, preflight, apply, render, audit)`
+16. [x] `feat(cli): register ota CLI group and update release audit expected count to 32`
+17. [x] `test(cli): verify ota CLI command group execution and JSON outputs`
+18. [x] `docs(readme): add UN R156 OTA capability, roadmap status, and usage commands`
+19. [x] `docs(progress): record Phase 40 implementation, Decision Log, and quality gates`
+20. [x] `docs(roadmap): mark Phase 40 micro-tasks and acceptance criteria completed`
