@@ -36,6 +36,7 @@ from nearfield360.cli.pipeline import pipeline_app
 from nearfield360.cli.plan import plan_app
 from nearfield360.cli.release import release_app
 from nearfield360.cli.robustness import robustness_app
+from nearfield360.cli.safety import safety_app
 from nearfield360.cli.sensor import sensor_app
 from nearfield360.cli.slots import slots_app
 from nearfield360.cli.state import CliState, get_state
@@ -88,6 +89,7 @@ app.add_typer(pipeline_app, name="pipeline")
 app.add_typer(plan_app, name="plan")
 app.add_typer(release_app, name="release")
 app.add_typer(robustness_app, name="robustness")
+app.add_typer(safety_app, name="safety")
 app.add_typer(sensor_app, name="sensor")
 app.add_typer(slots_app, name="slots")
 app.add_typer(teleop_app, name="teleop")
