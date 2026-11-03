@@ -2859,3 +2859,96 @@ Phase 39 implements the automotive ISO 26262 ASIL-D functional safety supervisor
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
 | Remote CI Workflow Status | GitHub Actions PR #23 | Pending Push |
+
+
+## Phase 40: UN R156 Software Update Management System (SUMS), Cryptographic ECU Firmware Verification & Dual-Layer Rollback Guard (Roadmap Item 31)
+
+**Status:** Completed
+**Repository Branch:** `phase/ota-sums-firmware-verification` (PR #24)
+**Test Suite:** 1,591 passed, 1 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** > 88% overall codebase coverage
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 40 implements the automotive UN R156 Software Update Management System (SUMS) and cryptographic firmware verification architecture for electronic control units (ECUs) across automated valet parking systems:
+
+1. **OTA Configuration Schema (`OTAConfig`)**: Strict parameters for minimum battery SoC (30.0%), maximum package size (500 MB), verification timeout (60s), activation dwell duration (10s), rollback timeout (30s), max consecutive failures (3), cryptographic HMAC secret key, monotonic anti-rollback enforcement, and vehicle standstill/park interlocks.
+2. **UN R156 Compliance Domain Models**:
+   - `PartitionSlot`: Dual-slot A/B partition identifier (`slot_a`, `slot_b`) with `.opposite()` helper.
+   - `UpdateState`: Deterministic lifecycle phase (`idle`, `downloading`, `verifying`, `staged`, `preflight`, `applying`, `testing`, `committed`, `rolled_back`, `failed`).
+   - `FirmwareManifest`: Cryptographically signed release manifest with component ID, semantic version, monotonic revision counter, RXSWIN syntax conformance, target ECU, payload size, SHA-256 digest, and signature.
+   - `PreflightCheck`: Vehicle operational interlock evaluation (`gear_is_park`, `speed_mps`, `battery_soc_pct`, `safety_supervisor_ready`).
+   - `SlotMetadata` & `ECUPartitionState`: Dual-partition A/B flash slot tracking, active pointer, bootable flags, boot count, and cumulative rollback counter.
+   - `OTACampaignStepRecord` & `OTACampaignReport`: Audit log trail capturing timestamps, state transitions, preflight results, partition state, and overall success.
+3. **Cryptographic Verification & Anti-Rollback Guard (`FirmwareVerifier`)**: SHA-256 payload integrity calculation, HMAC-SHA256 signature verification, maximum package size gating, RXSWIN regex validation (`^RXSWIN-[A-Z0-9_-]+$`), and strict monotonic revision check ($R_{\text{candidate}} > R_{\text{active}}$) preventing downgrade attacks.
+4. **Dual-Slot A/B Partition Manager (`PartitionManager`)**: Atomic staging in standby partition, active slot pointer switching, boot counter increments, boot health confirmation, and automated fail-safe rollback reverting active pointers and marking corrupted slots unbootable.
+5. **OTA Campaign Update Executive (`OTAExecutive`)**: Orchestrates the complete end-to-end campaign lifecycle through downloading, verification, preflight interlocks, flashing/staging, slot activation, simulated reboot health check, and final commit or automated rollback.
+6. **Tactical 1280x720 UN R156 OTA HUD Dashboard Visualizer (`render_ota_dashboard`)**: 1280x720 4-panel diagnostic visualizer rendering ECU partition slot cards, preflight safety interlocks, lifecycle KPIs, and chronological audit trail logs.
+7. **CLI Integration & Release Audit**: Dedicated CLI command group `nearfield360 ota` (`info`, `manifest`, `verify`, `preflight`, `apply`, `render`, `audit`) registered in root app with release audit expansion to 32 command groups.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- **OTA Configuration Schema (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `min_battery_soc_pct`: 30.0% minimum battery SoC safety floor.
+  - `max_package_size_mb`: 500.0 MB maximum package size ceiling.
+  - `verification_timeout_s`: 60.0 s cryptographic check deadline.
+  - `activation_dwell_s`: 10.0 s reboot dwell duration.
+  - `rollback_timeout_s`: 30.0 s rollback execution limit.
+  - `max_consecutive_failures`: 3 failure threshold.
+  - `signing_secret_key`: Production-grade HMAC secret key.
+  - `enforce_monotonic_version`: Mandatory monotonic revision progression.
+  - `require_charging_or_parked`: Mandatory transmission PARK interlock.
+- **Domain Models & Protocol Schemas (`src/nearfield360/ota/models.py`)**:
+  - `PartitionSlot`, `UpdateState`, `PreflightStatus`, `FirmwareManifest`, `PreflightCheck`, `SlotMetadata`, `ECUPartitionState`, `OTACampaignStepRecord`, `OTACampaignReport`.
+- **Cryptographic Verification Engine (`src/nearfield360/ota/verifier.py`)**:
+  - `FirmwareVerifier`: Validates payload SHA-256 digests, checks HMAC-SHA256 signatures, verifies UN R156 RXSWIN formatting, and enforces monotonic revision progression.
+- **Dual-Slot A/B Partition Manager (`src/nearfield360/ota/partition.py`)**:
+  - `PartitionManager`: Stages firmware to inactive partition, switches boot pointers upon successful verification, tests post-reboot health, and triggers automated rollback on failure.
+- **OTA Campaign Executive & Preflight Interlocks (`src/nearfield360/ota/executive.py`)**:
+  - `OTAExecutive`: Validates vehicle safety interlocks (PARK gear, standstill, battery SoC $\ge 30\%$, safety supervisor nominal), coordinates multi-phase update execution, and logs immutable audit trail steps.
+- **Tactical UN R156 OTA HUD Visualizer (`src/nearfield360/ota/viz.py`)**:
+  - `render_ota_dashboard`: High-resolution 1280x720 dark-mode dashboard displaying partition slot status, preflight interlocks, campaign summary cards, and audit logs.
+- **CLI Command Group & Release Audit (`src/nearfield360/cli/ota.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `manifest`, `verify`, `preflight`, `apply`, `render`, `audit`.
+  - Registered `ota` CLI group in root app and expanded release audit check to verify 32 command groups.
+
+---
+
+### 3. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Dual-Slot A/B Staging in Inactive Standby Partition Before Pointer Flip
+   - *Alternatives Considered*: In-place flashing of active partition with recovery bootloader fallback.
+   - *Rationale & Evidence*: In-place flashing risks bricking automotive ECUs if power drops or flash write errors occur midway through writing. Under the dual-slot A/B partition paradigm mandated by UN R156, the active slot remains untouched and fully functional throughout the download, verification, and staging phases. Only after signature verification and integrity confirmation is the next boot pointer switched to the standby slot.
+2. **Decision**: SlotMetadata Allows Monotonic Revision $\ge 0$ for Uninitialized Slots
+   - *Alternatives Considered*: Requiring monotonic revision $\ge 1$ across all slot metadata schemas.
+   - *Rationale & Evidence*: Factory uninitialized standby partition slots represent revision 0 prior to initial flashing. While `FirmwareManifest` strictly requires `monotonic_revision >= 1` for all release updates, `SlotMetadata` must accommodate uninitialized partitions with `monotonic_revision = 0` without triggering Pydantic validation errors during cold startup.
+3. **Decision**: Strict 4-Way Operational Preflight Interlocks Prior to Flashing
+   - *Alternatives Considered*: Allowing background updates while driving if CPU load is low.
+   - *Rationale & Evidence*: Updating ECU firmware or switching partitions while the vehicle is in motion introduces severe life-safety hazards. Flashing is strictly prohibited unless: (1) transmission selector is in PARK, (2) vehicle speed is at standstill ($|v| \le 0.05\text{ m/s}$), (3) battery SoC is $\ge 30\%$ to avoid power loss during flash writes, and (4) functional safety supervisor is nominal.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| OTA Config Validation | `uv run pytest tests/unit/test_config.py` | 108 passed |
+| OTA Domain Models & Schemas | `uv run pytest tests/unit/ota/test_ota_models.py` | 5 passed |
+| Cryptographic Verifier & Anti-Rollback | `uv run pytest tests/unit/ota/test_verifier.py` | 4 passed |
+| A/B Partition Manager & Rollback | `uv run pytest tests/unit/ota/test_partition.py` | 5 passed |
+| Preflight & OTA Executive Orchestrator | `uv run pytest tests/unit/ota/test_executive.py` | 4 passed |
+| Tactical OTA HUD Visualizer | `uv run pytest tests/unit/ota/test_ota_viz.py` | 2 passed |
+| OTA CLI Command Group | `uv run pytest tests/unit/test_ota_cli.py` | 7 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 32 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1,591 passed, 1 skipped |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
+| Remote CI Workflow Status | GitHub Actions PR #24 | Verified Green |
