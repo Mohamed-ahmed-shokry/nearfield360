@@ -311,3 +311,13 @@ safety:
   safe_stop_deceleration_mps2: 2.50
   degraded_speed_limit_mps: 2.0
   self_test_dwell_s: 0.50
+ota:
+  min_battery_soc_pct: 30.0
+  max_package_size_mb: 500.0
+  verification_timeout_s: 60.0
+  activation_dwell_s: 10.0
+  rollback_timeout_s: 30.0
+  max_consecutive_failures: 3
+  signing_secret_key: "nearfield360-un-r156-ed25519-secret-key-2026"
+  enforce_monotonic_version: true
+  require_charging_or_parked: true

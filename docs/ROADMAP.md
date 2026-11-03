@@ -1581,3 +1581,79 @@ Deliver an end-to-end ISO 26262 ASIL-D functional safety supervisor, cyclic hard
 18. [x] `docs(readme): add functional safety capability, roadmap status, and usage commands`
 19. [x] `docs(progress): record Phase 39 implementation, Decision Log, and quality gates`
 20. [x] `docs(roadmap): mark Phase 39 micro-tasks and acceptance criteria completed`
+
+---
+
+## Phase 40: UN R156 Software Update Management System (SUMS), Cryptographic ECU Firmware Verification & Dual-Layer Rollback Guard (Roadmap Item 31)
+
+### 1. Objective & Scope
+
+Establish an automotive-grade, regulation-compliant Software Update Management System (SUMS) conforming to **UN Regulation No. 156 (UN R156)** and **ISO 24089 (Road vehicles — Software update engineering)**:
+
+- **Regulation X Software Identification Number (RXSWIN)**: Manage vehicle software identification numbers and ensure traceability between ECU firmware components and UNECE vehicle type approvals.
+- **Cryptographic Firmware Integrity & Authentication**: SHA-256 payload digest calculation, asymmetric cryptographic manifest signing and verification, and anti-tamper verification.
+- **Monotonic Anti-Rollback Counter**: Enforce strictly increasing revision indices preventing downgrade attacks.
+- **A/B Dual-Slot Flash Partition Architecture**: Non-destructive update staging on inactive standby partition (`SLOT_A` vs `SLOT_B`), atomic boot slot pointer switching, and automated fail-safe rollback to previous slot upon self-test timeout.
+- **Safety Preflight Interlocks**: Enforce vehicle operational prerequisites before firmware flash activation (standstill $v = 0$, gear `PARK`, battery state-of-charge $\ge 30\%$, safety supervisor nominal).
+- **OTA Campaign Orchestrator**: Multi-step stateful update lifecycle manager (`IDLE` -> `DOWNLOADING` -> `VERIFYING` -> `STAGED` -> `PREFLIGHT` -> `APPLYING` -> `TESTING` -> `COMMITTED` / `ROLLED_BACK`).
+- **Tactical OTA HUD Visualizer (`viz.py`)**: 1280x720 dual-panel diagnostic dashboard displaying partition slot status, RXSWIN mapping, campaign progress, and cryptographic audit log.
+- **CLI Command Group `nearfield360 ota`**: Typer subcommands (`info`, `manifest`, `verify`, `preflight`, `apply`, `render`, `audit`).
+- **Root CLI Integration & Release Audit**: Update release audit verification from 31 to 32 command groups.
+
+### 2. Architectural Blueprint
+
+- **Configuration (`src/nearfield360/config.py`)**: `OTAConfig` schema with min SoC, timeout limits, max package size, public key hex, and monotonic enforcement.
+- **Domain Models (`src/nearfield360/ota/models.py`)**: `PartitionSlot`, `UpdateState`, `FirmwareManifest`, `PreflightCheck`, `ECUPartitionState`, `CampaignReport`.
+- **Verifier Engine (`src/nearfield360/ota/verifier.py`)**: `FirmwareVerifier` validating SHA-256 digests, signatures, monotonic revisions, and RXSWIN validity.
+- **Partition Manager (`src/nearfield360/ota/partition.py`)**: `PartitionManager` maintaining slot states, staging binaries, flipping boot slots, and executing rollback.
+- **OTA Executive (`src/nearfield360/ota/executive.py`)**: `OTAExecutive` coordinating preflight interlocks, end-to-end update lifecycle, and post-update health verification.
+- **Tactical Visualizer (`src/nearfield360/ota/viz.py`)**: `render_ota_dashboard` rendering 1280x720 PNG HUD.
+- **CLI Group (`src/nearfield360/cli/ota.py`)**: Typer command group with 7 subcommands.
+- **Root App & Release Audit (`src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**: 32 registered groups.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `OTAConfig` defined with strict Pydantic bounds and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models for firmware manifests, partition slots, preflight checks, and campaign reports validate and serialize JSON | `uv run pytest tests/unit/ota/test_ota_models.py` |
+| AC-3 | `FirmwareVerifier` validates SHA-256 digests, signatures, monotonic revisions, and flags corrupt/downgrade payloads | `uv run pytest tests/unit/ota/test_verifier.py` |
+| AC-4 | `PartitionManager` handles dual-slot A/B switching, staging, and automatic rollback on failure | `uv run pytest tests/unit/ota/test_partition.py` |
+| AC-5 | `OTAExecutive` validates preflight safety interlocks (parked, stationary, battery SoC) and executes end-to-end campaign lifecycle | `uv run pytest tests/unit/ota/test_executive.py` |
+| AC-6 | Tactical OTA dashboard visualizer renders A/B slots, RXSWIN table, and gauges to valid 1280x720 PNG | `uv run pytest tests/unit/ota/test_ota_viz.py` |
+| AC-7 | Dedicated CLI group `nearfield360 ota` executes `info`, `manifest`, `verify`, `preflight`, `apply`, `render`, and `audit` | `uv run pytest tests/unit/test_ota_cli.py` |
+| AC-8 | Root CLI registers `ota` command group, passing release audit with 32 groups | `uv run nearfield360 release audit` |
+| AC-9 | All local CI-parity checks and remote CI workflow runs pass 100% | `pre-commit`, `pytest`, `build` |
+
+### 4. Validation & CI Plan
+
+1. Local checks: `uv lock --check`, `uv run pre-commit run --all-files`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing`, `uv build`, `uv run twine check dist/*`.
+2. End-to-end CLI execution: `nearfield360 ota apply --scenario nominal --png outputs/ota_dashboard.png --output outputs/ota_report.json`.
+
+### 5. Exclusions
+
+- Direct physical flashing over SPI/JTAG microcontrollers.
+- Proprietary telematics control unit (TCU) cellular modems.
+
+### 6. Micro-Task Breakdown
+
+1. [x] `docs(roadmap): define Phase 40 UN R156 SUMS and firmware verification scope`
+2. [x] `feat(config): add OTAConfig schema and default configuration parameters`
+3. [x] `test(config): verify OTAConfig defaults, bounds, and environment overrides`
+4. [x] `feat(ota): implement UN R156 firmware manifest, partition, and campaign domain models`
+5. [x] `test(ota): verify OTA domain models validation, serialization, and RXSWIN schemas`
+6. [x] `feat(ota): implement cryptographic firmware verification engine and monotonic anti-rollback check`
+7. [x] `test(ota): verify SHA-256 payload integrity, signature verification, and anti-rollback guard`
+8. [x] `feat(ota): implement dual-slot A/B partition manager and fail-safe rollback logic`
+9. [x] `test(ota): verify A/B slot staging, active pointer switching, and automated rollback`
+10. [x] `feat(ota): implement safety preflight interlocks and OTA update lifecycle executive`
+11. [x] `test(ota): verify preflight interlocks, lifecycle execution, and post-update health check`
+12. [x] `feat(ota): implement tactical UN R156 OTA HUD dashboard visualizer`
+13. [x] `test(ota): verify tactical OTA visualizer renders valid 1280x720 PNG artifacts`
+14. [x] `feat(ota): export public OTA API from package init`
+15. [x] `feat(cli): implement nearfield360 ota command group (info, manifest, verify, preflight, apply, render, audit)`
+16. [x] `feat(cli): register ota CLI group and update release audit expected count to 32`
+17. [x] `test(cli): verify ota CLI command group execution and JSON outputs`
+18. [x] `docs(readme): add UN R156 OTA capability, roadmap status, and usage commands`
+19. [x] `docs(progress): record Phase 40 implementation, Decision Log, and quality gates`
+20. [x] `docs(roadmap): mark Phase 40 micro-tasks and acceptance criteria completed`

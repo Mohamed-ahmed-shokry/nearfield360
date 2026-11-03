@@ -32,6 +32,7 @@ from nearfield360.cli.map import map_app
 from nearfield360.cli.mission import mission_app
 from nearfield360.cli.occupancy import occupancy_app
 from nearfield360.cli.ops import ops_app
+from nearfield360.cli.ota import ota_app
 from nearfield360.cli.pipeline import pipeline_app
 from nearfield360.cli.plan import plan_app
 from nearfield360.cli.release import release_app
@@ -85,6 +86,7 @@ app.add_typer(map_app, name="map")
 app.add_typer(mission_app, name="mission")
 app.add_typer(occupancy_app, name="occupancy")
 app.add_typer(ops_app, name="ops")
+app.add_typer(ota_app, name="ota")
 app.add_typer(pipeline_app, name="pipeline")
 app.add_typer(plan_app, name="plan")
 app.add_typer(release_app, name="release")

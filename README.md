@@ -542,8 +542,8 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     FMCW 77 GHz radar transceiver simulation with physical beat frequency synthesis, 2D Fast Fourier Transform (fast-time range FFT + slow-time Doppler velocity FFT), 2D CA-CFAR peak detection engine extracting 4D point clouds (range, velocity, azimuth, SNR, RCS), perimeter 12-sensor ultrasonic transducer array simulation with acoustic beam directivity and temperature-compensated time-of-flight echoes, cross-modal sensor fusion engine, 1280x720 tactical dual-panel visualizer (`outputs/sensor_dashboard.png`), dedicated CLI command group `nearfield360 sensor`, and release audit verification (30 CLI command groups).
 30. ~~ISO 26262 ASIL-D functional safety supervisor, heartbeat watchdog & plausibility monitor.~~ Done:
     Deterministic E/E safety state machine (`BOOT_SELF_TEST`, `NORMAL_OPERATION`, `DEGRADED_PERCEPTION`, `EMERGENCY_SAFE_STOP`, `FAIL_SILENT_LATCH`), cyclic hardware heartbeat watchdog with microsecond deadline and jitter tracking, multi-invariant sensor plausibility validator (frozen telemetry detection, steering slew limit, longitudinal acceleration bounds, wheel vs secondary speed cross-checking), fail-safe actuator override enforcement (emergency deceleration, speed capping, steering clamping, hazard lights), tactical 1280x720 safety HUD visualizer (`viz.py`), dedicated CLI command group `nearfield360 safety` (`info`, `watchdog`, `plausibility`, `simulate`, `render`, `audit`), and release audit verification (31 CLI command groups).
-31. **UN R156 software update management system (SUMS) & cryptographic ECU firmware verification.** Planned:
-    Automated vehicle firmware delta packaging, Ed25519 cryptographic signature verification, A/B flash partition rollback guard, and dual-layer OTA campaign orchestration.
+31. ~~UN R156 software update management system (SUMS) & cryptographic ECU firmware verification.~~ Done:
+    UN R156 compliance data models (`FirmwareManifest`, `PartitionSlot`, `UpdateState`, `PreflightCheck`, `SlotMetadata`, `ECUPartitionState`, `OTACampaignReport`), SHA-256 payload digest verification with HMAC cryptographic signatures, monotonic anti-rollback counter protection preventing downgrade attacks, dual-slot A/B partition manager (`PartitionManager`) with atomic slot pointer switching and automated fail-safe rollback, safety preflight interlocks (gear in PARK, speed standstill, battery SoC >= 30%, safety supervisor nominal), campaign executive orchestrator (`OTAExecutive`), tactical 1280x720 UN R156 OTA HUD dashboard visualizer (`viz.py`), dedicated CLI command group `nearfield360 ota` (`info`, `manifest`, `verify`, `preflight`, `apply`, `render`, `audit`), and release audit verification (32 CLI command groups).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -1225,6 +1225,56 @@ Perform ISO 26262 ASIL-D functional safety compliance verification audit:
 ```powershell
 uv run nearfield360 safety audit
 uv run nearfield360 safety audit --json --output outputs/safety_audit.json
+```
+
+### UN R156 Software Update Management System (SUMS) & Dual-Slot Rollback Guard
+
+Inspect active UN R156 SUMS parameters, crypto timeout limits, and safety interlocks:
+
+```powershell
+uv run nearfield360 ota info
+uv run nearfield360 ota info --json
+```
+
+Generate and cryptographically sign a UN R156 firmware manifest with RXSWIN tracking:
+
+```powershell
+uv run nearfield360 ota manifest --target-ecu ecu-perception-01 --version v2.4.0 --revision 42
+uv run nearfield360 ota manifest --json --output outputs/sample_manifest.json
+```
+
+Verify cryptographic signature, SHA-256 payload digest, and monotonic anti-rollback guard:
+
+```powershell
+uv run nearfield360 ota verify --current-revision 40
+uv run nearfield360 ota verify --manifest outputs/sample_manifest.json --current-revision 40 --json
+```
+
+Evaluate vehicle operational safety preflight interlocks (gear, standstill, SoC, supervisor):
+
+```powershell
+uv run nearfield360 ota preflight --gear PARK --speed 0.0 --soc 85.0
+uv run nearfield360 ota preflight --gear DRIVE --speed 5.0 --soc 20.0 --json
+```
+
+Execute end-to-end UN R156 OTA campaign lifecycle with automated rollback protection:
+
+```powershell
+uv run nearfield360 ota apply --campaign-id CAMP-2026-001 --target-ecu ecu-perception-01 --version v2.4.0 --revision 42
+uv run nearfield360 ota apply --campaign-id CAMP-FAIL-001 --simulate-failure --json
+```
+
+Render tactical 1280x720 UN R156 OTA HUD dashboard PNG artifact:
+
+```powershell
+uv run nearfield360 ota render --png outputs/ota_hud.png
+```
+
+Perform UN R156 Software Update Management System (SUMS) regulatory audit:
+
+```powershell
+uv run nearfield360 ota audit
+uv run nearfield360 ota audit --json --output outputs/ota_audit.json
 ```
 
 ## License
