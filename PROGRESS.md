@@ -2865,7 +2865,7 @@ Phase 39 implements the automotive ISO 26262 ASIL-D functional safety supervisor
 
 **Status:** Completed
 **Repository Branch:** `phase/ota-sums-firmware-verification` (PR #24)
-**Test Suite:** 1,591 passed, 1 skipped (0 failures)
+**Test Suite:** 1,601 passed, 1 skipped (0 failures)
 **Type Checking:** `mypy --strict` clean
 **Linting & Style:** `ruff check` and `ruff format` clean
 **Test Coverage:** > 88% overall codebase coverage
@@ -2940,14 +2940,14 @@ Phase 40 implements the automotive UN R156 Software Update Management System (SU
 | --- | --- | --- |
 | OTA Config Validation | `uv run pytest tests/unit/test_config.py` | 108 passed |
 | OTA Domain Models & Schemas | `uv run pytest tests/unit/ota/test_ota_models.py` | 5 passed |
-| Cryptographic Verifier & Anti-Rollback | `uv run pytest tests/unit/ota/test_verifier.py` | 4 passed |
-| A/B Partition Manager & Rollback | `uv run pytest tests/unit/ota/test_partition.py` | 5 passed |
-| Preflight & OTA Executive Orchestrator | `uv run pytest tests/unit/ota/test_executive.py` | 4 passed |
+| Cryptographic Verifier & Anti-Rollback | `uv run pytest tests/unit/ota/test_ota_verifier.py` | 4 passed |
+| A/B Partition Manager & Rollback | `uv run pytest tests/unit/ota/test_ota_partition.py` | 5 passed |
+| Preflight & OTA Executive Orchestrator | `uv run pytest tests/unit/ota/test_ota_executive.py` | 4 passed |
 | Tactical OTA HUD Visualizer | `uv run pytest tests/unit/ota/test_ota_viz.py` | 2 passed |
 | OTA CLI Command Group | `uv run pytest tests/unit/test_ota_cli.py` | 7 passed |
 | CLI Surface & Release Audit | `uv run nearfield360 release audit` | 32 groups passed |
 | Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
-| Full Test Suite | `uv run pytest -q` | 1,591 passed, 1 skipped |
+| Full Test Suite | `uv run pytest -q` | 1,601 passed, 1 skipped |
 | Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
