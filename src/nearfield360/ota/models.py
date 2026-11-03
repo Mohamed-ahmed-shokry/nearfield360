@@ -78,7 +78,7 @@ class SlotMetadata(BaseModel):
     is_active: bool = Field(default=False)
     is_bootable: bool = Field(default=True)
     version: str = Field(default="v1.0.0")
-    monotonic_revision: int = Field(default=1, ge=1)
+    monotonic_revision: int = Field(default=0, ge=0)
     rxswin: str = Field(default="RXSWIN-DEFAULT-0001")
     sha256_hash: str = Field(default="0" * 64, min_length=64, max_length=64)
     boot_count: int = Field(default=0, ge=0)
