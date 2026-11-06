@@ -638,6 +638,24 @@ class OTAConfig(BaseModel):
     require_charging_or_parked: bool = True
 
 
+class CSMSConfig(BaseModel):
+    """Parameters for UN R155 Cybersecurity Management System (CSMS) and In-Vehicle IDS."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    max_can_frame_rate_per_sec: float = Field(
+        default=250.0, ge=10.0, le=2000.0, allow_inf_nan=False
+    )
+    replay_window_tolerance_ms: float = Field(default=50.0, ge=5.0, le=1000.0, allow_inf_nan=False)
+    payload_entropy_min: float = Field(default=0.20, ge=0.0, le=4.0, allow_inf_nan=False)
+    payload_entropy_max: float = Field(default=7.80, ge=4.0, le=8.0, allow_inf_nan=False)
+    anomaly_score_threshold: float = Field(default=0.75, ge=0.1, le=1.0, allow_inf_nan=False)
+    quarantine_duration_s: float = Field(default=15.0, ge=1.0, le=300.0, allow_inf_nan=False)
+    vsoc_telemetry_batch_size: int = Field(default=25, ge=1, le=500)
+    enable_defensive_mitigation: bool = True
+    max_active_security_incidents: int = Field(default=1000, ge=10, le=50000)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -687,6 +705,7 @@ class ProjectConfig(BaseSettings):
     sensor: SensorConfig = Field(default_factory=SensorConfig)
     safety: SafetyConfig = Field(default_factory=SafetyConfig)
     ota: OTAConfig = Field(default_factory=OTAConfig)
+    csms: CSMSConfig = Field(default_factory=CSMSConfig)
 
     @classmethod
     def settings_customise_sources(
