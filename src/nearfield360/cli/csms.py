@@ -92,8 +92,13 @@ def csms_info(
 def csms_analyze(
     context: typer.Context,
     arbitration_id: Annotated[
-        int, typer.Option("--arbitration-id", "-a", help="CAN Arbitration ID.")
-    ] = 0x120,
+        str,
+        typer.Option(
+            "--arbitration-id",
+            "-a",
+            help="CAN Arbitration ID in hex (e.g. 0x120) or decimal.",
+        ),
+    ] = "0x120",
     payload_hex: Annotated[
         str, typer.Option("--payload-hex", help="CAN payload as hex string.")
     ] = "0102030405060708",
@@ -105,14 +110,15 @@ def csms_analyze(
     config = get_state(context).config.csms
     ids = IntrusionDetectionSystem(config)
 
+    parsed_arb_id = int(arbitration_id, 0)
     raw_bytes = bytes.fromhex(payload_hex)
     entropy = compute_shannon_entropy(raw_bytes)
-    frame_dict = {"arbitration_id": arbitration_id, "payload": raw_bytes, "timestamp_s": 10.0}
+    frame_dict = {"arbitration_id": parsed_arb_id, "payload": raw_bytes, "timestamp_s": 10.0}
     event = ids.inspect_frame(frame_dict, current_time_s=10.0, vehicle_speed_mps=speed)
 
     anomaly_detected = event is not None
     payload_res: dict[str, Any] = {
-        "arbitration_id": f"0x{arbitration_id:03X}",
+        "arbitration_id": f"0x{parsed_arb_id:03X}",
         "payload_hex": payload_hex,
         "shannon_entropy_bits": round(entropy, 4),
         "vehicle_speed_mps": speed,
@@ -130,7 +136,7 @@ def csms_analyze(
 
     status_tag = "ANOMALY DETECTED" if anomaly_detected else "NOMINAL"
     typer.echo(f"CAN Frame IDS Inspection Result: [{status_tag}]")
-    typer.echo(f"  Arbitration ID : 0x{arbitration_id:03X}")
+    typer.echo(f"  Arbitration ID : 0x{parsed_arb_id:03X}")
     typer.echo(f"  Payload Hex    : {payload_hex}")
     typer.echo(f"  Shannon Entropy: {entropy:.4f} bits/byte")
     if event:
