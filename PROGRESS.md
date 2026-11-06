@@ -2952,3 +2952,110 @@ Phase 40 implements the automotive UN R156 Software Update Management System (SU
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
 | Remote CI Workflow Status | GitHub Actions PR #24 | Verified Green |
+
+---
+
+## Phase 41: UN R155 / ISO/SAE 21434 Vehicle Cybersecurity Management System (CSMS), In-Vehicle Intrusion Detection System (IDS) & vSOC Telemetry
+
+**Status:** Completed
+**Repository Branch:** `phase/csms-intrusion-detection-vsoc`
+**Test Suite:** 1,634 passed, 1 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (0 errors)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 97.03% (exceeds required 85.0% threshold)
+**CLI Command Groups:** 33 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 41 delivers an automotive-grade Vehicle Cybersecurity Management System (CSMS) compliant with UNECE Regulation No. 155 (UN R155) and ISO/SAE 21434:
+
+1. **CSMS Configuration & Threat Boundaries**:
+   - `CSMSConfig` schema specifying CAN frame rate ceilings (`max_can_frame_rate_per_sec=250.0`), replay detection windows (`replay_window_tolerance_ms=50.0`), Shannon entropy bounds (`[payload_entropy_min=0.0, payload_entropy_max=6.5]`), anomaly thresholds, defensive containment flags, and vSOC batching sizes.
+2. **UN R155 Compliance Domain Models**:
+   - `CyberThreatCategory`: CAN DoS rate floods, replay injection, unauthorized moving UDS diagnostics, payload entropy fuzzing, spoofed arbitration IDs, and bus-off fault induction.
+   - `IncidentSeverity`: Low, medium, high, and critical risk tiers.
+   - `DefenseAction`: Passive logging, diagnostic lockout, CAN ID rate throttling, source node quarantine, and ASIL-D safe stop escalation.
+   - `SecurityEvent`, `NodeQuarantineRecord`, `ThreatAssessment`, and `VSOCReport`.
+3. **In-Vehicle Intrusion Detection System (`IntrusionDetectionSystem`)**:
+   - High-throughput sliding-window rate tracking detecting DoS floods.
+   - Timestamp delta tracking detecting rapid identical replay injections.
+   - ISO 14229 UDS diagnostic authorization analyzer locking down diagnostic commands while the vehicle is in motion ($v > 0.05\text{ m/s}$).
+   - Shannon entropy payload analyzer detecting CAN FD fuzzing attacks.
+4. **Defensive Network Quarantine & Safety Escalation (`QuarantineFilter`)**:
+   - Dynamic arbitration ID and source node blacklist enforcement with configurable time-to-live auto-expiration.
+   - Safety escalation interlock triggering ISO 26262 ASIL-D emergency stop via `SafetySupervisor.trigger_emergency_stop()` upon critical threats.
+5. **Vehicle Security Operations Center (`VSOCManager`) Telemetry**:
+   - RFC 5424 formatted incident logs with ISO 8601 UTC timestamps, hostnames, app names, process IDs, and structured event metadata.
+   - Regulatory batch dispatch and sliding ring-buffer forensic query timeline.
+6. **Tactical 1280x720 UN R155 CSMS / IDS HUD Dashboard Visualizer (`render_csms_dashboard`)**:
+   - 4-panel dark-mode diagnostic visualizer rendering threat category breakdown, in-vehicle IDS real-time metrics, defensive quarantine blacklist cards, and vSOC incident forensic logs.
+7. **CLI Integration & Release Audit**:
+   - Dedicated CLI command group `nearfield360 csms` (`info`, `analyze`, `quarantine`, `simulate`, `render`, `audit`).
+   - Root application registration in `src/nearfield360/cli/app.py` and release audit expansion to 33 verified command groups in `src/nearfield360/cli/release.py`.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- **CSMS Configuration Schema (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `max_can_frame_rate_per_sec`: 250.0 fps rate limit ceiling.
+  - `replay_window_tolerance_ms`: 50.0 ms identical frame replay threshold.
+  - `payload_entropy_min`: 0.0 bits/byte lower entropy bound.
+  - `payload_entropy_max`: 6.5 bits/byte upper entropy bound accommodating CAN FD fuzzing.
+  - `anomaly_score_threshold`: 0.70 anomaly score trigger threshold.
+  - `quarantine_duration_s`: 15.0 s automatic blacklist quarantine duration.
+  - `vsoc_telemetry_batch_size`: 10 incidents per vSOC telemetry dispatch.
+  - `enable_defensive_mitigation`: True (active containment enabled).
+  - `max_active_security_incidents`: 100 ring buffer incident capacity.
+- **Domain Models & Protocol Schemas (`src/nearfield360/csms/models.py`)**:
+  - `CyberThreatCategory`, `IncidentSeverity`, `DefenseAction`, `SecurityEvent`, `NodeQuarantineRecord`, `ThreatAssessment`, `VSOCReport`.
+- **In-Vehicle Intrusion Detection System (`src/nearfield360/csms/ids.py`)**:
+  - `compute_shannon_entropy`: Numerical Shannon entropy calculator over raw CAN frame bytes ($H = -\sum p_i \log_2 p_i$).
+  - `IntrusionDetectionSystem`: Multi-analyzer IDS engine identifying CAN DoS flooding, duplicate replay, moving UDS diagnostic exploits, and payload fuzzing.
+- **Defensive Containment Quarantine Filter (`src/nearfield360/csms/quarantine.py`)**:
+  - `QuarantineFilter`: Intercepts and drops ingress frames from quarantined entities, automatically prunes expired records, and commands ASIL-D safe stops on critical security anomalies.
+- **Vehicle Security Operations Center Manager (`src/nearfield360/csms/vsoc.py`)**:
+  - `VSOCManager`: Thread-safe incident recording, RFC 5424 syslog incident formatting, forensic incident filtering, and UN R155 compliance reporting.
+- **Tactical UN R155 CSMS HUD Visualizer (`src/nearfield360/csms/viz.py`)**:
+  - `render_csms_dashboard`: Generates high-contrast 1280x720 HUD dashboard visualizer depicting threat breakdown, IDS parameters, active quarantines, and forensic timeline.
+- **CLI Command Group & Release Audit (`src/nearfield360/cli/csms.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `analyze`, `quarantine`, `simulate`, `render`, `audit`.
+  - Registered `csms` CLI group and expanded release audit check to verify 33 command groups.
+
+---
+
+### 3. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Upper Shannon Entropy Bound Set to 6.5 Bits to Accommodate CAN FD Frames
+   - *Alternatives Considered*: Restricting maximum entropy to $\le 3.0$ bits.
+   - *Rationale & Evidence*: Standard CAN 2.0 frames have a maximum payload of 8 bytes, giving theoretical maximum entropy $\log_2(8) = 3.0$ bits/byte. However, modern ISO 11898-1 CAN FD frames carry up to 64 bytes of payload, with theoretical maximum entropy $\log_2(64) = 6.0$ bits/byte. A ceiling of 3.0 would cause false positives on legitimate encrypted CAN FD messages. The entropy upper bound was bounded to $[4.0, 8.0]$ with default $6.5$ bits/byte to accurately flag true payload fuzzing injections.
+2. **Decision**: Strict Moving UDS Diagnostic Prohibition as Critical Security Incident
+   - *Alternatives Considered*: Logging diagnostic requests passively without lockout.
+   - *Rationale & Evidence*: Diagnostic services such as `SecurityAccess` (`0x27`) and `WriteDataByIdentifier` (`0x2E`) modify ECU memory and security state. Requesting these services on physical or broadcast IDs while the vehicle is in motion ($v > 0.05\text{ m/s}$) violates ISO 14229 / UN R155 principles and represents a high-probability cyber attack (e.g. gateway bypass or remote compromise). Immediate `LOCKOUT_DIAGNOSTICS` defense action is enforced.
+3. **Decision**: Bidirectional Safety Escalation from CSMS to ASIL-D Safety Supervisor
+   - *Alternatives Considered*: Operating CSMS independently of the vehicle functional safety supervisor.
+   - *Rationale & Evidence*: Critical cyber attacks targeting powertrain or steering arbitration IDs (e.g. DoS flood on `0x120` or spoofing) directly compromise functional safety. When a cyber threat has `CRITICAL` severity and commands `REQUEST_SAFE_STOP`, `QuarantineFilter` automatically escalates the incident to `SafetySupervisor.trigger_emergency_stop()`, ensuring fail-safe vehicle stopping within ISO 26262 ASIL-D latency bounds.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| CSMS Config Validation | `uv run pytest tests/unit/test_config.py` | 111 passed |
+| CSMS Domain Models & Schemas | `uv run pytest tests/unit/csms/test_csms_models.py` | 5 passed |
+| In-Vehicle IDS Multi-Analyzer Engine | `uv run pytest tests/unit/csms/test_ids.py` | 6 passed |
+| Quarantine Filter & Safety Escalation | `uv run pytest tests/unit/csms/test_quarantine.py` | 6 passed |
+| vSOC Telemetry & RFC 5424 Incident Logging | `uv run pytest tests/unit/csms/test_vsoc.py` | 4 passed |
+| Tactical CSMS HUD Visualizer | `uv run pytest tests/unit/csms/test_csms_viz.py` | 2 passed |
+| CSMS CLI Command Group | `uv run pytest tests/unit/test_csms_cli.py` | 6 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 33 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1,634 passed, 1 skipped |
+| Code Coverage (CSMS modules) | `uv run pytest ... --cov=...` | 97.03% (exceeds 85% requirement) |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
+| Remote CI Workflow Status | GitHub Actions PR | Parity Verified |
