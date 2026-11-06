@@ -1710,23 +1710,23 @@ Establish an automotive-grade, regulation-compliant Cybersecurity Management Sys
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 41 UN R155 CSMS, in-vehicle IDS, and vSOC telemetry scope`
-2. [ ] `feat(config): add CSMSConfig schema and default cybersecurity parameters`
-3. [ ] `test(config): verify CSMSConfig defaults, bounds, and environment overrides`
-4. [ ] `feat(csms): implement UN R155 threat categories, security event, and quarantine domain models`
-5. [ ] `test(csms): verify CSMS domain models validation, severity levels, and serialization`
-6. [ ] `feat(csms): implement In-Vehicle Intrusion Detection System with rate, replay, and entropy analyzers`
-7. [ ] `test(csms): verify IDS detection of CAN DoS floods, replay attacks, and payload fuzzing`
-8. [ ] `feat(csms): implement defensive quarantine filter and ASIL-D emergency stop interlock`
-9. [ ] `test(csms): verify quarantine blacklist enforcement, auto-expiration, and safety escalation`
-10. [ ] `feat(csms): implement vSOC telemetry manager and RFC 5424 incident logger`
-11. [ ] `test(csms): verify vSOC batching, forensic timeline query, and regulatory audit report`
-12. [ ] `feat(csms): implement tactical UN R155 CSMS / IDS HUD dashboard visualizer`
-13. [ ] `test(csms): verify tactical CSMS visualizer renders valid 1280x720 PNG artifacts`
-14. [ ] `feat(csms): export public CSMS API from package init`
-15. [ ] `feat(cli): implement nearfield360 csms command group (info, analyze, quarantine, simulate, render, audit)`
-16. [ ] `feat(cli): register csms CLI group and update release audit expected count to 33`
-17. [ ] `test(cli): verify csms CLI command group execution and JSON outputs`
-18. [ ] `docs(readme): add UN R155 CSMS capability, roadmap status, and usage commands`
-19. [ ] `docs(progress): record Phase 41 implementation, Decision Log, and quality gates`
-20. [ ] `docs(roadmap): mark Phase 41 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 41 UN R155 CSMS, in-vehicle IDS, and vSOC telemetry scope`
+2. [x] `feat(config): add CSMSConfig schema and default cybersecurity parameters`
+3. [x] `test(config): verify CSMSConfig defaults, bounds, and environment overrides`
+4. [x] `feat(csms): implement UN R155 threat categories, security event, and quarantine domain models`
+5. [x] `test(csms): verify CSMS domain models validation, severity levels, and serialization`
+6. [x] `feat(csms): implement In-Vehicle Intrusion Detection System with rate, replay, and entropy analyzers`
+7. [x] `test(csms): verify IDS detection of CAN DoS floods, replay attacks, and payload fuzzing`
+8. [x] `feat(csms): implement defensive quarantine filter and ASIL-D emergency stop interlock`
+9. [x] `test(csms): verify quarantine blacklist enforcement, auto-expiration, and safety escalation`
+10. [x] `feat(csms): implement vSOC telemetry manager and RFC 5424 incident logger`
+11. [x] `test(csms): verify vSOC batching, forensic timeline query, and regulatory audit report`
+12. [x] `feat(csms): implement tactical UN R155 CSMS / IDS HUD dashboard visualizer`
+13. [x] `test(csms): verify tactical CSMS visualizer renders valid 1280x720 PNG artifacts`
+14. [x] `feat(csms): export public CSMS API from package init`
+15. [x] `feat(cli): implement nearfield360 csms command group (info, analyze, quarantine, simulate, render, audit)`
+16. [x] `feat(cli): register csms CLI group and update release audit expected count to 33`
+17. [x] `test(cli): verify csms CLI command group execution and JSON outputs`
+18. [x] `docs(readme): add UN R155 CSMS capability, roadmap status, and usage commands`
+19. [x] `docs(progress): record Phase 41 implementation, Decision Log, and quality gates`
+20. [x] `docs(roadmap): mark Phase 41 micro-tasks and acceptance criteria completed`
