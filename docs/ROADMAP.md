@@ -1657,3 +1657,76 @@ Establish an automotive-grade, regulation-compliant Software Update Management S
 18. [x] `docs(readme): add UN R156 OTA capability, roadmap status, and usage commands`
 19. [x] `docs(progress): record Phase 40 implementation, Decision Log, and quality gates`
 20. [x] `docs(roadmap): mark Phase 40 micro-tasks and acceptance criteria completed`
+
+
+## Phase 41: UN R155 / ISO/SAE 21434 Vehicle Cybersecurity Management System (CSMS), In-Vehicle Intrusion Detection System (IDS) & vSOC Telemetry (Roadmap Item 32)
+
+### 1. Objective & Scope
+
+Establish an automotive-grade, regulation-compliant Cybersecurity Management System (CSMS) conforming to **UN Regulation No. 155 (UN R155)** and **ISO/SAE 21434 (Road vehicles — Cybersecurity engineering)**:
+
+- **In-Vehicle Intrusion Detection System (IDS)**: Real-time detection of CAN message injection (DoS floods, fuzzy payloads, spoofed arbitration IDs), replay attacks, unauthorized UDS diagnostic routines, and clock skew anomalies.
+- **Shannon Entropy & Frame Timing Analysis**: Statistical payload entropy evaluation ($H(X) = -\sum p(x) \log_2 p(x)$) and inter-arrival timing jitter monitoring.
+- **Defensive Containment & Quarantine Filter**: Automatic arbitration ID / ECU node blacklisting, selective frame dropping, and fail-safe safety supervisor escalation.
+- **Vehicle Security Operations Center (vSOC) Telemetry**: RFC 5424 / IEEE 1609.2 incident event formatting, rate-limited aggregation, and forensic audit trail export.
+- **Tactical CSMS / IDS HUD Visualizer (`viz.py`)**: 1280x720 dual-panel diagnostic dashboard displaying threat radar, active quarantines, entropy timeline, and security event logs.
+- **CLI Command Group `nearfield360 csms`**: Typer subcommands (`info`, `analyze`, `quarantine`, `simulate`, `render`, `audit`).
+- **Root CLI Integration & Release Audit**: Update release audit verification from 32 to 33 command groups.
+
+### 2. Architectural Blueprint
+
+- **Configuration (`src/nearfield360/config.py`)**: `CSMSConfig` schema with frame rate limits, replay tolerance, entropy bounds, quarantine duration, and alert thresholds.
+- **Domain Models (`src/nearfield360/csms/models.py`)**: `CyberThreatCategory`, `IncidentSeverity`, `DefenseAction`, `SecurityEvent`, `NodeQuarantineRecord`, `ThreatAssessment`, `VSOCReport`.
+- **Intrusion Detection Engine (`src/nearfield360/csms/ids.py`)**: `IntrusionDetectionSystem` performing rate-anomaly, replay, entropy, and UDS diagnostic inspection.
+- **Quarantine Manager (`src/nearfield360/csms/quarantine.py`)**: `QuarantineFilter` managing blacklists, frame filtering, and safety supervisor escalation.
+- **vSOC Telemetry Manager (`src/nearfield360/csms/vsoc.py`)**: `VSOCManager` packaging forensic telemetry and compliance reports.
+- **Tactical Visualizer (`src/nearfield360/csms/viz.py`)**: `render_csms_dashboard` rendering 1280x720 PNG HUD.
+- **CLI Group (`src/nearfield360/cli/csms.py`)**: Typer command group with 6 subcommands.
+- **Root App & Release Audit (`src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**: 33 registered groups.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `CSMSConfig` defined with strict Pydantic bounds and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models for cyber threats, security events, quarantines, and vSOC reports validate and serialize JSON | `uv run pytest tests/unit/csms/test_csms_models.py` |
+| AC-3 | `IntrusionDetectionSystem` detects CAN DoS floods, replay attacks, payload fuzzing, and unauthorized diagnostics | `uv run pytest tests/unit/csms/test_ids.py` |
+| AC-4 | `QuarantineFilter` enforces blacklisting, drops anomalous frames, auto-expires records, and escalates to safety supervisor | `uv run pytest tests/unit/csms/test_quarantine.py` |
+| AC-5 | `VSOCManager` aggregates security incidents into RFC 5424 batches and generates regulatory audit reports | `uv run pytest tests/unit/csms/test_vsoc.py` |
+| AC-6 | Tactical CSMS / IDS HUD visualizer renders threat radar, quarantine status, and event timeline to valid 1280x720 PNG | `uv run pytest tests/unit/csms/test_csms_viz.py` |
+| AC-7 | Dedicated CLI group `nearfield360 csms` executes `info`, `analyze`, `quarantine`, `simulate`, `render`, and `audit` | `uv run pytest tests/unit/test_csms_cli.py` |
+| AC-8 | Root CLI registers `csms` command group, passing release audit with 33 groups | `uv run nearfield360 release audit` |
+| AC-9 | All local CI-parity checks and remote CI workflow runs pass 100% | `pre-commit`, `pytest`, `build` |
+
+### 4. Validation & CI Plan
+
+1. Local checks: `uv lock --check`, `uv run pre-commit run --all-files`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing`, `uv build`, `uv run twine check dist/*`.
+2. End-to-end CLI execution: `nearfield360 csms simulate --scenario dos_flood --png outputs/csms_dashboard.png --output outputs/csms_report.json`.
+
+### 5. Exclusions
+
+- Direct physical hardware Secure Hardware Extension (SHE) / Hardware Security Module (HSM) microcode flashing.
+- Cellular baseband modem firmware reverse engineering.
+
+### 6. Micro-Task Breakdown
+
+1. [ ] `docs(roadmap): define Phase 41 UN R155 CSMS, in-vehicle IDS, and vSOC telemetry scope`
+2. [ ] `feat(config): add CSMSConfig schema and default cybersecurity parameters`
+3. [ ] `test(config): verify CSMSConfig defaults, bounds, and environment overrides`
+4. [ ] `feat(csms): implement UN R155 threat categories, security event, and quarantine domain models`
+5. [ ] `test(csms): verify CSMS domain models validation, severity levels, and serialization`
+6. [ ] `feat(csms): implement In-Vehicle Intrusion Detection System with rate, replay, and entropy analyzers`
+7. [ ] `test(csms): verify IDS detection of CAN DoS floods, replay attacks, and payload fuzzing`
+8. [ ] `feat(csms): implement defensive quarantine filter and ASIL-D emergency stop interlock`
+9. [ ] `test(csms): verify quarantine blacklist enforcement, auto-expiration, and safety escalation`
+10. [ ] `feat(csms): implement vSOC telemetry manager and RFC 5424 incident logger`
+11. [ ] `test(csms): verify vSOC batching, forensic timeline query, and regulatory audit report`
+12. [ ] `feat(csms): implement tactical UN R155 CSMS / IDS HUD dashboard visualizer`
+13. [ ] `test(csms): verify tactical CSMS visualizer renders valid 1280x720 PNG artifacts`
+14. [ ] `feat(csms): export public CSMS API from package init`
+15. [ ] `feat(cli): implement nearfield360 csms command group (info, analyze, quarantine, simulate, render, audit)`
+16. [ ] `feat(cli): register csms CLI group and update release audit expected count to 33`
+17. [ ] `test(cli): verify csms CLI command group execution and JSON outputs`
+18. [ ] `docs(readme): add UN R155 CSMS capability, roadmap status, and usage commands`
+19. [ ] `docs(progress): record Phase 41 implementation, Decision Log, and quality gates`
+20. [ ] `docs(roadmap): mark Phase 41 micro-tasks and acceptance criteria completed`
