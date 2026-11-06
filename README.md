@@ -47,6 +47,7 @@ the corresponding experiments have run.
 | Facility access control, barrier gate interlocks & vehicle clearance enveloping | Implemented | ISO 23374 gateway operations, optical ALPR plate recognition, UWB digital credential validation, 3D vehicle clearance envelope profiling (headroom/width/ground clearance), 4-loop inductive safety interlocks ($0^\circ \to 90^\circ$ boom kinematics, UL 325 immediate safety reversal, anti-tailgating lockout), dual-panel BEV gateway map and HUD visualizer (`nearfield360 gate`), and surround pipeline integration (`pipeline run --gate`) |
 | Infrastructure cooperative perception, ETSI CPM dispatch & blind-spot fusion | Implemented | ISO 23374 Type 2/3 and ETSI TR 103 562 Collective Perception Service (CPM), stationary Roadside Perception Units (RPUs) with 3D LiDAR/radar/fisheye, kinematic latency extrapolation, track-to-track Covariance Intersection (CI), line-of-sight raycasting & pillar occlusion shadows, preemptive collision warnings, dual-panel tactical BEV/HUD dashboard (`nearfield360 coop`), and surround pipeline runner integration (`pipeline run --coop`) |
 | Vehicle-to-Grid (V2G) bi-directional power flow, peak-shaving arbitrage & smart inverter telemetry | Implemented | ISO 15118-20 (Bi-directional Power Transfer / BPT) and OCPP 2.0.1 (SmartCharging), bi-directional AC/DC conversion with quadratic loss models, frequency-watt droop response, voltage-VAR reactive compensation, multi-interval dynamic arbitrage with customer departure reserve guarantees and battery degradation penalties ($C_{\text{deg}}$), facility microgrid load balancing with peak shaving and islanded emergency backup, electrical Single-Line Diagram (SLD) visualizer (`nearfield360 v2g`), and surround pipeline runner integration (`pipeline run --v2g`) |
+| UN R155 / ISO/SAE 21434 Vehicle Cybersecurity Management System (CSMS), In-Vehicle IDS & vSOC Telemetry | Implemented | In-vehicle CAN 2.0/FD intrusion detection (rate flood, replay detection, unauthorized moving UDS diagnostics, Shannon payload entropy fuzzing), automated defensive quarantine filtering, ASIL-D emergency stop interlock, RFC 5424 vSOC telemetry, tactical 1280x720 HUD dashboard (`nearfield360 csms`), and regulatory audit |
 | Facility operations control tower, coordinated day-run simulation & cross-subsystem KPI aggregation | Implemented | Seeded stochastic arrival demand generator, coordinated day-level simulation orchestrating gate arrivals, slot dispatch, EV charging windows, V2G export and settlement billing, hourly facility snapshots, daily cross-subsystem KPI aggregation, unified tactical dashboard visualizer (`nearfield360 ops`), and release audit verification (28 CLI groups) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
@@ -1275,6 +1276,50 @@ Perform UN R156 Software Update Management System (SUMS) regulatory audit:
 ```powershell
 uv run nearfield360 ota audit
 uv run nearfield360 ota audit --json --output outputs/ota_audit.json
+```
+
+### UN R155 Vehicle Cybersecurity Management System (CSMS) & In-Vehicle IDS
+
+Inspect active UN R155 / ISO/SAE 21434 CSMS configuration, rate limits, entropy bounds, and mitigation flags:
+
+```powershell
+uv run nearfield360 csms info
+uv run nearfield360 csms info --json
+```
+
+Analyze CAN bus frames with In-Vehicle Intrusion Detection System (IDS) and evaluate Shannon entropy:
+
+```powershell
+uv run nearfield360 csms analyze --arbitration-id 0x120 --payload-hex 0102030405060708
+uv run nearfield360 csms analyze --arbitration-id 0x7DF --payload-hex 0227010000000000 --speed 10.0 --json
+```
+
+Inspect and manage active defensive network quarantine blacklists:
+
+```powershell
+uv run nearfield360 csms quarantine
+uv run nearfield360 csms quarantine --add 0x120 --reason "Powertrain bus flood" --duration-s 30.0
+uv run nearfield360 csms quarantine --release 0x120 --json
+```
+
+Simulate in-vehicle cyber attack scenarios (`dos_flood`, `replay_attack`, `unauthorized_uds`, `fuzzing_injection`, `nominal`):
+
+```powershell
+uv run nearfield360 csms simulate --scenario dos_flood --frames 200
+uv run nearfield360 csms simulate --scenario replay_attack --frames 50 --json
+```
+
+Render tactical 1280x720 UN R155 CSMS / IDS HUD dashboard PNG artifact:
+
+```powershell
+uv run nearfield360 csms render --scenario dos_flood --png outputs/csms_hud.png
+```
+
+Perform UN R155 CSMS and ISO/SAE 21434 regulatory compliance audit:
+
+```powershell
+uv run nearfield360 csms audit
+uv run nearfield360 csms audit --json --output outputs/csms_audit.json
 ```
 
 ## License
