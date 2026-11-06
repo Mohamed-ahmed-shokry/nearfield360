@@ -311,3 +311,23 @@ safety:
   safe_stop_deceleration_mps2: 2.50
   degraded_speed_limit_mps: 2.0
   self_test_dwell_s: 0.50
+ota:
+  min_battery_soc_pct: 30.0
+  max_package_size_mb: 500.0
+  verification_timeout_s: 60.0
+  activation_dwell_s: 10.0
+  rollback_timeout_s: 30.0
+  max_consecutive_failures: 3
+  signing_secret_key: "nearfield360-un-r156-ed25519-secret-key-2026"
+  enforce_monotonic_version: true
+  require_charging_or_parked: true
+csms:
+  max_can_frame_rate_per_sec: 250.0
+  replay_window_tolerance_ms: 50.0
+  payload_entropy_min: 0.20
+  payload_entropy_max: 7.80
+  anomaly_score_threshold: 0.75
+  quarantine_duration_s: 15.0
+  vsoc_telemetry_batch_size: 25
+  enable_defensive_mitigation: true
+  max_active_security_incidents: 1000

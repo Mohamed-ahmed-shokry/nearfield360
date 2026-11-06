@@ -1214,3 +1214,97 @@ def test_safety_config_rejects_invalid_misses(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="greater than or equal to 1"):
         load_config(config_path)
+
+
+def test_ota_config_defaults() -> None:
+    config = load_config()
+
+    assert config.ota.min_battery_soc_pct == 30.0
+    assert config.ota.max_package_size_mb == 500.0
+    assert config.ota.verification_timeout_s == 60.0
+    assert config.ota.activation_dwell_s == 10.0
+    assert config.ota.rollback_timeout_s == 30.0
+    assert config.ota.max_consecutive_failures == 3
+    assert config.ota.enforce_monotonic_version is True
+    assert config.ota.require_charging_or_parked is True
+    assert len(config.ota.signing_secret_key) >= 16
+
+
+def test_ota_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "ota:\n  min_battery_soc_pct: 45.0\n  max_package_size_mb: 250.0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_OTA__ACTIVATION_DWELL_S", "15.0")
+    monkeypatch.setenv("NEARFIELD360_OTA__ENFORCE_MONOTONIC_VERSION", "false")
+
+    config = load_config(config_path)
+
+    assert config.ota.min_battery_soc_pct == 45.0
+    assert config.ota.max_package_size_mb == 250.0
+    assert config.ota.activation_dwell_s == 15.0
+    assert config.ota.enforce_monotonic_version is False
+
+
+def test_ota_config_rejects_invalid_soc(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("ota:\n  min_battery_soc_pct: 5.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 10"):
+        load_config(config_path)
+
+
+def test_ota_config_rejects_short_secret(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("ota:\n  signing_secret_key: 'short'\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="at least 16 characters"):
+        load_config(config_path)
+
+
+def test_csms_config_defaults() -> None:
+    config = load_config()
+
+    assert config.csms.max_can_frame_rate_per_sec == 250.0
+    assert config.csms.replay_window_tolerance_ms == 50.0
+    assert config.csms.payload_entropy_min == 0.20
+    assert config.csms.payload_entropy_max == 7.80
+    assert config.csms.anomaly_score_threshold == 0.75
+    assert config.csms.quarantine_duration_s == 15.0
+    assert config.csms.vsoc_telemetry_batch_size == 25
+    assert config.csms.enable_defensive_mitigation is True
+    assert config.csms.max_active_security_incidents == 1000
+
+
+def test_csms_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "csms:\n  max_can_frame_rate_per_sec: 500.0\n  anomaly_score_threshold: 0.85\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_CSMS__QUARANTINE_DURATION_S", "30.0")
+    monkeypatch.setenv("NEARFIELD360_CSMS__ENABLE_DEFENSIVE_MITIGATION", "false")
+
+    config = load_config(config_path)
+
+    assert config.csms.max_can_frame_rate_per_sec == 500.0
+    assert config.csms.anomaly_score_threshold == 0.85
+    assert config.csms.quarantine_duration_s == 30.0
+    assert config.csms.enable_defensive_mitigation is False
+
+
+def test_csms_config_rejects_invalid_rate(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("csms:\n  max_can_frame_rate_per_sec: 5.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 10"):
+        load_config(config_path)
+
+
+def test_csms_config_rejects_invalid_entropy(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("csms:\n  payload_entropy_max: 9.5\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 8"):
+        load_config(config_path)
