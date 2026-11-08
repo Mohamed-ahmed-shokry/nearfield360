@@ -48,6 +48,7 @@ the corresponding experiments have run.
 | Infrastructure cooperative perception, ETSI CPM dispatch & blind-spot fusion | Implemented | ISO 23374 Type 2/3 and ETSI TR 103 562 Collective Perception Service (CPM), stationary Roadside Perception Units (RPUs) with 3D LiDAR/radar/fisheye, kinematic latency extrapolation, track-to-track Covariance Intersection (CI), line-of-sight raycasting & pillar occlusion shadows, preemptive collision warnings, dual-panel tactical BEV/HUD dashboard (`nearfield360 coop`), and surround pipeline runner integration (`pipeline run --coop`) |
 | Vehicle-to-Grid (V2G) bi-directional power flow, peak-shaving arbitrage & smart inverter telemetry | Implemented | ISO 15118-20 (Bi-directional Power Transfer / BPT) and OCPP 2.0.1 (SmartCharging), bi-directional AC/DC conversion with quadratic loss models, frequency-watt droop response, voltage-VAR reactive compensation, multi-interval dynamic arbitrage with customer departure reserve guarantees and battery degradation penalties ($C_{\text{deg}}$), facility microgrid load balancing with peak shaving and islanded emergency backup, electrical Single-Line Diagram (SLD) visualizer (`nearfield360 v2g`), and surround pipeline runner integration (`pipeline run --v2g`) |
 | UN R155 / ISO/SAE 21434 Vehicle Cybersecurity Management System (CSMS), In-Vehicle IDS & vSOC Telemetry | Implemented | In-vehicle CAN 2.0/FD intrusion detection (rate flood, replay detection, unauthorized moving UDS diagnostics, Shannon payload entropy fuzzing), automated defensive quarantine filtering, ASIL-D emergency stop interlock, RFC 5424 vSOC telemetry, tactical 1280x720 HUD dashboard (`nearfield360 csms`), and regulatory audit |
+| Automotive acoustic emergency siren detection, multi-microphone DoA triangulation & audio-visual fusion | Implemented | STFT siren spectral classifier (wail/yelp/hi-lo/horn), multichannel planar microphone array GCC-PHAT DoA triangulation (< ±5° azimuth resolution), inter-frame Doppler approach speed estimation, 4-camera sector yield interlock (`FV`, `RV`, `MVL`, `MVR`), tactical 1280x720 acoustic HUD dashboard (`nearfield360 acoustic`), and regulatory compliance audit |
 | Facility operations control tower, coordinated day-run simulation & cross-subsystem KPI aggregation | Implemented | Seeded stochastic arrival demand generator, coordinated day-level simulation orchestrating gate arrivals, slot dispatch, EV charging windows, V2G export and settlement billing, hourly facility snapshots, daily cross-subsystem KPI aggregation, unified tactical dashboard visualizer (`nearfield360 ops`), and release audit verification (28 CLI groups) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
@@ -545,6 +546,10 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     Deterministic E/E safety state machine (`BOOT_SELF_TEST`, `NORMAL_OPERATION`, `DEGRADED_PERCEPTION`, `EMERGENCY_SAFE_STOP`, `FAIL_SILENT_LATCH`), cyclic hardware heartbeat watchdog with microsecond deadline and jitter tracking, multi-invariant sensor plausibility validator (frozen telemetry detection, steering slew limit, longitudinal acceleration bounds, wheel vs secondary speed cross-checking), fail-safe actuator override enforcement (emergency deceleration, speed capping, steering clamping, hazard lights), tactical 1280x720 safety HUD visualizer (`viz.py`), dedicated CLI command group `nearfield360 safety` (`info`, `watchdog`, `plausibility`, `simulate`, `render`, `audit`), and release audit verification (31 CLI command groups).
 31. ~~UN R156 software update management system (SUMS) & cryptographic ECU firmware verification.~~ Done:
     UN R156 compliance data models (`FirmwareManifest`, `PartitionSlot`, `UpdateState`, `PreflightCheck`, `SlotMetadata`, `ECUPartitionState`, `OTACampaignReport`), SHA-256 payload digest verification with HMAC cryptographic signatures, monotonic anti-rollback counter protection preventing downgrade attacks, dual-slot A/B partition manager (`PartitionManager`) with atomic slot pointer switching and automated fail-safe rollback, safety preflight interlocks (gear in PARK, speed standstill, battery SoC >= 30%, safety supervisor nominal), campaign executive orchestrator (`OTAExecutive`), tactical 1280x720 UN R156 OTA HUD dashboard visualizer (`viz.py`), dedicated CLI command group `nearfield360 ota` (`info`, `manifest`, `verify`, `preflight`, `apply`, `render`, `audit`), and release audit verification (32 CLI command groups).
+32. ~~UN R155 / ISO/SAE 21434 vehicle cybersecurity management system (CSMS), in-vehicle IDS & vSOC telemetry.~~ Done:
+    CAN 2.0/FD bus intrusion detection system (`InVehicleIDS`) with message rate anomaly, replay sequence, and Shannon payload entropy fuzzing analyzers, defensive quarantine blacklist filter with automated expiration, ASIL-D functional safety interlock, RFC 5424 vSOC telemetry incident logger (`vSOCTelemetryManager`), tactical 1280x720 CSMS HUD dashboard (`viz.py`), dedicated CLI command group `nearfield360 csms` (`info`, `analyze`, `quarantine`, `simulate`, `render`, `audit`), and release audit verification (33 CLI command groups).
+33. ~~Automotive acoustic emergency siren detection, multi-microphone array DoA triangulation & audio-visual fusion.~~ Done:
+    Multichannel perimeter microphone array geometry, STFT siren spectral detector and harmonic modulation classifier (`SirenDetector`), pairwise GCC-PHAT cross-correlation with parabolic sub-sample interpolation (`AcousticDoAEstimator`), Doppler shift velocity estimator, camera sector yield interlock (`AcousticExecutive`), tactical 1280x720 acoustic HUD visualizer (`viz.py`), dedicated CLI command group `nearfield360 acoustic` (`info`, `detect`, `doa`, `simulate`, `render`, `audit`), and release audit verification (34 CLI command groups).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -1320,6 +1325,49 @@ Perform UN R155 CSMS and ISO/SAE 21434 regulatory compliance audit:
 ```powershell
 uv run nearfield360 csms audit
 uv run nearfield360 csms audit --json --output outputs/csms_audit.json
+```
+
+### Automotive Acoustic Sensing, Emergency Siren Detection & DoA Triangulation
+
+Inspect active acoustic configuration, microphone coordinates, and detection thresholds:
+
+```powershell
+uv run nearfield360 acoustic info
+uv run nearfield360 acoustic info --json
+```
+
+Analyze acoustic signal and classify emergency siren modulation pattern (wail, yelp, hi-lo, horn):
+
+```powershell
+uv run nearfield360 acoustic detect --siren-type wail --duration-s 2.0 --snr-db 25.0
+uv run nearfield360 acoustic detect --siren-type yelp --duration-s 1.5 --json
+```
+
+Triangulate incident acoustic Direction-of-Arrival (DoA) azimuth using multichannel GCC-PHAT:
+
+```powershell
+uv run nearfield360 acoustic doa --azimuth-deg 45.0 --siren-type wail
+uv run nearfield360 acoustic doa --azimuth-deg -60.0 --json
+```
+
+Simulate multi-step emergency vehicle approach with Doppler velocity and audio-visual yield interlock:
+
+```powershell
+uv run nearfield360 acoustic simulate --siren-type wail --azimuth-deg 45.0 --speed-mps 15.0 --distance-m 60.0 --frames 5 --visual
+uv run nearfield360 acoustic simulate --siren-type yelp --azimuth-deg -45.0 --speed-mps 20.0 --json
+```
+
+Render tactical 1280x720 acoustic HUD dashboard PNG artifact (polar radar, spectrogram, compass, telemetry):
+
+```powershell
+uv run nearfield360 acoustic render --siren-type wail --azimuth-deg 45.0 --png outputs/acoustic_hud.png
+```
+
+Perform automotive acoustic sensing regulatory and safety interlock compliance audit:
+
+```powershell
+uv run nearfield360 acoustic audit
+uv run nearfield360 acoustic audit --json --output outputs/acoustic_audit.json
 ```
 
 ## License
