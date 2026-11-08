@@ -174,21 +174,21 @@ class SirenDetector:
         ):
             return SirenType.HI_LO, 0.90
 
-        # Check Yelp: rapid pitch oscillation (1.5 Hz to 5.0 Hz) with substantial sweep
-        if sweep_range_hz >= 300.0 and 1.2 <= cycle_rate_hz <= 6.0:
+        # Check Yelp: rapid pitch oscillation (1.2 Hz to 6.0 Hz) with substantial sweep
+        if sweep_range_hz >= 250.0 and 1.2 <= cycle_rate_hz <= 6.0:
             return SirenType.YELP, 0.95
 
-        # Check Wail: slow continuous pitch sweep (0.1 Hz to 0.8 Hz) with substantial sweep
-        if sweep_range_hz >= 350.0 and 0.05 <= cycle_rate_hz <= 0.9:
-            return SirenType.WAIL, 0.93
+        # Check Wail: slow continuous pitch sweep (or single sweep edge) with substantial sweep
+        if sweep_range_hz >= 250.0 and cycle_rate_hz <= 1.0:
+            return SirenType.WAIL, 0.92
 
         # Check Horn: steady piercing tone with high SNR and narrow frequency spread
-        if sweep_range_hz < 150.0 and snr_db >= 10.0:
+        if sweep_range_hz < 150.0 and snr_db >= 8.0:
             return SirenType.HORN, 0.80
 
-        # Fallback if wide sweep but irregular
-        if sweep_range_hz >= 400.0:
-            return SirenType.WAIL, 0.70
+        # Fallback if wide sweep
+        if sweep_range_hz >= 300.0:
+            return SirenType.WAIL, 0.75
 
         return SirenType.NONE, 0.0
 
