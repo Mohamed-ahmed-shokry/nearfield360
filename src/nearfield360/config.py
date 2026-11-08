@@ -656,6 +656,27 @@ class CSMSConfig(BaseModel):
     max_active_security_incidents: int = Field(default=1000, ge=10, le=50000)
 
 
+class AcousticConfig(BaseModel):
+    """Parameters for automotive acoustic siren detection, multi-microphone DoA triangulation,
+    and emergency yield interlocks.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    sampling_rate_hz: int = Field(default=16000, ge=8000, le=48000)
+    sound_speed_mps: float = Field(default=343.0, ge=300.0, le=380.0, allow_inf_nan=False)
+    stft_window_samples: int = Field(default=512, ge=128, le=2048)
+    stft_hop_samples: int = Field(default=128, ge=32, le=1024)
+    siren_freq_min_hz: float = Field(default=400.0, ge=200.0, le=1000.0, allow_inf_nan=False)
+    siren_freq_max_hz: float = Field(default=1800.0, ge=1000.0, le=3500.0, allow_inf_nan=False)
+    min_siren_snr_db: float = Field(default=6.0, ge=0.0, le=30.0, allow_inf_nan=False)
+    min_confidence_threshold: float = Field(default=0.65, ge=0.1, le=1.0, allow_inf_nan=False)
+    mic_array_radius_m: float = Field(default=0.75, ge=0.05, le=3.0, allow_inf_nan=False)
+    enable_yield_interlock: bool = True
+    yield_distance_threshold_m: float = Field(default=35.0, ge=5.0, le=100.0, allow_inf_nan=False)
+    num_microphones: int = Field(default=4, ge=2, le=8)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -706,6 +727,7 @@ class ProjectConfig(BaseSettings):
     safety: SafetyConfig = Field(default_factory=SafetyConfig)
     ota: OTAConfig = Field(default_factory=OTAConfig)
     csms: CSMSConfig = Field(default_factory=CSMSConfig)
+    acoustic: AcousticConfig = Field(default_factory=AcousticConfig)
 
     @classmethod
     def settings_customise_sources(
