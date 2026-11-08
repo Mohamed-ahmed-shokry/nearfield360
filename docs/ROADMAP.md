@@ -1799,23 +1799,23 @@ Establish an automotive-grade Nearfield Acoustic Sensing and Emergency Siren Loc
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 42 acoustic siren detection, DoA triangulation, and audio-visual fusion scope`
-2. [ ] `feat(config): add AcousticConfig schema and default microphone array parameters`
-3. [ ] `test(config): verify AcousticConfig defaults, bounds, and environment overrides`
-4. [ ] `feat(acoustic): implement acoustic domain models, siren classifications, and telemetry schemas`
-5. [ ] `test(acoustic): verify acoustic domain models validation, serialization, and sector mapping`
-6. [ ] `feat(acoustic): implement STFT spectral siren detector and harmonic modulation classifier`
-7. [ ] `test(acoustic): verify siren detection of wail, yelp, hi-lo, and ambient noise rejection`
-8. [ ] `feat(acoustic): implement GCC-PHAT direction-of-arrival (DoA) triangulation engine`
-9. [ ] `test(acoustic): verify DoA azimuth accuracy across quad-microphone array geometry`
-10. [ ] `feat(acoustic): implement acoustic executive, Doppler velocity estimator, and yield interlock`
-11. [ ] `test(acoustic): verify Doppler approach velocity estimation and camera sector yield triggering`
-12. [ ] `feat(acoustic): implement tactical 1280x720 acoustic HUD dashboard visualizer`
-13. [ ] `test(acoustic): verify tactical acoustic visualizer renders valid 1280x720 PNG artifacts`
-14. [ ] `feat(acoustic): export public acoustic API from package init`
-15. [ ] `feat(cli): implement nearfield360 acoustic command group (info, detect, doa, simulate, render, audit)`
-16. [ ] `feat(cli): register acoustic CLI group and update release audit expected count to 34`
-17. [ ] `test(cli): verify acoustic CLI command group execution and JSON outputs`
-18. [ ] `docs(readme): add acoustic sensing capability, roadmap status, and usage commands`
-19. [ ] `docs(progress): record Phase 42 implementation, Decision Log, and quality gates`
-20. [ ] `docs(roadmap): mark Phase 42 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 42 acoustic siren detection, DoA triangulation, and audio-visual fusion scope`
+2. [x] `feat(config): add AcousticConfig schema and default microphone array parameters`
+3. [x] `test(config): verify AcousticConfig defaults, bounds, and environment overrides`
+4. [x] `feat(acoustic): implement acoustic domain models, siren classifications, and telemetry schemas`
+5. [x] `test(acoustic): verify acoustic domain models validation, serialization, and sector mapping`
+6. [x] `feat(acoustic): implement STFT spectral siren detector and harmonic modulation classifier`
+7. [x] `test(acoustic): verify siren detection of wail, yelp, hi-lo, and ambient noise rejection`
+8. [x] `feat(acoustic): implement GCC-PHAT direction-of-arrival (DoA) triangulation engine`
+9. [x] `test(acoustic): verify DoA azimuth accuracy across quad-microphone array geometry`
+10. [x] `feat(acoustic): implement acoustic executive, Doppler velocity estimator, and yield interlock`
+11. [x] `test(acoustic): verify Doppler approach velocity estimation and camera sector yield triggering`
+12. [x] `feat(acoustic): implement tactical 1280x720 acoustic HUD dashboard visualizer`
+13. [x] `test(acoustic): verify tactical acoustic visualizer renders valid 1280x720 PNG artifacts`
+14. [x] `feat(acoustic): export public acoustic API from package init`
+15. [x] `feat(cli): implement nearfield360 acoustic command group (info, detect, doa, simulate, render, audit)`
+16. [x] `feat(cli): register acoustic CLI group and update release audit expected count to 34`
+17. [x] `test(cli): verify acoustic CLI command group execution and JSON outputs`
+18. [x] `docs(readme): add acoustic sensing capability, roadmap status, and usage commands`
+19. [x] `docs(progress): record Phase 42 implementation, Decision Log, and quality gates`
+20. [x] `docs(roadmap): mark Phase 42 micro-tasks and acceptance criteria completed`
