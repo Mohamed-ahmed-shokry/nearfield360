@@ -1308,3 +1308,53 @@ def test_csms_config_rejects_invalid_entropy(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 8"):
         load_config(config_path)
+
+
+def test_acoustic_config_defaults() -> None:
+    config = load_config()
+
+    assert config.acoustic.sampling_rate_hz == 16000
+    assert config.acoustic.sound_speed_mps == 343.0
+    assert config.acoustic.stft_window_samples == 512
+    assert config.acoustic.stft_hop_samples == 128
+    assert config.acoustic.siren_freq_min_hz == 400.0
+    assert config.acoustic.siren_freq_max_hz == 1800.0
+    assert config.acoustic.min_siren_snr_db == 6.0
+    assert config.acoustic.min_confidence_threshold == 0.65
+    assert config.acoustic.mic_array_radius_m == 0.75
+    assert config.acoustic.enable_yield_interlock is True
+    assert config.acoustic.yield_distance_threshold_m == 35.0
+    assert config.acoustic.num_microphones == 4
+
+
+def test_acoustic_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "acoustic:\n  sampling_rate_hz: 32000\n  siren_freq_max_hz: 2200.0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_ACOUSTIC__SOUND_SPEED_MPS", "350.0")
+    monkeypatch.setenv("NEARFIELD360_ACOUSTIC__ENABLE_YIELD_INTERLOCK", "false")
+
+    config = load_config(config_path)
+
+    assert config.acoustic.sampling_rate_hz == 32000
+    assert config.acoustic.siren_freq_max_hz == 2200.0
+    assert config.acoustic.sound_speed_mps == 350.0
+    assert config.acoustic.enable_yield_interlock is False
+
+
+def test_acoustic_config_rejects_invalid_sampling_rate(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("acoustic:\n  sampling_rate_hz: 4000\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 8000"):
+        load_config(config_path)
+
+
+def test_acoustic_config_rejects_invalid_sound_speed(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("acoustic:\n  sound_speed_mps: 450.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="less than or equal to 380"):
+        load_config(config_path)
