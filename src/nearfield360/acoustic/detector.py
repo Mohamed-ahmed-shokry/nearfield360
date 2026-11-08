@@ -135,19 +135,14 @@ class SirenDetector:
             peak_freq_arr, freq_sweep_range, cycle_rate_hz, snr_db
         )
 
-        detected = (
-            siren_type != SirenType.NONE
-            and match_confidence >= self.config.min_confidence_threshold
-        )
-
+        snr_factor = min(1.0, max(0.0, (snr_db - self.config.min_siren_snr_db) / 10.0))
         final_conf = min(
             1.0,
-            round(
-                match_confidence
-                * min(1.0, max(0.5, mean_harm_ratio * 1.2))
-                * min(1.0, max(0.6, snr_db / 20.0)),
-                4,
-            ),
+            round(match_confidence * (0.80 + 0.20 * snr_factor), 4),
+        )
+
+        detected = (
+            siren_type != SirenType.NONE and final_conf >= self.config.min_confidence_threshold
         )
 
         return SirenDetectionResult(
