@@ -58,6 +58,7 @@ def acoustic_info(
 ) -> None:
     """Inspect active acoustic sensing configuration and microphone array parameters."""
     config = get_state(context).config.acoustic
+    mics = build_default_microphone_array(config.mic_array_radius_m)
     payload: dict[str, Any] = {
         "sampling_rate_hz": config.sampling_rate_hz,
         "sound_speed_mps": config.sound_speed_mps,
@@ -71,6 +72,7 @@ def acoustic_info(
         "enable_yield_interlock": config.enable_yield_interlock,
         "yield_distance_threshold_m": config.yield_distance_threshold_m,
         "num_microphones": config.num_microphones,
+        "microphones": [m.model_dump(mode="json") for m in mics],
     }
 
     if output is not None:
