@@ -7,6 +7,7 @@ import numpy as np
 from nearfield360.config import ODDConfig
 from nearfield360.odd.models import (
     IlluminationCondition,
+    ODDEvaluationResult,
     ODDMetrics,
     ODDState,
     PrecipitationCondition,
@@ -215,3 +216,130 @@ class ODDEvaluator:
         # Composite severity: maximum over all factors
         worst_state = max(candidate_states, key=odd_state_severity)
         return worst_state, limiters, illum_cond, precip_cond, surf_cond
+
+
+class ODDStateMachine:
+    """Debounced temporal hysteresis filter for ODD tier transitions under ISO 21448."""
+
+    def __init__(
+        self,
+        config: ODDConfig | None = None,
+        evaluator: ODDEvaluator | None = None,
+    ) -> None:
+        self.config = config or ODDConfig()
+        self.evaluator = evaluator or ODDEvaluator(self.config)
+        self.current_state = ODDState.NOMINAL
+        self.pending_state: ODDState | None = None
+        self.pending_count = 0
+        self.history: list[ODDEvaluationResult] = []
+
+    def reset(self) -> None:
+        """Reset state machine to initial nominal state."""
+        self.current_state = ODDState.NOMINAL
+        self.pending_state = None
+        self.pending_count = 0
+        self.history.clear()
+
+    def step(
+        self,
+        metrics: ODDMetrics,
+        sensors: dict[str, SensorHealthStatus] | None = None,
+        timestamp_s: float = 0.0,
+    ) -> ODDEvaluationResult:
+        """Step the state machine with instantaneous metrics and update debounced state."""
+        prior_state = self.current_state
+        (
+            raw_state,
+            limiters,
+            illum_cond,
+            precip_cond,
+            surf_cond,
+        ) = self.evaluator.evaluate_instantaneous(metrics, sensors)
+
+        raw_sev = odd_state_severity(raw_state)
+        curr_sev = odd_state_severity(self.current_state)
+
+        if raw_sev == curr_sev:
+            # Matches current state: clear pending transitions
+            self.pending_state = None
+            self.pending_count = 0
+        elif raw_sev > curr_sev:
+            # Degrading: requires degradation_confirm_frames
+            # Critical emergency exception: ODD_BREACH_MRM triggers in 1 frame if black ice
+            # or multiple sensors occluded
+            is_emergency = any(
+                "critical_low_friction" in lim or "multiple_critical" in lim for lim in limiters
+            )
+            threshold = (
+                1
+                if raw_state == ODDState.ODD_BREACH_MRM and is_emergency
+                else self.config.degradation_confirm_frames
+            )
+            if self.pending_state == raw_state:
+                self.pending_count += 1
+            else:
+                self.pending_state = raw_state
+                self.pending_count = 1
+
+            if self.pending_count >= threshold:
+                self.current_state = raw_state
+                self.pending_state = None
+                self.pending_count = 0
+        else:
+            # Improving / Restoring: requires restoration_confirm_frames
+            threshold = self.config.restoration_confirm_frames
+            if self.pending_state == raw_state:
+                self.pending_count += 1
+            else:
+                self.pending_state = raw_state
+                self.pending_count = 1
+
+            if self.pending_count >= threshold:
+                self.current_state = raw_state
+                self.pending_state = None
+                self.pending_count = 0
+
+        # Compute speed limit, headway multiplier, and recommendations
+        speed_map = {
+            ODDState.NOMINAL: self.config.nominal_speed_limit_mps,
+            ODDState.ADVISORY_DEGRADED: self.config.advisory_speed_limit_mps,
+            ODDState.CRITICAL_RESTRICTED: self.config.restricted_speed_limit_mps,
+            ODDState.ODD_BREACH_MRM: 0.0,
+        }
+        headway_map = {
+            ODDState.NOMINAL: 1.0,
+            ODDState.ADVISORY_DEGRADED: 1.5,
+            ODDState.CRITICAL_RESTRICTED: 2.0,
+            ODDState.ODD_BREACH_MRM: 3.0,
+        }
+
+        recs: list[str] = []
+        if self.current_state == ODDState.NOMINAL:
+            recs.append("Operating within nominal ODD parameters.")
+        elif self.current_state == ODDState.ADVISORY_DEGRADED:
+            recs.append("Advisory degradation: speed throttled to 2.5 m/s, expand headway 1.5x.")
+            if "low_ambient_lux" in " ".join(limiters):
+                recs.append("Activate low-beam headlamps and auxiliary lighting.")
+        elif self.current_state == ODDState.CRITICAL_RESTRICTED:
+            recs.append("Critical restriction: speed throttled to 1.0 m/s crawling pace.")
+            recs.append("Reroute path to avoid open decks, steep ramps, or blind intersections.")
+        elif self.current_state == ODDState.ODD_BREACH_MRM:
+            recs.append("ODD BOUNDARY BREACH: ASIL-D Minimum Risk Maneuver (MRM) initiated.")
+            recs.append("Controlled deceleration to safe halt; notify facility control tower.")
+
+        result = ODDEvaluationResult(
+            current_state=self.current_state,
+            prior_state=prior_state,
+            illumination=illum_cond,
+            precipitation=precip_cond,
+            surface=surf_cond,
+            active_limiters=limiters,
+            governor_speed_limit_mps=speed_map[self.current_state],
+            safety_headway_multiplier=headway_map[self.current_state],
+            mrm_required=(self.current_state == ODDState.ODD_BREACH_MRM),
+            recommendations=recs,
+            metrics=metrics,
+            timestamp_s=timestamp_s,
+        )
+        self.history.append(result)
+        return result
