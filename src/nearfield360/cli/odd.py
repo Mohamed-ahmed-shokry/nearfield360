@@ -73,7 +73,6 @@ def odd_info(
 
     if output is not None:
         write_json(output, data)
-        typer.echo(f"Wrote ODD configuration info to {output}")
 
     if as_json:
         typer.echo(json.dumps(data, indent=2))
@@ -179,7 +178,6 @@ def odd_evaluate(
 
     if output is not None:
         write_json(output, payload)
-        typer.echo(f"Wrote ODD evaluation result to {output}")
 
     if as_json:
         typer.echo(json.dumps(payload, indent=2))
@@ -279,7 +277,6 @@ def odd_simulate(
     report_dict = report.model_dump()
     if output is not None:
         write_json(output, report_dict)
-        typer.echo(f"Wrote simulation report to {output}")
 
     if as_json:
         typer.echo(json.dumps(report_dict, indent=2))
@@ -384,7 +381,6 @@ def odd_audit(
 
     if output is not None:
         write_json(output, audit_data)
-        typer.echo(f"Wrote audit report to {output}")
 
     if as_json:
         typer.echo(json.dumps(audit_data, indent=2))
