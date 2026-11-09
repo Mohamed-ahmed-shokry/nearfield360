@@ -1730,3 +1730,92 @@ Establish an automotive-grade, regulation-compliant Cybersecurity Management Sys
 18. [x] `docs(readme): add UN R155 CSMS capability, roadmap status, and usage commands`
 19. [x] `docs(progress): record Phase 41 implementation, Decision Log, and quality gates`
 20. [x] `docs(roadmap): mark Phase 41 micro-tasks and acceptance criteria completed`
+
+
+## Phase 42: Automotive Acoustic Siren Detection, Multi-Microphone Array Direction-of-Arrival (DoA) Triangulation & Audio-Visual Fusion (Roadmap Item 33)
+
+### 1. Objective & Scope
+
+Establish an automotive-grade Nearfield Acoustic Sensing and Emergency Siren Localization subsystem for automated valet parking and autonomous driving:
+
+- **Multi-Microphone Perimeter Array**: Planar microphone array geometry (4 to 8 transducers around vehicle roof/perimeter) with configurable speed of sound $c(T) = 331.3 \sqrt{1 + T/273.15}$ and sampling rate ($16\text{ kHz}$ to $48\text{ kHz}$).
+- **Acoustic Siren Detection Engine**: Short-Time Fourier Transform (STFT) spectral analyzer, band energy ratio in siren band ($400\text{--}1800\text{ Hz}$), harmonic peak tracker, and siren modulation classifier:
+  - `WAIL`: Slow periodic pitch modulation ($0.1\text{--}0.3\text{ Hz}$ cycle, swept between $600\text{--}1500\text{ Hz}$).
+  - `YELP`: Rapid pitch modulation ($2\text{--}4\text{ Hz}$ cycle, swept between $600\text{--}1500\text{ Hz}$).
+  - `HI_LO`: European two-tone alternating pitch ($400\text{ Hz}$ and $600\text{ Hz}$).
+  - `HORN`: Broad spectrum acoustic alert.
+- **Direction-of-Arrival (DoA) Triangulation**: Generalized Cross-Correlation with Phase Transform (**GCC-PHAT**) over all microphone pairs $(i, j)$ with parabolic sub-sample interpolation, spatial steering grid search, and estimated source azimuth $\theta \in [-180^\circ, +180^\circ]$.
+- **Doppler Shift Velocity Estimator**: Inter-frame fundamental frequency tracking $\Delta f = f_{\text{obs}} - f_0$ computing relative radial speed $v_{\text{rel}} \approx c \frac{\Delta f}{f_0}$ to determine whether the emergency vehicle is approaching, receding, or stationary.
+- **Audio-Visual Camera Sector Correlation & Yield Interlock**: Correlates acoustic bearing $\theta$ with surround camera sectors ($FV, RV, MVL, MVR$). Commands `EMERGENCY_YIELD_STOP` safe pull-over maneuver and alerts central dispatch when an emergency vehicle is approaching.
+- **Tactical 1280x720 Acoustic HUD Visualizer (`viz.py`)**: 4-panel diagnostic visualizer displaying circular polar acoustic radar, siren spectrogram waterfall, surround camera correlation compass, and emergency vehicle status cards.
+- **CLI Command Group `nearfield360 acoustic`**: Subcommands `info`, `detect`, `doa`, `simulate`, `render`, `audit`.
+- **Root CLI Integration & Release Audit**: Update release audit verification from 33 to 34 command groups.
+
+### 2. Architectural Blueprint
+
+- **Configuration (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `AcousticConfig`: Schema with microphone array coordinates, sampling rate ($f_s$), sound speed, STFT window/hop size, siren detection SNR threshold, GCC-PHAT peak threshold, and yield interlock parameters.
+- **Domain Models (`src/nearfield360/acoustic/models.py`)**:
+  - `SirenType` (`NONE`, `WAIL`, `YELP`, `HI_LO`, `HORN`).
+  - `DopplerState` (`UNKNOWN`, `STATIONARY`, `APPROACHING`, `RECEDING`).
+  - `EmergencyYieldState` (`CLEAR`, `MONITORING`, `YIELD_PREPARED`, `EMERGENCY_STOP_ACTIVE`).
+  - `MicrophoneSpec`, `SirenDetectionResult`, `AcousticDoAResult`, `AudioVisualSectorMatch`, `AcousticReport`.
+- **Siren Detection Engine (`src/nearfield360/acoustic/detector.py`)**:
+  - `SirenDetector`: STFT spectral analysis, spectral centroid/flux, harmonic energy ratio, and frequency modulation pattern matching.
+- **DoA Triangulation Engine (`src/nearfield360/acoustic/doa.py`)**:
+  - `AcousticDoAEstimator`: Pairwise GCC-PHAT cross-correlation, TDoA vector calculation, spatial azimuth angle estimation, and confidence scoring.
+- **Acoustic Executive & Audio-Visual Fusion Interlock (`src/nearfield360/acoustic/executive.py`)**:
+  - `AcousticExecutive`: Orchestrates multichannel stream processing, Doppler velocity estimation, camera sector mapping ($FV, RV, MVL, MVR$), and safe yield state machine.
+- **Tactical Visualizer (`src/nearfield360/acoustic/viz.py`)**:
+  - `render_acoustic_dashboard`: High-resolution 1280x720 dark-mode dashboard rendering polar acoustic radar, spectrogram waterfall, camera sector compass, and telemetry cards.
+- **CLI Command Group (`src/nearfield360/cli/acoustic.py`)**:
+  - `info`, `detect`, `doa`, `simulate`, `render`, `audit`.
+- **Root App & Release Audit (`src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Registered `acoustic` group, release audit passing with 34 groups.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `AcousticConfig` defined with strict Pydantic bounds and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models for siren types, DoA results, Doppler state, and audio-visual correlation validate and serialize JSON | `uv run pytest tests/unit/acoustic/test_acoustic_models.py` |
+| AC-3 | `SirenDetector` identifies wail, yelp, hi-lo sirens and rejects ambient vehicular noise | `uv run pytest tests/unit/acoustic/test_detector.py` |
+| AC-4 | `AcousticDoAEstimator` calculates GCC-PHAT TDoA and triangulates acoustic source azimuth within $\pm 5^\circ$ error | `uv run pytest tests/unit/acoustic/test_doa.py` |
+| AC-5 | `AcousticExecutive` estimates Doppler approach velocity, maps bearing to camera sectors, and commands yield interlock | `uv run pytest tests/unit/acoustic/test_executive.py` |
+| AC-6 | Tactical 1280x720 Acoustic HUD visualizer renders polar radar, spectrogram, and compass to valid PNG artifact | `uv run pytest tests/unit/acoustic/test_acoustic_viz.py` |
+| AC-7 | Dedicated CLI group `nearfield360 acoustic` executes `info`, `detect`, `doa`, `simulate`, `render`, and `audit` | `uv run pytest tests/unit/test_acoustic_cli.py` |
+| AC-8 | Root CLI registers `acoustic` command group, passing release audit with 34 groups | `uv run nearfield360 release audit` |
+| AC-9 | All local CI-parity checks and remote CI workflow runs pass 100% | `pre-commit`, `pytest`, `build` |
+
+### 4. Validation & CI Plan
+
+1. Local checks: `uv lock --check`, `uv run pre-commit run --all-files`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing`, `uv build`, `uv run twine check dist/*`.
+2. End-to-end CLI execution: `nearfield360 acoustic simulate --siren-type wail --azimuth-deg 45.0 --png artifacts/acoustic_hud.png --output artifacts/acoustic_report.json`.
+
+### 5. Exclusions
+
+- Proprietary hardware DSP microcode / real-time I2S hardware DMA driver flashing.
+- Radio frequency radar Doppler (audible acoustic frequency domain only).
+
+### 6. Micro-Task Breakdown
+
+1. [x] `docs(roadmap): define Phase 42 acoustic siren detection, DoA triangulation, and audio-visual fusion scope`
+2. [x] `feat(config): add AcousticConfig schema and default microphone array parameters`
+3. [x] `test(config): verify AcousticConfig defaults, bounds, and environment overrides`
+4. [x] `feat(acoustic): implement acoustic domain models, siren classifications, and telemetry schemas`
+5. [x] `test(acoustic): verify acoustic domain models validation, serialization, and sector mapping`
+6. [x] `feat(acoustic): implement STFT spectral siren detector and harmonic modulation classifier`
+7. [x] `test(acoustic): verify siren detection of wail, yelp, hi-lo, and ambient noise rejection`
+8. [x] `feat(acoustic): implement GCC-PHAT direction-of-arrival (DoA) triangulation engine`
+9. [x] `test(acoustic): verify DoA azimuth accuracy across quad-microphone array geometry`
+10. [x] `feat(acoustic): implement acoustic executive, Doppler velocity estimator, and yield interlock`
+11. [x] `test(acoustic): verify Doppler approach velocity estimation and camera sector yield triggering`
+12. [x] `feat(acoustic): implement tactical 1280x720 acoustic HUD dashboard visualizer`
+13. [x] `test(acoustic): verify tactical acoustic visualizer renders valid 1280x720 PNG artifacts`
+14. [x] `feat(acoustic): export public acoustic API from package init`
+15. [x] `feat(cli): implement nearfield360 acoustic command group (info, detect, doa, simulate, render, audit)`
+16. [x] `feat(cli): register acoustic CLI group and update release audit expected count to 34`
+17. [x] `test(cli): verify acoustic CLI command group execution and JSON outputs`
+18. [x] `docs(readme): add acoustic sensing capability, roadmap status, and usage commands`
+19. [x] `docs(progress): record Phase 42 implementation, Decision Log, and quality gates`
+20. [x] `docs(roadmap): mark Phase 42 micro-tasks and acceptance criteria completed`

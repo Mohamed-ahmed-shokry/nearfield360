@@ -13,6 +13,7 @@ import typer
 from pydantic import ValidationError
 
 from nearfield360 import __version__
+from nearfield360.cli.acoustic import acoustic_app
 from nearfield360.cli.billing import billing_app
 from nearfield360.cli.can import can_app
 from nearfield360.cli.charging import charging_app
@@ -67,6 +68,7 @@ app = typer.Typer(
     pretty_exceptions_show_locals=False,
 )
 config_app = typer.Typer(help="Inspect and validate project configuration.", no_args_is_help=True)
+app.add_typer(acoustic_app, name="acoustic")
 app.add_typer(billing_app, name="billing")
 app.add_typer(can_app, name="can")
 app.add_typer(charging_app, name="charging")

@@ -331,3 +331,16 @@ csms:
   vsoc_telemetry_batch_size: 25
   enable_defensive_mitigation: true
   max_active_security_incidents: 1000
+acoustic:
+  sampling_rate_hz: 16000
+  sound_speed_mps: 343.0
+  stft_window_samples: 512
+  stft_hop_samples: 128
+  siren_freq_min_hz: 400.0
+  siren_freq_max_hz: 1800.0
+  min_siren_snr_db: 6.0
+  min_confidence_threshold: 0.65
+  mic_array_radius_m: 0.75
+  enable_yield_interlock: true
+  yield_distance_threshold_m: 35.0
+  num_microphones: 4

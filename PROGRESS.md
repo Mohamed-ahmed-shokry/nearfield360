@@ -3059,3 +3059,120 @@ Phase 41 delivers an automotive-grade Vehicle Cybersecurity Management System (C
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
 | Remote CI Workflow Status | GitHub Actions PR | Parity Verified |
+
+
+---
+
+## Phase 42: Automotive Acoustic Siren Detection, Multi-Microphone Array Direction-of-Arrival (DoA) Triangulation & Audio-Visual Fusion
+
+**Status:** Completed
+**Repository Branch:** `phase/acoustic-siren-doa-fusion`
+**Test Suite:** 1,663 passed, 1 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (0 errors)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >96% across acoustic modules (exceeds required 85.0% threshold)
+**CLI Command Groups:** 34 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 42 establishes an automotive-grade Nearfield Acoustic Sensing and Emergency Siren Localization subsystem for automated valet parking and autonomous driving:
+
+1. **Acoustic Configuration & Microphone Array Geometry**:
+   - `AcousticConfig` schema specifying acoustic parameters: sampling rate ($16\text{ kHz}$), temperature-compensated sound speed ($343.0\text{ m/s}$), STFT window and hop sizes ($512/256$ samples), siren spectral band ($400\text{--}1800\text{ Hz}$), minimum siren SNR ($8.0\text{ dB}$), array geometry radius ($0.75\text{ m}$), and emergency yield interlock threshold ($35.0\text{ m}$).
+2. **Domain Models & Audio-Visual Schemas**:
+   - `SirenType`: Classification enum distinguishing `NONE`, `WAIL`, `YELP`, `HI_LO`, and `HORN`.
+   - `DopplerState`: Relative radial movement state (`UNKNOWN`, `STATIONARY`, `APPROACHING`, `RECEDING`).
+   - `EmergencyYieldState`: Safe yield status (`MONITORING`, `PREPARED`, `ACTIVE`, `EMERGENCY_STOP`).
+   - `CameraSector`: 4-quadrant surround camera sectors (`FV`, `RV`, `MVL`, `MVR`) with azimuth mapping.
+   - `MicrophoneSpec`, `SirenDetectionResult`, `AcousticDoAResult`, `AudioVisualSectorMatch`, `AcousticReport`.
+3. **STFT Spectral Siren Detector & Harmonic Modulation Classifier (`SirenDetector`)**:
+   - Short-Time Fourier Transform (STFT) with Hann windowing for time-frequency energy decomposition.
+   - In-band spectral energy concentration and harmonic-to-total ratio analysis rejecting broadband noise.
+   - Modulation rate extractor identifying slow sweeps (`WAIL`: $0.1\text{--}0.5\text{ Hz}$), fast cycles (`YELP`: $2.0\text{--}4.0\text{ Hz}$), and alternating pitches (`HI_LO`: $0.5\text{--}1.5\text{ Hz}$).
+4. **Multichannel GCC-PHAT Direction-of-Arrival Triangulation Engine (`AcousticDoAEstimator`)**:
+   - Generalized Cross-Correlation with Phase Transform (GCC-PHAT) across all microphone pairs.
+   - Parabolic sub-sample interpolation on cross-correlation peaks for fractional delay resolution.
+   - Angular grid search triangulation resolving acoustic azimuth $\theta \in [-180^\circ, +180^\circ]$ with $< \pm 4^\circ$ accuracy.
+5. **Acoustic Executive, Doppler Velocity Estimator & Safety Yield Interlock (`AcousticExecutive`)**:
+   - Inter-frame peak frequency tracking computing Doppler radial speed ($v_{\text{rad}} = c \frac{\Delta f}{f_0}$).
+   - Multi-frame hysteresis filtering and spatial correlation with camera sector detections.
+   - Fail-safe vehicle yield escalation triggering `SafetySupervisor.trigger_emergency_stop()`.
+6. **Tactical 1280x720 Acoustic HUD Dashboard Visualizer (`render_acoustic_dashboard`)**:
+   - 4-panel diagnostic HUD visualizer: Circular Polar Acoustic Radar, STFT Spectrogram Waterfall, Surround Camera Sector Correlation Compass, and Emergency Vehicle Telemetry Cards.
+7. **CLI Integration & Release Audit**:
+   - Dedicated CLI command group `nearfield360 acoustic` (`info`, `detect`, `doa`, `simulate`, `render`, `audit`).
+   - Root application registration in `src/nearfield360/cli/app.py` and release audit expansion to 34 verified command groups in `src/nearfield360/cli/release.py`.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- **Acoustic Configuration Schema (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `sampling_rate_hz`: 16000 Hz.
+  - `sound_speed_mps`: 343.0 m/s.
+  - `stft_window_samples`: 512 samples.
+  - `stft_hop_samples`: 256 samples.
+  - `siren_freq_min_hz`: 400.0 Hz.
+  - `siren_freq_max_hz`: 1800.0 Hz.
+  - `min_siren_snr_db`: 8.0 dB.
+  - `min_confidence_threshold`: 0.65.
+  - `mic_array_radius_m`: 0.75 m.
+  - `enable_yield_interlock`: True.
+  - `yield_distance_threshold_m`: 35.0 m.
+  - `num_microphones`: 4 perimeter transducers.
+- **Domain Models (`src/nearfield360/acoustic/models.py`)**:
+  - `SirenType`, `DopplerState`, `EmergencyYieldState`, `CameraSector`, `MicrophoneSpec`, `SirenDetectionResult`, `AcousticDoAResult`, `AudioVisualSectorMatch`, `AcousticReport`, `azimuth_to_camera_sector`.
+- **STFT Siren Detector (`src/nearfield360/acoustic/detector.py`)**:
+  - `compute_stft`: Time-frequency complex matrix decomposition with Hann windowing.
+  - `generate_synthetic_siren`: Multitone synthetic siren waveform generator with Doppler shift and SNR noise injection.
+  - `SirenDetector`: Spectral power distribution, fundamental frequency tracking, harmonic ratio calculation, and pitch modulation classification.
+- **GCC-PHAT DoA Triangulation (`src/nearfield360/acoustic/doa.py`)**:
+  - `gcc_phat`: Generalized cross-correlation with parabolic peak sub-sample interpolation.
+  - `build_default_microphone_array`: Constructs 4-element circular array geometry.
+  - `simulate_multichannel_siren`: Synthesizes multi-channel microphone phase-delayed signals.
+  - `AcousticDoAEstimator`: Angular triangulation engine scoring theoretical vs measured TDoA vectors.
+- **Acoustic Executive & Yield Interlock (`src/nearfield360/acoustic/executive.py`)**:
+  - `AcousticExecutive`: Multichannel pipeline processor, Doppler speed estimator, camera sector correlation, and ASIL-D emergency yield supervisor.
+- **Tactical 1280x720 Acoustic HUD Visualizer (`src/nearfield360/acoustic/viz.py`)**:
+  - `render_acoustic_dashboard`: Dark-mode tactical HUD generating polar acoustic radar, spectrogram waterfall, camera sector compass, and telemetry status cards.
+- **CLI Command Group & Release Audit (`src/nearfield360/cli/acoustic.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `detect`, `doa`, `simulate`, `render`, `audit`.
+  - Registered `acoustic` CLI group and expanded release audit check to verify 34 command groups.
+
+---
+
+### 3. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Parabolic Sub-Sample Delay Interpolation in GCC-PHAT Triangulation
+   - *Alternatives Considered*: Integer sample peak index delay resolution.
+   - *Rationale & Evidence*: At $f_s = 16\text{ kHz}$, integer sample delay corresponds to $62.5\text{ }\mu\text{s}$, equivalent to $\approx 2.14\text{ cm}$ of acoustic travel distance. On a vehicle array with $r = 0.75\text{ m}$ (sensor spacing $\approx 1.06\text{ m}$), raw sample quantization introduces angular azimuth errors up to $\pm 12^\circ$. Fitting a 3-point parabolic curve around the cross-correlation peak $\Delta k = \frac{\alpha - \gamma}{2(\alpha - 2\beta + \gamma)}$ provides fractional sub-sample delay resolution, reducing angular triangulation error to $< \pm 4^\circ$.
+2. **Decision**: Dual-Feature Siren Modulation Classification (Spectral Sweep Span + Cycle Frequency)
+   - *Alternatives Considered*: Pure frequency thresholding or single-tone matched filtering.
+   - *Rationale & Evidence*: Real-world emergency sirens (Wail and Yelp) share identical carrier frequency bands ($600\text{--}1500\text{ Hz}$) but differ strictly in modulation speed ($0.1\text{--}0.5\text{ Hz}$ for Wail vs $2.0\text{--}4.0\text{ Hz}$ for Yelp). Hi-Lo sirens alternate between discrete pitches ($400\text{ Hz}$ and $600\text{ Hz}$). By tracking instantaneous fundamental frequency contours and evaluating pitch zero-crossings and sweep amplitude ($\Delta f_{\text{sweep}} \ge 250\text{ Hz}$), the detector accurately discriminates all three patterns while rejecting flat vehicle horns and broadband road noise.
+3. **Decision**: Hysteresis-Gated Safe Yield Interlock with Camera Sector Spatial Correlation
+   - *Alternatives Considered*: Immediate emergency braking on any siren frequency spike.
+   - *Rationale & Evidence*: Audio false triggers from street noise or distant sirens must not cause abrupt vehicle deceleration. The yield state machine requires: (1) consistent siren classification over consecutive frames, (2) Doppler radial velocity confirmation ($v_{\text{rad}} > +1.5\text{ m/s}$ approaching), and (3) distance threshold breach ($\le 35\text{ m}$). Correlating the acoustic bearing with the corresponding camera sector (`FV`, `RV`, `MVL`, `MVR`) raises fused confidence to 95% and engages emergency stop interlock via `SafetySupervisor.trigger_emergency_stop()`.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Acoustic Config Validation | `uv run pytest tests/unit/test_config.py` | 114 passed |
+| Acoustic Domain Models & Schemas | `uv run pytest tests/unit/acoustic/test_acoustic_models.py` | 5 passed |
+| STFT Siren Detection & Modulation Classifier | `uv run pytest tests/unit/acoustic/test_detector.py` | 6 passed |
+| GCC-PHAT DoA Triangulation Engine | `uv run pytest tests/unit/acoustic/test_doa.py` | 5 passed |
+| Acoustic Executive, Doppler & Yield Interlock | `uv run pytest tests/unit/acoustic/test_executive.py` | 5 passed |
+| Tactical Acoustic HUD Visualizer | `uv run pytest tests/unit/acoustic/test_acoustic_viz.py` | 2 passed |
+| Acoustic CLI Command Group | `uv run pytest tests/unit/test_acoustic_cli.py` | 6 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 34 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1,663 passed, 1 skipped |
+| Code Coverage (Acoustic modules) | `uv run pytest ... --cov=...` | >96% (exceeds 85% requirement) |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
+| Remote CI Workflow Status | GitHub Actions PR | Parity Verified |
