@@ -1400,7 +1400,7 @@ def test_odd_config_rejects_invalid_friction(tmp_path: Path) -> None:
     config_path = tmp_path / "project.yaml"
     config_path.write_text("odd:\n  min_friction_coeff: 0.01\n", encoding="utf-8")
 
-    with pytest.raises(ValidationError, match="greater than or equal to 0.05"):
+    with pytest.raises(ValidationError, match=r"greater than or equal to 0\.05"):
         load_config(config_path)
 
 
