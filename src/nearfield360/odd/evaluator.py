@@ -23,9 +23,7 @@ class ODDEvaluator:
     def __init__(self, config: ODDConfig | None = None) -> None:
         self.config = config or ODDConfig()
 
-    def estimate_frame_illumination(
-        self, image: np.ndarray
-    ) -> tuple[float, float]:
+    def estimate_frame_illumination(self, image: np.ndarray) -> tuple[float, float]:
         """Estimate ambient lux and saturation glare ratio from an image (H, W, 3) or (H, W).
 
         Returns:
@@ -112,22 +110,14 @@ class ODDEvaluator:
     ) -> tuple[ODDState, list[str]]:
         """Classify V2X infrastructure communications envelope."""
         limiters: list[str] = []
-        if (
-            v2x_latency_ms >= self.config.critical_v2x_latency_ms
-            or packet_loss_ratio >= 0.35
-        ):
+        if v2x_latency_ms >= self.config.critical_v2x_latency_ms or packet_loss_ratio >= 0.35:
             limiters.append(
                 f"critical_v2x_dropout_lat_{v2x_latency_ms:.0f}ms_loss_{packet_loss_ratio:.2f}"
             )
             return ODDState.ODD_BREACH_MRM, limiters
 
-        if (
-            v2x_latency_ms >= self.config.max_v2x_latency_ms
-            or packet_loss_ratio >= 0.12
-        ):
-            limiters.append(
-                f"v2x_high_latency_{v2x_latency_ms:.0f}ms_loss_{packet_loss_ratio:.2f}"
-            )
+        if v2x_latency_ms >= self.config.max_v2x_latency_ms or packet_loss_ratio >= 0.12:
+            limiters.append(f"v2x_high_latency_{v2x_latency_ms:.0f}ms_loss_{packet_loss_ratio:.2f}")
             return ODDState.CRITICAL_RESTRICTED, limiters
 
         return ODDState.NOMINAL, limiters

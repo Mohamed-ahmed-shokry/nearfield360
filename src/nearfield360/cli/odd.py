@@ -136,9 +136,7 @@ def odd_evaluate(
         max_camera_occlusion=camera_occlusion,
     )
     sensors = {
-        "FV": SensorHealthStatus(
-            sensor_id="FV", is_healthy=True, occlusion_ratio=camera_occlusion
-        ),
+        "FV": SensorHealthStatus(sensor_id="FV", is_healthy=True, occlusion_ratio=camera_occlusion),
         "RV": SensorHealthStatus(
             sensor_id="RV", is_healthy=True, occlusion_ratio=camera_occlusion * 0.5
         ),
@@ -188,7 +186,7 @@ def odd_evaluate(
     typer.echo(f"Precipitation Condition:     {precip.value}")
     typer.echo(f"Surface Friction Condition:  {surf.value}")
     speed_val = speed_map[state]
-    typer.echo(f"Governor Speed Limit:        {speed_val:.1f} m/s ({speed_val*3.6:.1f} km/h)")
+    typer.echo(f"Governor Speed Limit:        {speed_val:.1f} m/s ({speed_val * 3.6:.1f} km/h)")
     typer.echo(f"Safety Headway Multiplier:   {headway_map[state]:.2f}x")
     mrm_flag = "YES" if state == ODDState.ODD_BREACH_MRM else "NO"
     typer.echo(f"MRM Safe Stop Required:      {mrm_flag}")
@@ -225,9 +223,7 @@ def odd_simulate(
                 "RV": SensorHealthStatus(sensor_id="RV", is_healthy=True, occlusion_ratio=0.03),
             }
         elif scenario == "light_rain":
-            metrics = ODDMetrics(
-                ambient_lux=80.0, friction_coeff=0.60, precipitation_rate_mmph=5.0
-            )
+            metrics = ODDMetrics(ambient_lux=80.0, friction_coeff=0.60, precipitation_rate_mmph=5.0)
             sensors = {
                 "FV": SensorHealthStatus(sensor_id="FV", is_healthy=True, occlusion_ratio=0.15),
                 "RV": SensorHealthStatus(sensor_id="RV", is_healthy=True, occlusion_ratio=0.10),

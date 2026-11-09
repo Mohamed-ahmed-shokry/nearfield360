@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import cv2
-import pytest
 
 from nearfield360.odd.models import (
     IlluminationCondition,

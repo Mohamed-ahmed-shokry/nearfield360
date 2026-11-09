@@ -32,7 +32,7 @@ def test_estimate_frame_illumination_glare(evaluator: ODDEvaluator) -> None:
     # Frame with 50% saturated pixels (255)
     img = np.full((100, 100, 3), 100, dtype=np.uint8)
     img[:50, :, :] = 255
-    lux, glare = evaluator.estimate_frame_illumination(img)
+    _lux, glare = evaluator.estimate_frame_illumination(img)
     assert glare >= 0.45
 
 
@@ -48,24 +48,27 @@ def test_classify_illumination_cases(evaluator: ODDEvaluator) -> None:
     cond, state, lims = evaluator.classify_illumination(1000.0, 0.35)
     assert cond == IlluminationCondition.GLARE_DAZZLE
     assert state == ODDState.CRITICAL_RESTRICTED
+    assert any("severe_glare" in item for item in lims)
 
     # Pitch black night
     cond, state, lims = evaluator.classify_illumination(0.05, 0.0)
     assert cond == IlluminationCondition.NIGHT
     assert state == ODDState.CRITICAL_RESTRICTED
+    assert any("low_ambient" in item for item in lims)
 
     # Low lux night
     cond, state, lims = evaluator.classify_illumination(1.5, 0.0)
     assert cond == IlluminationCondition.NIGHT
     assert state == ODDState.ADVISORY_DEGRADED
+    assert any("low_ambient" in item for item in lims)
 
     # Twilight
-    cond, state, lims = evaluator.classify_illumination(15.0, 0.0)
+    cond, state, _lims = evaluator.classify_illumination(15.0, 0.0)
     assert cond == IlluminationCondition.TWILIGHT
     assert state == ODDState.NOMINAL
 
     # Bright daylight
-    cond, state, lims = evaluator.classify_illumination(2500.0, 0.02)
+    cond, state, _lims = evaluator.classify_illumination(2500.0, 0.02)
     assert cond == IlluminationCondition.DAYLIGHT
     assert state == ODDState.NOMINAL
 
@@ -150,7 +153,7 @@ def test_evaluate_instantaneous_composite(evaluator: ODDEvaluator) -> None:
         v2x_latency_ms=30.0,
         v2x_packet_loss_ratio=0.0,
     )
-    st, lims, illum, precip, surf = evaluator.evaluate_instantaneous(metrics)
+    st, lims, illum, _precip, _surf = evaluator.evaluate_instantaneous(metrics)
     assert st == ODDState.NOMINAL
     assert len(lims) == 0
     assert illum == IlluminationCondition.DAYLIGHT
@@ -160,7 +163,7 @@ def test_evaluate_instantaneous_composite(evaluator: ODDEvaluator) -> None:
     st_wet, lims_wet, _, _, surf_wet = evaluator.evaluate_instantaneous(wet_metrics)
     assert st_wet == ODDState.ADVISORY_DEGRADED
     assert surf_wet == SurfaceCondition.WET
-    assert any("wet_surface" in l for l in lims_wet)
+    assert any("wet_surface" in lim_item for lim_item in lims_wet)
 
 
 def test_state_machine_debouncing_and_confirmation() -> None:
