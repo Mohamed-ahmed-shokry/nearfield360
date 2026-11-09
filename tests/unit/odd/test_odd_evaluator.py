@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from nearfield360.config import ODDConfig
-from nearfield360.odd.evaluator import ODDEvaluator
+from nearfield360.odd.evaluator import ODDEvaluator, ODDStateMachine
 from nearfield360.odd.models import (
     IlluminationCondition,
     ODDMetrics,
@@ -161,3 +161,72 @@ def test_evaluate_instantaneous_composite(evaluator: ODDEvaluator) -> None:
     assert st_wet == ODDState.ADVISORY_DEGRADED
     assert surf_wet == SurfaceCondition.WET
     assert any("wet_surface" in l for l in lims_wet)
+
+
+def test_state_machine_debouncing_and_confirmation() -> None:
+    sm = ODDStateMachine(ODDConfig(degradation_confirm_frames=3, restoration_confirm_frames=5))
+    nominal = ODDMetrics(friction_coeff=0.85)
+    degraded = ODDMetrics(friction_coeff=0.60)  # triggers advisory degraded
+
+    # Frame 1: nominal
+    res = sm.step(nominal, timestamp_s=0.1)
+    assert res.current_state == ODDState.NOMINAL
+    assert res.governor_speed_limit_mps == 4.5
+
+    # Frame 2: transient glitch (1st degraded frame) -> still NOMINAL
+    res = sm.step(degraded, timestamp_s=0.2)
+    assert res.current_state == ODDState.NOMINAL
+    assert sm.pending_count == 1
+
+    # Frame 3: transient glitch goes away -> reset to nominal, pending count clears
+    res = sm.step(nominal, timestamp_s=0.3)
+    assert res.current_state == ODDState.NOMINAL
+    assert sm.pending_count == 0
+
+    # Frame 4, 5, 6: sustained degradation (3 consecutive frames) -> transitions
+    sm.step(degraded, timestamp_s=0.4)
+    sm.step(degraded, timestamp_s=0.5)
+    res_deg = sm.step(degraded, timestamp_s=0.6)
+    assert res_deg.current_state == ODDState.ADVISORY_DEGRADED
+    assert res_deg.governor_speed_limit_mps == 2.5
+    assert res_deg.safety_headway_multiplier == 1.5
+
+
+def test_state_machine_restoration_damping() -> None:
+    sm = ODDStateMachine(ODDConfig(degradation_confirm_frames=2, restoration_confirm_frames=4))
+    nominal = ODDMetrics(friction_coeff=0.85)
+    degraded = ODDMetrics(friction_coeff=0.60)
+
+    # Move to degraded
+    sm.step(degraded)
+    sm.step(degraded)
+    assert sm.current_state == ODDState.ADVISORY_DEGRADED
+
+    # Improving to nominal needs 4 consecutive frames
+    for _ in range(3):
+        res = sm.step(nominal)
+        assert res.current_state == ODDState.ADVISORY_DEGRADED  # not yet 4
+
+    res = sm.step(nominal)
+    assert res.current_state == ODDState.NOMINAL
+    assert res.governor_speed_limit_mps == 4.5
+
+
+def test_state_machine_emergency_mrm_immediate() -> None:
+    sm = ODDStateMachine(ODDConfig(degradation_confirm_frames=5))
+    nominal = ODDMetrics(friction_coeff=0.85)
+    ice = ODDMetrics(friction_coeff=0.10)  # Critical low friction ice
+
+    sm.step(nominal)
+    assert sm.current_state == ODDState.NOMINAL
+
+    # Immediate breach for emergency black ice in 1 frame
+    res = sm.step(ice)
+    assert res.current_state == ODDState.ODD_BREACH_MRM
+    assert res.mrm_required is True
+    assert res.governor_speed_limit_mps == 0.0
+
+    # Test reset
+    sm.reset()
+    assert sm.current_state == ODDState.NOMINAL
+    assert len(sm.history) == 0
