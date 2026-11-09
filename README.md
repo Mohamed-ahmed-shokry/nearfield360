@@ -49,6 +49,7 @@ the corresponding experiments have run.
 | Vehicle-to-Grid (V2G) bi-directional power flow, peak-shaving arbitrage & smart inverter telemetry | Implemented | ISO 15118-20 (Bi-directional Power Transfer / BPT) and OCPP 2.0.1 (SmartCharging), bi-directional AC/DC conversion with quadratic loss models, frequency-watt droop response, voltage-VAR reactive compensation, multi-interval dynamic arbitrage with customer departure reserve guarantees and battery degradation penalties ($C_{\text{deg}}$), facility microgrid load balancing with peak shaving and islanded emergency backup, electrical Single-Line Diagram (SLD) visualizer (`nearfield360 v2g`), and surround pipeline runner integration (`pipeline run --v2g`) |
 | UN R155 / ISO/SAE 21434 Vehicle Cybersecurity Management System (CSMS), In-Vehicle IDS & vSOC Telemetry | Implemented | In-vehicle CAN 2.0/FD intrusion detection (rate flood, replay detection, unauthorized moving UDS diagnostics, Shannon payload entropy fuzzing), automated defensive quarantine filtering, ASIL-D emergency stop interlock, RFC 5424 vSOC telemetry, tactical 1280x720 HUD dashboard (`nearfield360 csms`), and regulatory audit |
 | Automotive acoustic emergency siren detection, multi-microphone DoA triangulation & audio-visual fusion | Implemented | STFT siren spectral classifier (wail/yelp/hi-lo/horn), multichannel planar microphone array GCC-PHAT DoA triangulation (< ±5° azimuth resolution), inter-frame Doppler approach speed estimation, 4-camera sector yield interlock (`FV`, `RV`, `MVL`, `MVR`), tactical 1280x720 acoustic HUD dashboard (`nearfield360 acoustic`), and regulatory compliance audit |
+| ISO 21448 SOTIF / ISO 23374 Dynamic ODD Supervisory Monitor & Safe Fallback | Implemented | Multi-factor environmental monitoring (lux, glare, road friction $\mu$, precipitation, V2X latency, 4-camera lens occlusion), debounced hysteresis state machine, actuation speed governor, ASIL-D MRM fallback interlock, tactical 1280x720 ODD HUD dashboard (`nearfield360 odd`), and SOTIF readiness audit |
 | Facility operations control tower, coordinated day-run simulation & cross-subsystem KPI aggregation | Implemented | Seeded stochastic arrival demand generator, coordinated day-level simulation orchestrating gate arrivals, slot dispatch, EV charging windows, V2G export and settlement billing, hourly facility snapshots, daily cross-subsystem KPI aggregation, unified tactical dashboard visualizer (`nearfield360 ops`), and release audit verification (28 CLI groups) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
@@ -550,6 +551,8 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     CAN 2.0/FD bus intrusion detection system (`InVehicleIDS`) with message rate anomaly, replay sequence, and Shannon payload entropy fuzzing analyzers, defensive quarantine blacklist filter with automated expiration, ASIL-D functional safety interlock, RFC 5424 vSOC telemetry incident logger (`vSOCTelemetryManager`), tactical 1280x720 CSMS HUD dashboard (`viz.py`), dedicated CLI command group `nearfield360 csms` (`info`, `analyze`, `quarantine`, `simulate`, `render`, `audit`), and release audit verification (33 CLI command groups).
 33. ~~Automotive acoustic emergency siren detection, multi-microphone array DoA triangulation & audio-visual fusion.~~ Done:
     Multichannel perimeter microphone array geometry, STFT siren spectral detector and harmonic modulation classifier (`SirenDetector`), pairwise GCC-PHAT cross-correlation with parabolic sub-sample interpolation (`AcousticDoAEstimator`), Doppler shift velocity estimator, camera sector yield interlock (`AcousticExecutive`), tactical 1280x720 acoustic HUD visualizer (`viz.py`), dedicated CLI command group `nearfield360 acoustic` (`info`, `detect`, `doa`, `simulate`, `render`, `audit`), and release audit verification (34 CLI command groups).
+34. ~~ISO 21448 SOTIF / ISO 23374 Dynamic ODD Supervisory Monitor, Environmental Degradation & Safe Fallback Supervisor.~~ Done:
+    Multi-factor environmental & sensor envelope metrics evaluation (ambient lux proxy, saturation glare ratio, roadway friction $\mu$, precipitation rate, V2X latency & packet loss, 4-camera lens occlusion & SNR), debounced temporal hysteresis state machine (`ODDStateMachine`), supervisory speed governor and headway scaling, ASIL-D MRM fallback interlock (`ODDSupervisor`), tactical 1280x720 ODD HUD dashboard (`viz.py`), dedicated CLI command group `nearfield360 odd` (`info`, `evaluate`, `simulate`, `render`, `audit`), and release audit verification (35 CLI command groups).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -1368,6 +1371,42 @@ Perform automotive acoustic sensing regulatory and safety interlock compliance a
 ```powershell
 uv run nearfield360 acoustic audit
 uv run nearfield360 acoustic audit --json --output outputs/acoustic_audit.json
+```
+
+### ISO 21448 SOTIF / ISO 23374 Dynamic ODD Supervisory Monitoring & Safe Fallback
+
+Inspect active ODD configuration thresholds, bounds, and speed governor limits:
+
+```powershell
+uv run nearfield360 odd info
+uv run nearfield360 odd info --json
+```
+
+Evaluate instantaneous multi-factor environmental and sensor telemetry against ODD:
+
+```powershell
+uv run nearfield360 odd evaluate --lux 600.0 --friction 0.85 --rain-mmph 0.0
+uv run nearfield360 odd evaluate --lux 50.0 --friction 0.55 --rain-mmph 4.0 --json
+```
+
+Simulate dynamic environmental progression and verify supervisory speed governor and MRM safe stop:
+
+```powershell
+uv run nearfield360 odd simulate --scenario heavy_rain_glare --steps 20 --png outputs/odd_hud.png --output outputs/odd_report.json
+uv run nearfield360 odd simulate --scenario black_ice_breach --steps 10 --json
+```
+
+Render tactical 1280x720 ODD HUD dashboard PNG artifact from an evaluation report:
+
+```powershell
+uv run nearfield360 odd render --input outputs/odd_report.json --output outputs/odd_hud.png
+```
+
+Perform ISO 21448 SOTIF ODD supervisory monitor readiness and safety interlock audit:
+
+```powershell
+uv run nearfield360 odd audit
+uv run nearfield360 odd audit --json --output outputs/odd_audit.json
 ```
 
 ## License
