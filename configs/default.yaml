@@ -344,3 +344,18 @@ acoustic:
   enable_yield_interlock: true
   yield_distance_threshold_m: 35.0
   num_microphones: 4
+odd:
+  min_ambient_lux: 2.0
+  max_glare_ratio: 0.25
+  min_friction_coeff: 0.40
+  critical_friction_coeff: 0.20
+  max_v2x_latency_ms: 150.0
+  critical_v2x_latency_ms: 400.0
+  max_camera_occlusion_ratio: 0.30
+  critical_camera_occlusion_ratio: 0.65
+  nominal_speed_limit_mps: 4.5
+  advisory_speed_limit_mps: 2.5
+  restricted_speed_limit_mps: 1.0
+  degradation_confirm_frames: 3
+  restoration_confirm_frames: 10
+  enable_mrm_interlock: true

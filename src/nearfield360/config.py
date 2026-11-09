@@ -677,6 +677,27 @@ class AcousticConfig(BaseModel):
     num_microphones: int = Field(default=4, ge=2, le=8)
 
 
+class ODDConfig(BaseModel):
+    """Parameters for ISO 21448 SOTIF / ISO 23374 Dynamic ODD Supervisory Monitoring."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    min_ambient_lux: float = Field(default=2.0, ge=0.01, le=100.0, allow_inf_nan=False)
+    max_glare_ratio: float = Field(default=0.25, ge=0.05, le=0.80, allow_inf_nan=False)
+    min_friction_coeff: float = Field(default=0.40, ge=0.05, le=0.90, allow_inf_nan=False)
+    critical_friction_coeff: float = Field(default=0.20, ge=0.01, le=0.50, allow_inf_nan=False)
+    max_v2x_latency_ms: float = Field(default=150.0, ge=20.0, le=1000.0, allow_inf_nan=False)
+    critical_v2x_latency_ms: float = Field(default=400.0, ge=100.0, le=3000.0, allow_inf_nan=False)
+    max_camera_occlusion_ratio: float = Field(default=0.30, ge=0.05, le=0.90, allow_inf_nan=False)
+    critical_camera_occlusion_ratio: float = Field(default=0.65, ge=0.20, le=1.0, allow_inf_nan=False)
+    nominal_speed_limit_mps: float = Field(default=4.5, ge=1.0, le=10.0, allow_inf_nan=False)
+    advisory_speed_limit_mps: float = Field(default=2.5, ge=0.5, le=6.0, allow_inf_nan=False)
+    restricted_speed_limit_mps: float = Field(default=1.0, ge=0.2, le=3.0, allow_inf_nan=False)
+    degradation_confirm_frames: int = Field(default=3, ge=1, le=50)
+    restoration_confirm_frames: int = Field(default=10, ge=2, le=100)
+    enable_mrm_interlock: bool = True
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -728,6 +749,7 @@ class ProjectConfig(BaseSettings):
     ota: OTAConfig = Field(default_factory=OTAConfig)
     csms: CSMSConfig = Field(default_factory=CSMSConfig)
     acoustic: AcousticConfig = Field(default_factory=AcousticConfig)
+    odd: ODDConfig = Field(default_factory=ODDConfig)
 
     @classmethod
     def settings_customise_sources(
