@@ -1900,23 +1900,23 @@ Establish an automotive-grade Dynamic Operational Design Domain (ODD) Supervisor
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 43 dynamic ODD monitor and safe fallback supervisor scope`
-2. [ ] `feat(config): add ODDConfig schema and default environmental parameters`
-3. [ ] `test(config): verify ODDConfig defaults, bounds, and environment overrides`
-4. [ ] `feat(odd): implement ODD domain models, classification enums, and evaluation schemas`
-5. [ ] `test(odd): verify ODD domain models validation, severity ranking, and serialization`
-6. [ ] `feat(odd): implement multi-factor environmental and sensor health metrics evaluator`
-7. [ ] `test(odd): verify ODD metric evaluations across illumination, weather, friction, and occlusion`
-8. [ ] `feat(odd): implement debounced hysteresis state machine for ODD tier transitions`
-9. [ ] `test(odd): verify hysteresis state transitions, debouncing, and restoration damping`
-10. [ ] `feat(odd): implement ODD supervisor with speed governor and ASIL-D MRM fallback interlock`
-11. [ ] `test(odd): verify supervisor speed governor, headway scaling, and emergency stop triggering`
-12. [ ] `feat(odd): implement tactical 1280x720 ODD HUD dashboard visualizer`
-13. [ ] `test(odd): verify tactical ODD visualizer renders valid 1280x720 PNG artifacts`
-14. [ ] `feat(odd): export public ODD API from package init`
-15. [ ] `feat(cli): implement nearfield360 odd command group (info, evaluate, status, simulate, render, audit)`
-16. [ ] `feat(cli): register odd CLI group and update release audit expected count to 35`
-17. [ ] `test(cli): verify odd CLI command group execution and JSON outputs`
-18. [ ] `docs(readme): add dynamic ODD supervisory monitor capability and usage commands`
-19. [ ] `docs(progress): record Phase 43 implementation, Decision Log, and quality gates`
-20. [ ] `docs(roadmap): mark Phase 43 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 43 dynamic ODD monitor and safe fallback supervisor scope`
+2. [x] `feat(config): add ODDConfig schema and default environmental parameters`
+3. [x] `test(config): verify ODDConfig defaults, bounds, and environment overrides`
+4. [x] `feat(odd): implement ODD domain models, classification enums, and evaluation schemas`
+5. [x] `test(odd): verify ODD domain models validation, severity ranking, and serialization`
+6. [x] `feat(odd): implement multi-factor environmental and sensor health metrics evaluator`
+7. [x] `test(odd): verify ODD metric evaluations across illumination, weather, friction, and occlusion`
+8. [x] `feat(odd): implement debounced hysteresis state machine for ODD tier transitions`
+9. [x] `test(odd): verify hysteresis state transitions, debouncing, and restoration damping`
+10. [x] `feat(odd): implement ODD supervisor with speed governor and ASIL-D MRM fallback interlock`
+11. [x] `test(odd): verify supervisor speed governor, headway scaling, and emergency stop triggering`
+12. [x] `feat(odd): implement tactical 1280x720 ODD HUD dashboard visualizer`
+13. [x] `test(odd): verify tactical ODD visualizer renders valid 1280x720 PNG artifacts`
+14. [x] `feat(odd): export public ODD API from package init`
+15. [x] `feat(cli): implement nearfield360 odd command group (info, evaluate, status, simulate, render, audit)`
+16. [x] `feat(cli): register odd CLI group and update release audit expected count to 35`
+17. [x] `test(cli): verify odd CLI command group execution and JSON outputs`
+18. [x] `docs(readme): add dynamic ODD supervisory monitor capability and usage commands`
+19. [x] `docs(progress): record Phase 43 implementation, Decision Log, and quality gates`
+20. [x] `docs(roadmap): mark Phase 43 micro-tasks and acceptance criteria completed`
