@@ -1358,3 +1358,55 @@ def test_acoustic_config_rejects_invalid_sound_speed(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="less than or equal to 380"):
         load_config(config_path)
+
+
+def test_load_config_uses_odd_defaults() -> None:
+    config = load_config()
+
+    assert config.odd.min_ambient_lux == 2.0
+    assert config.odd.max_glare_ratio == 0.25
+    assert config.odd.min_friction_coeff == 0.40
+    assert config.odd.critical_friction_coeff == 0.20
+    assert config.odd.max_v2x_latency_ms == 150.0
+    assert config.odd.critical_v2x_latency_ms == 400.0
+    assert config.odd.max_camera_occlusion_ratio == 0.30
+    assert config.odd.critical_camera_occlusion_ratio == 0.65
+    assert config.odd.nominal_speed_limit_mps == 4.5
+    assert config.odd.advisory_speed_limit_mps == 2.5
+    assert config.odd.restricted_speed_limit_mps == 1.0
+    assert config.odd.degradation_confirm_frames == 3
+    assert config.odd.restoration_confirm_frames == 10
+    assert config.odd.enable_mrm_interlock is True
+
+
+def test_odd_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "odd:\n  min_ambient_lux: 5.0\n  nominal_speed_limit_mps: 3.5\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_ODD__MAX_GLARE_RATIO", "0.35")
+    monkeypatch.setenv("NEARFIELD360_ODD__ENABLE_MRM_INTERLOCK", "false")
+
+    config = load_config(config_path)
+
+    assert config.odd.min_ambient_lux == 5.0
+    assert config.odd.nominal_speed_limit_mps == 3.5
+    assert config.odd.max_glare_ratio == 0.35
+    assert config.odd.enable_mrm_interlock is False
+
+
+def test_odd_config_rejects_invalid_friction(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("odd:\n  min_friction_coeff: 0.01\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 0.05"):
+        load_config(config_path)
+
+
+def test_odd_config_rejects_invalid_latency(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("odd:\n  max_v2x_latency_ms: 10.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 20"):
+        load_config(config_path)
