@@ -1410,3 +1410,57 @@ def test_odd_config_rejects_invalid_latency(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="greater than or equal to 20"):
         load_config(config_path)
+
+
+def test_load_config_uses_dssad_defaults() -> None:
+    config = load_config()
+
+    assert config.dssad.sampling_rate_hz == 50
+    assert config.dssad.pre_trigger_duration_s == 5.0
+    assert config.dssad.post_trigger_duration_s == 2.0
+    assert config.dssad.max_retained_incidents == 20
+    assert config.dssad.impact_accel_threshold_g == 2.5
+    assert config.dssad.enable_tamper_proof_chain is True
+    assert config.dssad.signing_key_salt == "nearfield360-dssad-secret-salt-2026"
+    assert config.dssad.auto_freeze_on_mrm is True
+
+
+def test_dssad_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "dssad:\n  sampling_rate_hz: 100\n  impact_accel_threshold_g: 3.0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_DSSAD__PRE_TRIGGER_DURATION_S", "8.0")
+    monkeypatch.setenv("NEARFIELD360_DSSAD__ENABLE_TAMPER_PROOF_CHAIN", "false")
+
+    config = load_config(config_path)
+
+    assert config.dssad.sampling_rate_hz == 100
+    assert config.dssad.impact_accel_threshold_g == 3.0
+    assert config.dssad.pre_trigger_duration_s == 8.0
+    assert config.dssad.enable_tamper_proof_chain is False
+
+
+def test_dssad_config_rejects_invalid_sampling_rate(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("dssad:\n  sampling_rate_hz: 5\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 10"):
+        load_config(config_path)
+
+
+def test_dssad_config_rejects_invalid_pre_trigger_duration(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("dssad:\n  pre_trigger_duration_s: 0.2\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"greater than or equal to 1(\.0)?"):
+        load_config(config_path)
+
+
+def test_dssad_config_rejects_short_signing_key(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("dssad:\n  signing_key_salt: short\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="at least 8 characters"):
+        load_config(config_path)
