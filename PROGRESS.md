@@ -3063,6 +3063,118 @@ Phase 41 delivers an automotive-grade Vehicle Cybersecurity Management System (C
 
 ---
 
+## Phase 43: ISO 21448 SOTIF / ISO 23374 Dynamic Operational Design Domain (ODD) Monitor, Environmental Degradation & Safe Fallback Supervisor
+
+**Status:** Completed
+**Repository Branch:** `phase/dynamic-odd-supervisory-monitor`
+**Test Suite:** 1,700 passed, 1 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (0 errors)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 96.83% across ODD modules (exceeds required 85.0% threshold)
+**CLI Command Groups:** 35 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 43 establishes an automotive-grade Dynamic Operational Design Domain (ODD) Supervisory Monitor and Fallback Adaptation subsystem adhering to ISO 21448 (SOTIF) and ISO 23374 (AVP):
+
+1. **Multi-Factor Environmental & Sensor ODD Monitoring**:
+   - `ODDConfig` specifying ambient lux limits ($\ge 2.0\text{ lux}$), glare saturation ratio ($\le 0.25$), road friction boundaries (nominal $\ge 0.40$, critical $\ge 0.20$), V2X latency bounds (nominal $\le 150\text{ ms}$, critical $\le 400\text{ ms}$), 4-camera lens occlusion limits (nominal $\le 0.30$, critical $\le 0.65$), speed limits, and hysteresis parameters.
+2. **Domain Models & Telemetry Schemas (`nearfield360.odd.models`)**:
+   - `ODDState`: Hierarchical operating tiers (`NOMINAL`, `ADVISORY_DEGRADED`, `CRITICAL_RESTRICTED`, `ODD_BREACH_MRM`).
+   - `IlluminationCondition`: Lighting classifications (`DAYLIGHT`, `TWILIGHT`, `NIGHT`, `GLARE_DAZZLE`).
+   - `PrecipitationCondition`: Weather classifications (`CLEAR`, `LIGHT_RAIN`, `HEAVY_RAIN`, `FOG_HAZE`, `SNOW`).
+   - `SurfaceCondition`: Pavement classifications (`DRY`, `WET`, `PUDDLE_AQUAPLANING`, `ICY_SNOW`).
+   - `SensorHealthStatus`: Per-sensor occlusion ratio, SNR (dB), lens cleanliness score, and operational status.
+   - `ODDMetrics`, `ODDEvaluationResult`, `ODDReport`.
+3. **Multi-Factor Environmental Evaluator (`ODDEvaluator`)**:
+   - Image luminance and saturation glare ratio estimation ($Y = 0.299 R + 0.587 G + 0.114 B$).
+   - Multi-factor environmental classification across illumination, precipitation, surface friction $\mu$, V2X latency/packet loss, and 4-camera lens health.
+   - Composite severity calculation taking the maximum severity across all dimensions.
+4. **Debounced Temporal Hysteresis State Machine (`ODDStateMachine`)**:
+   - Multi-frame confirmation windows (degrade: 3 frames; restore: 10 frames) preventing high-frequency oscillatory mode chattering.
+   - Safety-critical fast-path: immediate 1-frame transition to `ODD_BREACH_MRM` upon severe black ice or multi-sensor blindness.
+5. **ODD Supervisor, Speed Governor & ASIL-D MRM Interlock (`ODDSupervisor`)**:
+   - Active actuation speed governance: capping speed at nominal ($4.5\text{ m/s}$), advisory ($2.5\text{ m/s}$), restricted ($1.0\text{ m/s}$), or MRM stop ($0.0\text{ m/s}$).
+   - Safety headway expansion scaling ($1.0\times$, $1.5\times$, $2.0\times$, $3.0\times$).
+   - ASIL-D Minimum Risk Maneuver (MRM) fallback interlock triggering `SafetySupervisor.trigger_emergency_stop()` upon boundary breach.
+6. **Tactical 1280x720 ODD HUD Dashboard Visualizer (`render_odd_dashboard`)**:
+   - 4-panel diagnostic visualizer: 5-Axis ODD Radar / Spider Chart, Actuation Governor & SOTIF Safety Status, 4-Camera Health Matrix, and Temporal ODD State Transition Timeline.
+7. **CLI Integration & Release Audit**:
+   - Dedicated CLI command group `nearfield360 odd` (`info`, `evaluate`, `simulate`, `render`, `audit`).
+   - Root registration in `src/nearfield360/cli/app.py` and release audit expanded to 35 verified command groups in `src/nearfield360/cli/release.py`.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- **ODD Configuration Schema (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `min_ambient_lux`: 2.0 lux.
+  - `max_glare_ratio`: 0.25.
+  - `min_friction_coeff`: 0.40.
+  - `critical_friction_coeff`: 0.20.
+  - `max_v2x_latency_ms`: 150.0 ms.
+  - `critical_v2x_latency_ms`: 400.0 ms.
+  - `max_camera_occlusion_ratio`: 0.30.
+  - `critical_camera_occlusion_ratio`: 0.65.
+  - `nominal_speed_limit_mps`: 4.5 m/s (~16.2 km/h).
+  - `advisory_speed_limit_mps`: 2.5 m/s (~9.0 km/h).
+  - `restricted_speed_limit_mps`: 1.0 m/s (~3.6 km/h).
+  - `degradation_confirm_frames`: 3 frames.
+  - `restoration_confirm_frames`: 10 frames.
+  - `enable_mrm_interlock`: True.
+- **Domain Models (`src/nearfield360/odd/models.py`)**:
+  - `ODDState`, `odd_state_severity`, `IlluminationCondition`, `PrecipitationCondition`, `SurfaceCondition`, `SensorHealthStatus`, `ODDMetrics`, `ODDEvaluationResult`, `ODDReport`.
+- **Environmental Evaluator & Hysteresis State Machine (`src/nearfield360/odd/evaluator.py`)**:
+  - `ODDEvaluator`: Computes lux, glare, precipitation, friction, connectivity, and sensor health metrics.
+  - `ODDStateMachine`: Debounces transitions with separate degradation and restoration confirmation windows.
+- **ODD Supervisor & ASIL-D MRM Interlock (`src/nearfield360/odd/supervisor.py`)**:
+  - `ODDSupervisor`: Manages speed limits, headway multipliers, and calls `SafetySupervisor.trigger_emergency_stop()`.
+- **Tactical 1280x720 ODD HUD Visualizer (`src/nearfield360/odd/viz.py`)**:
+  - `render_odd_dashboard`: Dark-mode HUD generating radar chart, governance gauge, camera health matrix, and state timeline.
+- **CLI Command Group & Release Audit (`src/nearfield360/cli/odd.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `evaluate`, `simulate`, `render`, `audit`.
+  - Registered `odd` command group and expanded release audit check to verify 35 command groups.
+
+---
+
+### 3. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Multi-Factor Composite Envelope with Maximum Severity Projection
+   - *Alternatives Considered*: Weighted average ODD index or additive penalty points.
+   - *Rationale & Evidence*: In automotive functional safety (ISO 26262 / ISO 21448 SOTIF), safety is strictly non-compensatory: excellent daylight illumination cannot compensate for zero road friction (black ice) or a complete camera outage. Using `worst_state = max(candidate_states, key=odd_state_severity)` ensures any single critical boundary breach immediately enforces safe degradation or MRM halt.
+2. **Decision**: Asymmetric Debouncing with Fast-Path Emergency Exception
+   - *Alternatives Considered*: Symmetric N-frame rolling average or instantaneous switching.
+   - *Rationale & Evidence*: Instantaneous switching causes rapid mode chattering during transient events (e.g. driving under a tree shadow or passing a wet patch). Requiring 3 frames to degrade and 10 clean frames to restore provides stability. Crucially, an emergency fast-path allows critical black ice ($\mu < 0.20$) or multiple occluded cameras to trigger `ODD_BREACH_MRM` in a single frame to prevent collisions.
+3. **Decision**: Integrated Speed Governor & Safety Headway Multiplier
+   - *Alternatives Considered*: Binary GO / NO-GO operational logic.
+   - *Rationale & Evidence*: A binary shutdown forces unnecessary vehicle halts under minor degradations (light rain, twilight). By grading vehicle cruise speed ($4.5\text{ m/s} \to 2.5\text{ m/s} \to 1.0\text{ m/s}$) and proportionally scaling following distance ($1.0\times \to 1.5\times \to 2.0\times$), the facility maintains autonomous throughput safely while preserving emergency stop reserve.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| ODD Config Validation | `uv run pytest tests/unit/test_config.py` | 126 passed |
+| ODD Domain Models & Schemas | `uv run pytest tests/unit/odd/test_odd_models.py` | 5 passed |
+| Multi-Factor ODD Metrics Evaluator | `uv run pytest tests/unit/odd/test_odd_evaluator.py` | 11 passed |
+| ODD Supervisor, Governor & MRM Interlock | `uv run pytest tests/unit/odd/test_odd_supervisor.py` | 4 passed |
+| Tactical ODD HUD Visualizer | `uv run pytest tests/unit/odd/test_odd_viz.py` | 2 passed |
+| ODD CLI Command Group | `uv run pytest tests/unit/test_odd_cli.py` | 7 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 35 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1,700 passed, 1 skipped |
+| Code Coverage (ODD modules) | `uv run pytest ... --cov=nearfield360.odd` | 96.83% (exceeds 85% requirement) |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
+| Remote CI Workflow Status | GitHub Actions PR #27 | Continuous Parity |
+
+
+---
+
 ## Phase 42: Automotive Acoustic Siren Detection, Multi-Microphone Array Direction-of-Arrival (DoA) Triangulation & Audio-Visual Fusion
 
 **Status:** Completed
@@ -3176,3 +3288,115 @@ Phase 42 establishes an automotive-grade Nearfield Acoustic Sensing and Emergenc
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
 | Remote CI Workflow Status | GitHub Actions PR | Parity Verified |
+
+
+---
+
+## Phase 43: ISO 21448 SOTIF / ISO 23374 Dynamic Operational Design Domain (ODD) Monitor, Environmental Degradation & Safe Fallback Supervisor
+
+**Status:** Completed
+**Repository Branch:** `phase/dynamic-odd-supervisory-monitor`
+**Test Suite:** 1,700 passed, 1 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (0 errors)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 96.83% across ODD modules (exceeds required 85.0% threshold)
+**CLI Command Groups:** 35 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 43 establishes an automotive-grade Dynamic Operational Design Domain (ODD) Supervisory Monitor and Fallback Adaptation subsystem adhering to ISO 21448 (SOTIF) and ISO 23374 (AVP):
+
+1. **Multi-Factor Environmental & Sensor ODD Monitoring**:
+   - `ODDConfig` specifying ambient lux limits ($\ge 2.0\text{ lux}$), glare saturation ratio ($\le 0.25$), road friction boundaries (nominal $\ge 0.40$, critical $\ge 0.20$), V2X latency bounds (nominal $\le 150\text{ ms}$, critical $\le 400\text{ ms}$), 4-camera lens occlusion limits (nominal $\le 0.30$, critical $\le 0.65$), speed limits, and hysteresis parameters.
+2. **Domain Models & Telemetry Schemas (`nearfield360.odd.models`)**:
+   - `ODDState`: Hierarchical operating tiers (`NOMINAL`, `ADVISORY_DEGRADED`, `CRITICAL_RESTRICTED`, `ODD_BREACH_MRM`).
+   - `IlluminationCondition`: Lighting classifications (`DAYLIGHT`, `TWILIGHT`, `NIGHT`, `GLARE_DAZZLE`).
+   - `PrecipitationCondition`: Weather classifications (`CLEAR`, `LIGHT_RAIN`, `HEAVY_RAIN`, `FOG_HAZE`, `SNOW`).
+   - `SurfaceCondition`: Pavement classifications (`DRY`, `WET`, `PUDDLE_AQUAPLANING`, `ICY_SNOW`).
+   - `SensorHealthStatus`: Per-sensor occlusion ratio, SNR (dB), lens cleanliness score, and operational status.
+   - `ODDMetrics`, `ODDEvaluationResult`, `ODDReport`.
+3. **Multi-Factor Environmental Evaluator (`ODDEvaluator`)**:
+   - Image luminance and saturation glare ratio estimation ($Y = 0.299 R + 0.587 G + 0.114 B$).
+   - Multi-factor environmental classification across illumination, precipitation, surface friction $\mu$, V2X latency/packet loss, and 4-camera lens health.
+   - Composite severity calculation taking the maximum severity across all dimensions.
+4. **Debounced Temporal Hysteresis State Machine (`ODDStateMachine`)**:
+   - Multi-frame confirmation windows (degrade: 3 frames; restore: 10 frames) preventing high-frequency oscillatory mode chattering.
+   - Safety-critical fast-path: immediate 1-frame transition to `ODD_BREACH_MRM` upon severe black ice or multi-sensor blindness.
+5. **ODD Supervisor, Speed Governor & ASIL-D MRM Interlock (`ODDSupervisor`)**:
+   - Active actuation speed governance: capping speed at nominal ($4.5\text{ m/s}$), advisory ($2.5\text{ m/s}$), restricted ($1.0\text{ m/s}$), or MRM stop ($0.0\text{ m/s}$).
+   - Safety headway expansion scaling ($1.0\times$, $1.5\times$, $2.0\times$, $3.0\times$).
+   - ASIL-D Minimum Risk Maneuver (MRM) fallback interlock triggering `SafetySupervisor.trigger_emergency_stop()` upon boundary breach.
+6. **Tactical 1280x720 ODD HUD Dashboard Visualizer (`render_odd_dashboard`)**:
+   - 4-panel diagnostic visualizer: 5-Axis ODD Radar / Spider Chart, Actuation Governor & SOTIF Safety Status, 4-Camera Health Matrix, and Temporal ODD State Transition Timeline.
+7. **CLI Integration & Release Audit**:
+   - Dedicated CLI command group `nearfield360 odd` (`info`, `evaluate`, `simulate`, `render`, `audit`).
+   - Root registration in `src/nearfield360/cli/app.py` and release audit expanded to 35 verified command groups in `src/nearfield360/cli/release.py`.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- **ODD Configuration Schema (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `min_ambient_lux`: 2.0 lux.
+  - `max_glare_ratio`: 0.25.
+  - `min_friction_coeff`: 0.40.
+  - `critical_friction_coeff`: 0.20.
+  - `max_v2x_latency_ms`: 150.0 ms.
+  - `critical_v2x_latency_ms`: 400.0 ms.
+  - `max_camera_occlusion_ratio`: 0.30.
+  - `critical_camera_occlusion_ratio`: 0.65.
+  - `nominal_speed_limit_mps`: 4.5 m/s (~16.2 km/h).
+  - `advisory_speed_limit_mps`: 2.5 m/s (~9.0 km/h).
+  - `restricted_speed_limit_mps`: 1.0 m/s (~3.6 km/h).
+  - `degradation_confirm_frames`: 3 frames.
+  - `restoration_confirm_frames`: 10 frames.
+  - `enable_mrm_interlock`: True.
+- **Domain Models (`src/nearfield360/odd/models.py`)**:
+  - `ODDState`, `odd_state_severity`, `IlluminationCondition`, `PrecipitationCondition`, `SurfaceCondition`, `SensorHealthStatus`, `ODDMetrics`, `ODDEvaluationResult`, `ODDReport`.
+- **Environmental Evaluator & Hysteresis State Machine (`src/nearfield360/odd/evaluator.py`)**:
+  - `ODDEvaluator`: Computes lux, glare, precipitation, friction, connectivity, and sensor health metrics.
+  - `ODDStateMachine`: Debounces transitions with separate degradation and restoration confirmation windows.
+- **ODD Supervisor & ASIL-D MRM Interlock (`src/nearfield360/odd/supervisor.py`)**:
+  - `ODDSupervisor`: Manages speed limits, headway multipliers, and calls `SafetySupervisor.trigger_emergency_stop()`.
+- **Tactical 1280x720 ODD HUD Visualizer (`src/nearfield360/odd/viz.py`)**:
+  - `render_odd_dashboard`: Dark-mode HUD generating radar chart, governance gauge, camera health matrix, and state timeline.
+- **CLI Command Group & Release Audit (`src/nearfield360/cli/odd.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `evaluate`, `simulate`, `render`, `audit`.
+  - Registered `odd` command group and expanded release audit check to verify 35 command groups.
+
+---
+
+### 3. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Multi-Factor Composite Envelope with Maximum Severity Projection
+   - *Alternatives Considered*: Weighted average ODD index or additive penalty points.
+   - *Rationale & Evidence*: In automotive functional safety (ISO 26262 / ISO 21448 SOTIF), safety is strictly non-compensatory: excellent daylight illumination cannot compensate for zero road friction (black ice) or a complete camera outage. Using `worst_state = max(candidate_states, key=odd_state_severity)` ensures any single critical boundary breach immediately enforces safe degradation or MRM halt.
+2. **Decision**: Asymmetric Debouncing with Fast-Path Emergency Exception
+   - *Alternatives Considered*: Symmetric N-frame rolling average or instantaneous switching.
+   - *Rationale & Evidence*: Instantaneous switching causes rapid mode chattering during transient events (e.g. driving under a tree shadow or passing a wet patch). Requiring 3 frames to degrade and 10 clean frames to restore provides stability. Crucially, an emergency fast-path allows critical black ice ($\mu < 0.20$) or multiple occluded cameras to trigger `ODD_BREACH_MRM` in a single frame to prevent collisions.
+3. **Decision**: Integrated Speed Governor & Safety Headway Multiplier
+   - *Alternatives Considered*: Binary GO / NO-GO operational logic.
+   - *Rationale & Evidence*: A binary shutdown forces unnecessary vehicle halts under minor degradations (light rain, twilight). By grading vehicle cruise speed ($4.5\text{ m/s} \to 2.5\text{ m/s} \to 1.0\text{ m/s}$) and proportionally scaling following distance ($1.0\times \to 1.5\times \to 2.0\times$), the facility maintains autonomous throughput safely while preserving emergency stop reserve.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| ODD Config Validation | `uv run pytest tests/unit/test_config.py` | 126 passed |
+| ODD Domain Models & Schemas | `uv run pytest tests/unit/odd/test_odd_models.py` | 5 passed |
+| Multi-Factor ODD Metrics Evaluator | `uv run pytest tests/unit/odd/test_odd_evaluator.py` | 11 passed |
+| ODD Supervisor, Governor & MRM Interlock | `uv run pytest tests/unit/odd/test_odd_supervisor.py` | 4 passed |
+| Tactical ODD HUD Visualizer | `uv run pytest tests/unit/odd/test_odd_viz.py` | 2 passed |
+| ODD CLI Command Group | `uv run pytest tests/unit/test_odd_cli.py` | 7 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 35 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1,700 passed, 1 skipped |
+| Code Coverage (ODD modules) | `uv run pytest ... --cov=nearfield360.odd` | 96.83% (exceeds 85% requirement) |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
+| Remote CI Workflow Status | GitHub Actions PR #27 | Continuous Parity |
