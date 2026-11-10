@@ -2011,25 +2011,25 @@ Establish an automotive-grade Data Storage System for Automated Driving (DSSAD) 
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 44 UN R157 DSSAD and UN R160 EDR incident forensics scope`
-2. [ ] `feat(config): add DSSADConfig schema and default recording parameters`
-3. [ ] `test(config): verify DSSADConfig defaults, validation bounds, and environment overrides`
-4. [ ] `feat(dssad): implement DSSAD and EDR domain models, event taxonomy, and telemetry schemas`
-5. [ ] `test(dssad): verify DSSAD domain models serialization, validation, and JSON schema integrity`
-6. [ ] `feat(dssad): implement continuous circular ring buffer with pre/post trigger window slicing`
-7. [ ] `test(dssad): verify circular ring buffer capacity, FIFO rollover, and pre/post trigger window extraction`
-8. [ ] `feat(dssad): implement cryptographic SHA-256 hash chaining and tamper-evident audit trail engine`
-9. [ ] `test(dssad): verify cryptographic chain integrity, tamper detection, and hash validation`
-10. [ ] `feat(dssad): implement crash freeze manager and incident recorder with multi-source trigger interlocks`
-11. [ ] `test(dssad): verify crash freeze manager, trigger dispatch, and non-volatile incident persistence`
-12. [ ] `feat(dssad): implement UDS ISO 14229 diagnostic service exporter and regulatory report generator`
-13. [ ] `test(dssad): verify UDS diagnostic readouts, CSV telemetry, and regulatory JSON exports`
-14. [ ] `feat(dssad): implement tactical 1280x720 forensic HUD visualizer (render_dssad_dashboard)`
-15. [ ] `test(dssad): verify forensic visualizer renders valid 1280x720 PNG artifacts with telemetry waveforms`
-16. [ ] `feat(dssad): export public DSSAD API from package init`
-17. [ ] `feat(cli): implement nearfield360 dssad command group (info, record, trigger, query, verify, export, render, audit)`
-18. [ ] `feat(cli): register dssad command group and update release audit expected count to 36`
-19. [ ] `test(cli): verify dssad CLI command group execution, subcommands, and exit codes`
-20. [ ] `docs(readme): add DSSAD & EDR regulatory forensics capability and usage commands`
-21. [ ] `docs(progress): record Phase 44 implementation, Decision Log, and quality gates`
-22. [ ] `docs(roadmap): mark Phase 44 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 44 UN R157 DSSAD and UN R160 EDR incident forensics scope`
+2. [x] `feat(config): add DSSADConfig schema and default recording parameters`
+3. [x] `test(config): verify DSSADConfig defaults, validation bounds, and environment overrides`
+4. [x] `feat(dssad): implement DSSAD and EDR domain models, event taxonomy, and telemetry schemas`
+5. [x] `test(dssad): verify DSSAD domain models serialization, validation, and JSON schema integrity`
+6. [x] `feat(dssad): implement continuous circular ring buffer with pre/post trigger window slicing`
+7. [x] `test(dssad): verify circular ring buffer capacity, FIFO rollover, and pre/post trigger window extraction`
+8. [x] `feat(dssad): implement cryptographic SHA-256 hash chaining and tamper-evident audit trail engine`
+9. [x] `test(dssad): verify cryptographic chain integrity, tamper detection, and hash validation`
+10. [x] `feat(dssad): implement crash freeze manager and incident recorder with multi-source trigger interlocks`
+11. [x] `test(dssad): verify crash freeze manager, trigger dispatch, and non-volatile incident persistence`
+12. [x] `feat(dssad): implement UDS ISO 14229 diagnostic service exporter and regulatory report generator`
+13. [x] `test(dssad): verify UDS diagnostic readouts, CSV telemetry, and regulatory JSON exports`
+14. [x] `feat(dssad): implement tactical 1280x720 forensic HUD visualizer (render_dssad_dashboard)`
+15. [x] `test(dssad): verify forensic visualizer renders valid 1280x720 PNG artifacts with telemetry waveforms`
+16. [x] `feat(dssad): export public DSSAD API from package init`
+17. [x] `feat(cli): implement nearfield360 dssad command group (info, record, trigger, query, verify, export, render, audit)`
+18. [x] `feat(cli): register dssad command group and update release audit expected count to 36`
+19. [x] `test(cli): verify dssad CLI command group execution, subcommands, and exit codes`
+20. [x] `docs(readme): add DSSAD & EDR regulatory forensics capability and usage commands`
+21. [x] `docs(progress): record Phase 44 implementation, Decision Log, and quality gates`
+22. [x] `docs(roadmap): mark Phase 44 micro-tasks and acceptance criteria completed`
