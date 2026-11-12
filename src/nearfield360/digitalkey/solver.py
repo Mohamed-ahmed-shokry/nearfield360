@@ -15,12 +15,12 @@ from nearfield360.digitalkey.models import (
 
 
 def get_default_uwb_anchors() -> list[UWBAnchor]:
-    """Return automotive default 4-corner vehicle UWB anchor layout."""
+    """Return automotive default 4-corner vehicle UWB anchor layout with 3D vertical diversity."""
     return [
-        UWBAnchor(anchor_id="FL", x_m=1.8, y_m=0.8, z_m=0.7, channel=5, is_aoa_capable=True),
-        UWBAnchor(anchor_id="FR", x_m=1.8, y_m=-0.8, z_m=0.7, channel=5, is_aoa_capable=True),
-        UWBAnchor(anchor_id="RL", x_m=-1.8, y_m=0.8, z_m=0.7, channel=5, is_aoa_capable=False),
-        UWBAnchor(anchor_id="RR", x_m=-1.8, y_m=-0.8, z_m=0.7, channel=5, is_aoa_capable=False),
+        UWBAnchor(anchor_id="FL", x_m=1.8, y_m=0.8, z_m=0.6, channel=5, is_aoa_capable=True),
+        UWBAnchor(anchor_id="FR", x_m=1.8, y_m=-0.8, z_m=1.2, channel=5, is_aoa_capable=True),
+        UWBAnchor(anchor_id="RL", x_m=-1.8, y_m=0.8, z_m=1.2, channel=5, is_aoa_capable=False),
+        UWBAnchor(anchor_id="RR", x_m=-1.8, y_m=-0.8, z_m=0.6, channel=5, is_aoa_capable=False),
     ]
 
 
