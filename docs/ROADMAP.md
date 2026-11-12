@@ -2126,27 +2126,27 @@ Establish an automotive-grade Car Connectivity Consortium (CCC) Digital Key Rele
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 45 CCC Digital Key 3.0 UWB and proximity interlock scope`
-2. [ ] `feat(config): add DigitalKeyConfig schema and default ranging parameters`
-3. [ ] `test(config): verify DigitalKeyConfig defaults, validation bounds, and environment overrides`
-4. [ ] `feat(digitalkey): implement CCC Digital Key domain models, ranging enums, and delegation schemas`
-5. [ ] `test(digitalkey): verify DigitalKey domain models validation, serialization, and JSON schema integrity`
-6. [ ] `feat(digitalkey): implement UWB IEEE 802.15.4z STS distance bounding and anti-relay verification engine`
-7. [ ] `test(digitalkey): verify UWB distance bounding, ToF consistency, and anti-relay attack detection`
-8. [ ] `feat(digitalkey): implement 3D UWB multilateration anchor solver and AoA spatial tracking`
-9. [ ] `test(digitalkey): verify anchor multilateration solver, AoA azimuth/elevation, and positioning accuracy`
-10. [ ] `feat(digitalkey): implement BLE proximity zone classifier and RSSI distance estimator`
-11. [ ] `test(digitalkey): verify BLE proximity zoning, RSSI filtering, and zone transitions`
-12. [ ] `feat(digitalkey): implement CCC Digital Key cryptographic token manager and delegation validator`
-13. [ ] `test(digitalkey): verify digital key signature verification, delegation expiration, and scope checks`
-14. [ ] `feat(digitalkey): implement proximity safety interlock state machine and AVP handover supervisor`
-15. [ ] `test(digitalkey): verify proximity interlock emergency halt, takeover request, and safe handover sequencing`
-16. [ ] `feat(digitalkey): implement tactical 1280x720 Digital Key HUD visualizer (render_digitalkey_dashboard)`
-17. [ ] `test(digitalkey): verify tactical digital key visualizer renders valid 1280x720 PNG artifacts`
-18. [ ] `feat(digitalkey): export public Digital Key API from package init`
-19. [ ] `feat(cli): implement nearfield360 digitalkey command group (info, pair, authenticate, range, interlock, handover, render, audit)`
-20. [ ] `feat(cli): register digitalkey command group and update release audit expected count to 37`
-21. [ ] `test(cli): verify digitalkey CLI command group execution, subcommands, and exit codes`
-22. [ ] `docs(readme): add CCC Digital Key 3.0 & UWB proximity interlock capability and usage commands`
-23. [ ] `docs(progress): record Phase 45 implementation, Decision Log, and quality gates`
-24. [ ] `docs(roadmap): mark Phase 45 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 45 CCC Digital Key 3.0 UWB and proximity interlock scope`
+2. [x] `feat(config): add DigitalKeyConfig schema and default ranging parameters`
+3. [x] `test(config): verify DigitalKeyConfig defaults, validation bounds, and environment overrides`
+4. [x] `feat(digitalkey): implement CCC Digital Key domain models, ranging enums, and delegation schemas`
+5. [x] `test(digitalkey): verify DigitalKey domain models validation, serialization, and JSON schema integrity`
+6. [x] `feat(digitalkey): implement UWB IEEE 802.15.4z STS distance bounding and anti-relay verification engine`
+7. [x] `test(digitalkey): verify UWB distance bounding, ToF consistency, and anti-relay attack detection`
+8. [x] `feat(digitalkey): implement 3D UWB multilateration anchor solver and AoA spatial tracking`
+9. [x] `test(digitalkey): verify anchor multilateration solver, AoA azimuth/elevation, and positioning accuracy`
+10. [x] `feat(digitalkey): implement BLE proximity zone classifier and RSSI distance estimator`
+11. [x] `test(digitalkey): verify BLE proximity zoning, RSSI filtering, and zone transitions`
+12. [x] `feat(digitalkey): implement CCC Digital Key cryptographic token manager and delegation validator`
+13. [x] `test(digitalkey): verify digital key signature verification, delegation expiration, and scope checks`
+14. [x] `feat(digitalkey): implement proximity safety interlock state machine and AVP handover supervisor`
+15. [x] `test(digitalkey): verify proximity interlock emergency halt, takeover request, and safe handover sequencing`
+16. [x] `feat(digitalkey): implement tactical 1280x720 Digital Key HUD visualizer (render_digitalkey_dashboard)`
+17. [x] `test(digitalkey): verify tactical digital key visualizer renders valid 1280x720 PNG artifacts`
+18. [x] `feat(digitalkey): export public Digital Key API from package init`
+19. [x] `feat(cli): implement nearfield360 digitalkey command group (info, pair, authenticate, range, interlock, handover, render, audit)`
+20. [x] `feat(cli): register digitalkey command group and update release audit expected count to 37`
+21. [x] `test(cli): verify digitalkey CLI command group execution, subcommands, and exit codes`
+22. [x] `docs(readme): add CCC Digital Key 3.0 & UWB proximity interlock capability and usage commands`
+23. [x] `docs(progress): record Phase 45 implementation, Decision Log, and quality gates`
+24. [x] `docs(roadmap): mark Phase 45 micro-tasks and acceptance criteria completed`
