@@ -106,7 +106,10 @@ class HandoverSupervisor:
         elif (
             self.config.enable_standstill_interlock
             and self._state in (HandoverState.AVP_DELEGATED, HandoverState.PICKUP_READY)
-            and position.zone == ProximityZone.TOUCH
+            and (
+                position.zone == ProximityZone.TOUCH
+                or position.distance_m <= self.config.touch_threshold_m
+            )
         ):
             interlock_active = True
             standstill = True
@@ -118,7 +121,9 @@ class HandoverSupervisor:
         # 4. Advance handover state machine
         if not any_relay:
             if self._state == HandoverState.PICKUP_READY:
-                if position.zone in (ProximityZone.IMMEDIATE, ProximityZone.TOUCH):
+                if position.is_interior:
+                    self._state = HandoverState.MANUAL_CONTROL
+                elif position.zone in (ProximityZone.IMMEDIATE, ProximityZone.TOUCH):
                     self._state = HandoverState.TAKEOVER_IN_PROGRESS
             elif self._state == HandoverState.TAKEOVER_IN_PROGRESS:
                 if position.is_interior:

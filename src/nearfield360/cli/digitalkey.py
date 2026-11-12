@@ -291,18 +291,21 @@ def digitalkey_interlock(
     )
     supervisor.delegate_to_avp(tok)
 
+    target_y = distance_m
     anchors = get_default_uwb_anchors()
-    meas = [
-        UWBRangeMeasurement(
-            anchor_id=a.anchor_id,
-            distance_m=distance_m,
-            timestamp_ns=1700000000000000,
-            sts_valid=not relay_attack,
-            tof_ns=(distance_m / 0.299792458) if not relay_attack else 25.0,
-            snr_db=24.0,
+    meas = []
+    for a in anchors:
+        dist = math.sqrt(a.x_m**2 + (target_y - a.y_m) ** 2 + (1.0 - a.z_m) ** 2)
+        meas.append(
+            UWBRangeMeasurement(
+                anchor_id=a.anchor_id,
+                distance_m=dist,
+                timestamp_ns=1700000000000000,
+                sts_valid=not relay_attack,
+                tof_ns=(dist / 0.299792458) if not relay_attack else 25.0,
+                snr_db=24.0,
+            )
         )
-        for a in anchors
-    ]
 
     report = supervisor.evaluate(meas)
     data = report.interlock.model_dump(mode="json")
@@ -374,19 +377,20 @@ def digitalkey_handover(
         )
         supervisor.delegate_to_avp(tok)
         supervisor.mark_pickup_ready()
-        # Approach to 2.0m
+        # Approach to 2.2m (IMMEDIATE zone)
         meas = [
             UWBRangeMeasurement(
                 anchor_id=a.anchor_id,
-                distance_m=2.0,
+                distance_m=math.sqrt(a.x_m**2 + (2.2 - a.y_m) ** 2 + (1.0 - a.z_m) ** 2),
                 timestamp_ns=100,
                 sts_valid=True,
-                tof_ns=6.67,
+                tof_ns=math.sqrt(a.x_m**2 + (2.2 - a.y_m) ** 2 + (1.0 - a.z_m) ** 2) / 0.299792458,
             )
             for a in get_default_uwb_anchors()
         ]
         supervisor.evaluate(meas)
-        ok, reason = True, f"Takeover in progress: state={supervisor.state.value}"
+        ok = supervisor.state in (HandoverState.TAKEOVER_IN_PROGRESS, HandoverState.MANUAL_CONTROL)
+        reason = f"Takeover in progress: state={supervisor.state.value}"
     elif action_lower == "manual":
         tok = crypto.issue_delegation_token(
             vin=vin,
@@ -396,14 +400,15 @@ def digitalkey_handover(
         )
         supervisor.delegate_to_avp(tok)
         supervisor.mark_pickup_ready()
-        # Inside cabin measurements
+        # Inside cabin measurements at (0.2, 0.35, 1.0)
         meas = [
             UWBRangeMeasurement(
                 anchor_id=a.anchor_id,
-                distance_m=math.sqrt(a.x_m**2 + a.y_m**2 + (1.0 - a.z_m) ** 2),
+                distance_m=math.sqrt((0.2 - a.x_m) ** 2 + (0.35 - a.y_m) ** 2 + (1.0 - a.z_m) ** 2),
                 timestamp_ns=100,
                 sts_valid=True,
-                tof_ns=4.0,
+                tof_ns=math.sqrt((0.2 - a.x_m) ** 2 + (0.35 - a.y_m) ** 2 + (1.0 - a.z_m) ** 2)
+                / 0.299792458,
             )
             for a in get_default_uwb_anchors()
         ]
