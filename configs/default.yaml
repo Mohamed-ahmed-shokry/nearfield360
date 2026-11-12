@@ -368,3 +368,15 @@ dssad:
   enable_tamper_proof_chain: true
   signing_key_salt: "nearfield360-dssad-secret-salt-2026"
   auto_freeze_on_mrm: true
+digitalkey:
+  enable_uwb_sts: true
+  carrier_frequency_mhz: 6489.6
+  touch_threshold_m: 1.5
+  immediate_threshold_m: 3.0
+  near_threshold_m: 8.0
+  far_threshold_m: 20.0
+  max_relay_tof_discrepancy_ns: 2.5
+  token_validity_window_s: 3600.0
+  session_salt: "nearfield360-ccc-digitalkey-salt-2026"
+  enable_standstill_interlock: true
+  num_uwb_anchors: 4

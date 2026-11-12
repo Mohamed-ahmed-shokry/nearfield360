@@ -715,6 +715,24 @@ class DSSADConfig(BaseModel):
     auto_freeze_on_mrm: bool = True
 
 
+class DigitalKeyConfig(BaseModel):
+    """Parameters for CCC Digital Key 3.0, UWB & BLE distance-bounding and proximity interlock."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    enable_uwb_sts: bool = True
+    carrier_frequency_mhz: float = Field(default=6489.6, gt=3000.0, le=10000.0, allow_inf_nan=False)
+    touch_threshold_m: float = Field(default=1.5, ge=0.5, le=3.0, allow_inf_nan=False)
+    immediate_threshold_m: float = Field(default=3.0, ge=1.5, le=6.0, allow_inf_nan=False)
+    near_threshold_m: float = Field(default=8.0, ge=4.0, le=15.0, allow_inf_nan=False)
+    far_threshold_m: float = Field(default=20.0, ge=10.0, le=50.0, allow_inf_nan=False)
+    max_relay_tof_discrepancy_ns: float = Field(default=2.5, ge=0.1, le=10.0, allow_inf_nan=False)
+    token_validity_window_s: float = Field(default=3600.0, ge=60.0, le=86400.0, allow_inf_nan=False)
+    session_salt: str = Field(default="nearfield360-ccc-digitalkey-salt-2026", min_length=8)
+    enable_standstill_interlock: bool = True
+    num_uwb_anchors: int = Field(default=4, ge=3, le=8)
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -768,6 +786,7 @@ class ProjectConfig(BaseSettings):
     acoustic: AcousticConfig = Field(default_factory=AcousticConfig)
     odd: ODDConfig = Field(default_factory=ODDConfig)
     dssad: DSSADConfig = Field(default_factory=DSSADConfig)
+    digitalkey: DigitalKeyConfig = Field(default_factory=DigitalKeyConfig)
 
     @classmethod
     def settings_customise_sources(
