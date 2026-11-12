@@ -1464,3 +1464,60 @@ def test_dssad_config_rejects_short_signing_key(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="at least 8 characters"):
         load_config(config_path)
+
+
+def test_load_config_uses_digitalkey_defaults() -> None:
+    config = load_config()
+
+    assert config.digitalkey.enable_uwb_sts is True
+    assert config.digitalkey.carrier_frequency_mhz == 6489.6
+    assert config.digitalkey.touch_threshold_m == 1.5
+    assert config.digitalkey.immediate_threshold_m == 3.0
+    assert config.digitalkey.near_threshold_m == 8.0
+    assert config.digitalkey.far_threshold_m == 20.0
+    assert config.digitalkey.max_relay_tof_discrepancy_ns == 2.5
+    assert config.digitalkey.token_validity_window_s == 3600.0
+    assert config.digitalkey.session_salt == "nearfield360-ccc-digitalkey-salt-2026"
+    assert config.digitalkey.enable_standstill_interlock is True
+    assert config.digitalkey.num_uwb_anchors == 4
+
+
+def test_digitalkey_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "digitalkey:\n  carrier_frequency_mhz: 7987.2\n  touch_threshold_m: 1.2\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_DIGITALKEY__ENABLE_UWB_STS", "false")
+    monkeypatch.setenv("NEARFIELD360_DIGITALKEY__NUM_UWB_ANCHORS", "6")
+
+    config = load_config(config_path)
+
+    assert config.digitalkey.carrier_frequency_mhz == 7987.2
+    assert config.digitalkey.touch_threshold_m == 1.2
+    assert config.digitalkey.enable_uwb_sts is False
+    assert config.digitalkey.num_uwb_anchors == 6
+
+
+def test_digitalkey_config_rejects_invalid_frequency(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("digitalkey:\n  carrier_frequency_mhz: 1000.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 3000"):
+        load_config(config_path)
+
+
+def test_digitalkey_config_rejects_invalid_threshold(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("digitalkey:\n  touch_threshold_m: 0.1\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"greater than or equal to 0\.5"):
+        load_config(config_path)
+
+
+def test_digitalkey_config_rejects_short_salt(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("digitalkey:\n  session_salt: tiny\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="at least 8 characters"):
+        load_config(config_path)

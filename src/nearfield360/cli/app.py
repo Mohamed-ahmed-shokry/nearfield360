@@ -22,6 +22,7 @@ from nearfield360.cli.coop import coop_app
 from nearfield360.cli.csms import csms_app
 from nearfield360.cli.curbside import curbside_app
 from nearfield360.cli.data_commands import data_app
+from nearfield360.cli.digitalkey import digitalkey_app
 from nearfield360.cli.dssad import dssad_app
 from nearfield360.cli.emergency import emergency_app
 from nearfield360.cli.eval import eval_app
@@ -80,6 +81,7 @@ app.add_typer(coop_app, name="coop")
 app.add_typer(csms_app, name="csms")
 app.add_typer(curbside_app, name="curbside")
 app.add_typer(data_app, name="data")
+app.add_typer(digitalkey_app, name="digitalkey")
 app.add_typer(dssad_app, name="dssad")
 app.add_typer(emergency_app, name="emergency")
 app.add_typer(eval_app, name="eval")

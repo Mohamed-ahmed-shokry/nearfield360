@@ -556,6 +556,8 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     Multi-factor environmental & sensor envelope metrics evaluation (ambient lux proxy, saturation glare ratio, roadway friction $\mu$, precipitation rate, V2X latency & packet loss, 4-camera lens occlusion & SNR), debounced temporal hysteresis state machine (`ODDStateMachine`), supervisory speed governor and headway scaling, ASIL-D MRM fallback interlock (`ODDSupervisor`), tactical 1280x720 ODD HUD dashboard (`viz.py`), dedicated CLI command group `nearfield360 odd` (`info`, `evaluate`, `simulate`, `render`, `audit`), and release audit verification (35 CLI command groups).
 35. ~~UN R157 / UN R160 Data Storage System for Automated Driving (DSSAD) & Event Data Recorder (EDR) for AVP Incident Forensics.~~ Done:
     High-frequency circular FIFO telemetry buffering, UN R157 discrete event taxonomy, cryptographic SHA-256 and HMAC audit trail chaining, automatic crash freeze interlock, ISO 14229 UDS DID diagnostic frame export, tactical 1280x720 forensic investigation HUD visualizer (`viz.py`), dedicated CLI command group `nearfield360 dssad` (`info`, `record`, `trigger`, `query`, `verify`, `export`, `render`, `audit`), and release audit verification (36 CLI command groups).
+36. ~~CCC Digital Key 3.0, UWB & BLE Distance-Bounding Secure Handover & Proximity Access Interlock.~~ Done:
+    Car Connectivity Consortium (CCC) Digital Key Release 3.0 cryptographic delegation token manager, IEEE 802.15.4z UWB Scrambled Timestamp Sequence (STS) distance-bounding and anti-relay defense engine, 3D multilateration anchor solver and Angle-of-Arrival (AoA) estimator, BLE RSSI proximity zoning with debounced hysteresis, automated valet parking (AVP) drop-off / pick-up handover supervisor with standstill safety interlock, tactical 1280x720 HUD visualizer (`viz.py`), dedicated CLI command group `nearfield360 digitalkey` (`info`, `pair`, `authenticate`, `range`, `interlock`, `handover`, `render`, `audit`), and release audit verification (37 CLI command groups).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -1446,6 +1448,62 @@ Perform UN R157 & UN R160 regulatory compliance audit:
 ```powershell
 uv run nearfield360 dssad audit
 uv run nearfield360 dssad audit --json --output outputs/dssad_audit.json
+```
+
+### CCC Digital Key 3.0, UWB Distance Bounding & Proximity Safety Interlock
+
+Inspect active CCC Digital Key 3.0 and UWB distance bounding parameters:
+
+```powershell
+uv run nearfield360 digitalkey info
+uv run nearfield360 digitalkey info --json
+```
+
+Issue a cryptographically signed CCC Digital Key delegation token for autonomous valet parking:
+
+```powershell
+uv run nearfield360 digitalkey pair --vin WP0ZZZ99ZTS392001 --user usr-alice --device iphone-16-pro --scopes AVP_OPERATE,CABIN_LOCK --output outputs/delegation_token.json
+```
+
+Verify cryptographic signature, scope, and expiration of a delegation token:
+
+```powershell
+uv run nearfield360 digitalkey authenticate --token-file outputs/delegation_token.json --vin WP0ZZZ99ZTS392001 --scope AVP_OPERATE
+```
+
+Perform UWB 3D multilateration, anti-relay checks, and proximity zone classification:
+
+```powershell
+uv run nearfield360 digitalkey range --x 2.2 --y 1.0 --z 1.0 --png outputs/digitalkey_hud.png --output outputs/digitalkey_report.json
+```
+
+Evaluate proximity standstill safety interlock during autonomous valet parking:
+
+```powershell
+uv run nearfield360 digitalkey interlock --distance 1.2
+uv run nearfield360 digitalkey interlock --distance 5.0 --relay-attack --json
+```
+
+Execute drop-off delegation or pick-up takeover state transition:
+
+```powershell
+uv run nearfield360 digitalkey handover --action delegate --token-file outputs/delegation_token.json
+uv run nearfield360 digitalkey handover --action pickup-ready
+uv run nearfield360 digitalkey handover --action takeover
+uv run nearfield360 digitalkey handover --action manual
+```
+
+Render tactical 1280x720 Digital Key HUD dashboard PNG artifact:
+
+```powershell
+uv run nearfield360 digitalkey render --png outputs/digitalkey_dashboard.png
+```
+
+Perform CCC Digital Key & UWB ranging subsystem self-diagnostic audit:
+
+```powershell
+uv run nearfield360 digitalkey audit
+uv run nearfield360 digitalkey audit --json --output outputs/digitalkey_audit.json
 ```
 
 ## License
