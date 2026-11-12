@@ -3511,3 +3511,121 @@ Phase 44 establishes an automotive-grade Data Storage System for Automated Drivi
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
 | Remote CI Workflow Status | GitHub Actions PR #28 | Parity Verified |
+
+
+---
+
+## Phase 45: CCC Digital Key 3.0, UWB & BLE Distance-Bounding Secure Handover & Proximity Access Interlock
+
+**Status:** Completed
+**Repository Branch:** `phase/ccc-digitalkey-uwb-interlock`
+**Test Suite:** 1,774 passed, 1 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (0 errors)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 98.41% across Digital Key modules (exceeds required 85.0% threshold)
+**CLI Command Groups:** 37 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 45 establishes an automotive-grade Car Connectivity Consortium (CCC) Digital Key Release 3.0, Ultra-Wideband (UWB) IEEE 802.15.4z Scrambled Timestamp Sequence (STS) distance-bounding, Bluetooth Low Energy (BLE) channel sounding/RSSI proximity zoning, and ISO 23374 automated valet parking (AVP) secure drop-off/pick-up handover safety interlock subsystem for NearField360:
+
+1. **CCC Digital Key Release 3.0 Cryptographic Token Manager (`nearfield360.digitalkey.crypto`)**:
+   - Device-to-vehicle mutual authentication and delegation token generation with keyed HMAC-SHA256 signatures over canonical metadata.
+   - Granular permission scopes (`AVP_OPERATE`, `CABIN_LOCK`, `TRUNK_ACCESS`, `IMMOBILIZER_OVERRIDE`, `TELEOP_ASSIST`).
+   - Time-bounded token validity with UTC expiration, vehicle VIN binding, dynamic revocation checks, and cryptographic anti-replay nonce tracking.
+2. **IEEE 802.15.4z UWB STS Distance Bounding & Anti-Relay Defense (`nearfield360.digitalkey.uwb`)**:
+   - Symmetric Double-Sided Two-Way Ranging (SDS-TWR) Time-of-Flight (ToF) physical computation with speed-of-light propagation ($c \approx 0.299792458\text{ m/ns}$).
+   - Cryptographic Scrambled Timestamp Sequence (STS) signature generation and verification preventing packet injection and distance reduction attacks.
+   - Physical ToF consistency checks detecting relay latency manipulation ($> 2.5\text{ ns}$ discrepancy) and channel impulse response (CIR) SNR anomalies.
+3. **Multi-Anchor 3D UWB Multilateration & AoA Solver (`nearfield360.digitalkey.solver`)**:
+   - 4-corner vehicle UWB anchor layout with 3D vertical diversity (FL, FR, RL, RR) ensuring full rank for 3D coordinate resolution.
+   - Linear least-squares sphere intersection solver resolving 3D coordinates $(x, y, z)$, root-mean-square residual error, and confidence scoring.
+   - Relative Angle-of-Arrival (AoA) azimuth and elevation triangulation.
+   - Vehicle cabin interior bounding box detection (`INTERIOR`) and spatial zone classification (`TOUCH`, `IMMEDIATE`, `NEAR`, `FAR`, `OUT_OF_RANGE`).
+4. **BLE RSSI Distance Estimator & Debounced Zoning (`nearfield360.digitalkey.ble`)**:
+   - Log-distance path-loss model with reference power ($-59\text{ dBm}$ at $1\text{ m}$) and environment exponent ($n = 2.4$).
+   - Exponential smoothing filter ($\alpha = 0.35$) mitigating multi-path fading jitter.
+   - Debounced temporal hysteresis state machine preventing boundary chattering.
+5. **Proximity Safety Standstill Interlock & Handover Supervisor (`nearfield360.digitalkey.interlock`)**:
+   - Autonomous maneuvering standstill interlock commanding immediate vehicle halt if any device/pedestrian enters the critical danger zone ($< 1.5\text{ m}$) or if an active relay attack is intercepted.
+   - Complete AVP handover state machine (`DISCONNECTED` $\to$ `APPROACHING` $\to$ `AVP_DELEGATED` $\to$ `PICKUP_READY` $\to$ `TAKEOVER_IN_PROGRESS` $\to$ `MANUAL_CONTROL`).
+   - Drop-off delegation verifying owner token and locking vehicle before engaging autonomous mode; pick-up takeover requiring authenticated driver confirmed inside the vehicle cabin.
+6. **Tactical 1280x720 HUD Dashboard Visualizer (`nearfield360.digitalkey.viz`)**:
+   - 4-panel diagnostic visualizer: Top-Down Vehicle Footprint with UWB Anchors and Concentric Zones, UWB Physical Layer & Anti-Relay Defense Status Table, Standstill Safety Interlock Command Banner, and CCC Digital Key Delegation Token Card.
+7. **CLI Integration & Release Readiness Audit**:
+   - Dedicated CLI command group `nearfield360 digitalkey` (`info`, `pair`, `authenticate`, `range`, `interlock`, `handover`, `render`, `audit`).
+   - Root application registration in `src/nearfield360/cli/app.py` and release audit expanded to 37 verified command groups in `src/nearfield360/cli/release.py`.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- **Digital Key Configuration Schema (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `enable_uwb_sts`: True (IEEE 802.15.4z STS anti-relay active).
+  - `carrier_frequency_mhz`: 6489.6 MHz (UWB Channel 5).
+  - `touch_threshold_m`: 1.5 m.
+  - `immediate_threshold_m`: 3.0 m.
+  - `near_threshold_m`: 8.0 m.
+  - `far_threshold_m`: 20.0 m.
+  - `max_relay_tof_discrepancy_ns`: 2.5 ns.
+  - `token_validity_window_s`: 3600.0 s.
+  - `session_salt`: "nearfield360-ccc-digitalkey-salt-2026".
+  - `enable_standstill_interlock`: True.
+  - `num_uwb_anchors`: 4.
+- **Domain Models (`src/nearfield360/digitalkey/models.py`)**:
+  - `ProximityZone`, `HandoverState`, `DelegationScope`, `UWBAnchor`, `UWBRangeMeasurement`, `DevicePosition3D`, `CCCDelegationToken`, `ProximityInterlockDecision`, `DigitalKeyReport`.
+- **UWB STS Distance Bounding Engine (`src/nearfield360/digitalkey/uwb.py`)**:
+  - `UWBEngine`: SDS-TWR ToF computation, cryptographic STS verification, and multi-factor relay attack detection.
+- **3D Multilateration Solver & AoA Tracking (`src/nearfield360/digitalkey/solver.py`)**:
+  - `MultilaterationSolver`: Least-squares spatial anchor solver, cabin interior polygon tester, and AoA azimuth/elevation calculator.
+- **BLE Proximity Estimator (`src/nearfield360/digitalkey/ble.py`)**:
+  - `BLEProximityEstimator`: Path-loss distance modeling, exponential smoothing, and debounced zone transitions.
+- **CCC Cryptographic Token Manager (`src/nearfield360/digitalkey/crypto.py`)**:
+  - `DigitalKeyCrypto`: Canonical token serialization, HMAC-SHA256 signing, expiration checking, scope enforcement, and anti-replay nonce consumption.
+- **Handover Supervisor & Safety Interlock (`src/nearfield360/digitalkey/interlock.py`)**:
+  - `HandoverSupervisor`: Coordinates vehicle-driver delegation at drop-off, standstill emergency interlocks during autonomous transit, and manual takeover at pick-up.
+- **Tactical 1280x720 HUD Visualizer (`src/nearfield360/digitalkey/viz.py`)**:
+  - `render_digitalkey_dashboard`: High-resolution dark-mode HUD displaying top-down anchor/device map, physical layer ToF table, delegation tokens, and interlock command states.
+- **CLI Command Group & Release Audit (`src/nearfield360/cli/digitalkey.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `pair`, `authenticate`, `range`, `interlock`, `handover`, `render`, `audit`.
+  - Registered `digitalkey` command group and expanded release audit check to verify 37 command groups.
+
+---
+
+### 3. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Non-Coplanar 3D UWB Anchor Layout with Diagonal Height Diversity
+   - *Alternatives Considered*: Planar bumper-level anchors (all anchors at equal height $z = 0.7\text{ m}$).
+   - *Rationale & Evidence*: When all UWB anchors share identical elevation coordinates $z$, the $z$-differential vector in the linear multilateration matrix becomes degenerate ($\Delta z_i = 0$), collapsing rank and causing mathematical unobservability for vertical device coordinates. Introducing diagonal vertical diversity (Front-Left: 0.6m, Front-Right: 1.2m, Rear-Left: 1.2m, Rear-Right: 0.6m) ensures full matrix rank ($3$), enabling precise 3D localization to distinguish whether a user's phone is inside the vehicle cabin ($z \in [0.2, 1.8]\text{ m}$) or on the ground outside.
+2. **Decision**: Multi-Layered Physical Layer & Cryptographic Relay Attack Intercept
+   - *Alternatives Considered*: Pure Bluetooth RSSI thresholds or single-sided challenge-response without Time-of-Flight verification.
+   - *Rationale & Evidence*: RSSI alone is trivially spoofed via high-gain RF amplifiers (relay attacks). Under CCC Digital Key 3.0 and FiRa Consortium standards, distance-bounding requires both cryptographic validation (IEEE 802.15.4z Scrambled Timestamp Sequence, STS) and physical layer Time-of-Flight bounds checking ($|d_{\text{meas}} - c \cdot t_{\text{tof}}| < \epsilon$). By verifying both STS preambles and physical propagation speed, any packet forwarder or amplifier introduces detectable nanosecond delay ($> 2.5\text{ ns}$), triggering an immediate emergency standstill command.
+3. **Decision**: Fail-Safe Interior Confirmation for Autonomous Handover Disengagement
+   - *Alternatives Considered*: Disengaging autonomous mode as soon as the driver is within touch distance ($< 1.5\text{ m}$) outside the car.
+   - *Rationale & Evidence*: Releasing autonomous brakes while the driver is still standing beside the vehicle creates roll-away and crushing hazards. The `HandoverSupervisor` requires two distinct stages: proximity approach enters `TAKEOVER_IN_PROGRESS` (standstill hold), and only when 3D multilateration confirms the authenticated digital key is geometrically situated *inside* the vehicle cabin interior polygon does the system transfer vehicle control to `MANUAL_CONTROL`.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| DigitalKey Config Validation | `uv run pytest tests/unit/test_config.py` | 136 passed |
+| DigitalKey Domain Models & Schemas | `uv run pytest tests/unit/digitalkey/test_digitalkey_models.py` | 7 passed |
+| UWB STS Distance Bounding & Anti-Relay | `uv run pytest tests/unit/digitalkey/test_uwb.py` | 7 passed |
+| 3D Multilateration & AoA Solver | `uv run pytest tests/unit/digitalkey/test_solver.py` | 7 passed |
+| BLE RSSI Estimator & Debounced Zoning | `uv run pytest tests/unit/digitalkey/test_ble.py` | 5 passed |
+| CCC Cryptographic Token Manager | `uv run pytest tests/unit/digitalkey/test_digitalkey_crypto.py` | 7 passed |
+| Handover Supervisor & Safety Interlock | `uv run pytest tests/unit/digitalkey/test_interlock.py` | 6 passed |
+| Tactical Digital Key HUD Visualizer | `uv run pytest tests/unit/digitalkey/test_digitalkey_viz.py` | 3 passed |
+| DigitalKey CLI Command Group | `uv run pytest tests/unit/test_digitalkey_cli.py` | 7 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 37 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1,774 passed, 1 skipped |
+| Code Coverage (DigitalKey modules) | `uv run pytest ... --cov=nearfield360.digitalkey` | 98.41% (exceeds 85% requirement) |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
+| Remote CI Workflow Status | GitHub Actions PR #29 | Parity Verified |
