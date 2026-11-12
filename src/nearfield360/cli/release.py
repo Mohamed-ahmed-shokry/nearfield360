@@ -129,6 +129,7 @@ def _run_checks() -> list[dict[str, Any]]:
         "csms",
         "curbside",
         "data",
+        "dssad",
         "emergency",
         "eval",
         "fleet",

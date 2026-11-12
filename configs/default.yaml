@@ -359,3 +359,12 @@ odd:
   degradation_confirm_frames: 3
   restoration_confirm_frames: 10
   enable_mrm_interlock: true
+dssad:
+  sampling_rate_hz: 50
+  pre_trigger_duration_s: 5.0
+  post_trigger_duration_s: 2.0
+  max_retained_incidents: 20
+  impact_accel_threshold_g: 2.5
+  enable_tamper_proof_chain: true
+  signing_key_salt: "nearfield360-dssad-secret-salt-2026"
+  auto_freeze_on_mrm: true

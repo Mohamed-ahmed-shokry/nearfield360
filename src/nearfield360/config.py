@@ -700,6 +700,21 @@ class ODDConfig(BaseModel):
     enable_mrm_interlock: bool = True
 
 
+class DSSADConfig(BaseModel):
+    """Parameters for UN R157 DSSAD & UN R160 EDR Incident Recording."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    sampling_rate_hz: int = Field(default=50, ge=10, le=200)
+    pre_trigger_duration_s: float = Field(default=5.0, ge=1.0, le=30.0, allow_inf_nan=False)
+    post_trigger_duration_s: float = Field(default=2.0, ge=0.5, le=10.0, allow_inf_nan=False)
+    max_retained_incidents: int = Field(default=20, ge=1, le=100)
+    impact_accel_threshold_g: float = Field(default=2.5, ge=0.5, le=10.0, allow_inf_nan=False)
+    enable_tamper_proof_chain: bool = True
+    signing_key_salt: str = Field(default="nearfield360-dssad-secret-salt-2026", min_length=8)
+    auto_freeze_on_mrm: bool = True
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -752,6 +767,7 @@ class ProjectConfig(BaseSettings):
     csms: CSMSConfig = Field(default_factory=CSMSConfig)
     acoustic: AcousticConfig = Field(default_factory=AcousticConfig)
     odd: ODDConfig = Field(default_factory=ODDConfig)
+    dssad: DSSADConfig = Field(default_factory=DSSADConfig)
 
     @classmethod
     def settings_customise_sources(

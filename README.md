@@ -50,6 +50,7 @@ the corresponding experiments have run.
 | UN R155 / ISO/SAE 21434 Vehicle Cybersecurity Management System (CSMS), In-Vehicle IDS & vSOC Telemetry | Implemented | In-vehicle CAN 2.0/FD intrusion detection (rate flood, replay detection, unauthorized moving UDS diagnostics, Shannon payload entropy fuzzing), automated defensive quarantine filtering, ASIL-D emergency stop interlock, RFC 5424 vSOC telemetry, tactical 1280x720 HUD dashboard (`nearfield360 csms`), and regulatory audit |
 | Automotive acoustic emergency siren detection, multi-microphone DoA triangulation & audio-visual fusion | Implemented | STFT siren spectral classifier (wail/yelp/hi-lo/horn), multichannel planar microphone array GCC-PHAT DoA triangulation (< ±5° azimuth resolution), inter-frame Doppler approach speed estimation, 4-camera sector yield interlock (`FV`, `RV`, `MVL`, `MVR`), tactical 1280x720 acoustic HUD dashboard (`nearfield360 acoustic`), and regulatory compliance audit |
 | ISO 21448 SOTIF / ISO 23374 Dynamic ODD Supervisory Monitor & Safe Fallback | Implemented | Multi-factor environmental monitoring (lux, glare, road friction $\mu$, precipitation, V2X latency, 4-camera lens occlusion), debounced hysteresis state machine, actuation speed governor, ASIL-D MRM fallback interlock, tactical 1280x720 ODD HUD dashboard (`nearfield360 odd`), and SOTIF readiness audit |
+| UN R157 / UN R160 Data Storage System for Automated Driving (DSSAD) & Event Data Recorder (EDR) | Implemented | Continuous >=50Hz telemetry ring buffer (-5.0s / +2.0s pre/post crash slicing), UN R157 event taxonomy, SHA-256 cryptographic hash chaining, crash freeze manager, ISO 14229 UDS DID (0x19ED) export, and tactical 1280x720 forensic HUD visualizer (`nearfield360 dssad`) |
 | Facility operations control tower, coordinated day-run simulation & cross-subsystem KPI aggregation | Implemented | Seeded stochastic arrival demand generator, coordinated day-level simulation orchestrating gate arrivals, slot dispatch, EV charging windows, V2G export and settlement billing, hourly facility snapshots, daily cross-subsystem KPI aggregation, unified tactical dashboard visualizer (`nearfield360 ops`), and release audit verification (28 CLI groups) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
@@ -553,6 +554,8 @@ the default suite remains CPU-only and synthetic. Current CI runs on Linux with 
     Multichannel perimeter microphone array geometry, STFT siren spectral detector and harmonic modulation classifier (`SirenDetector`), pairwise GCC-PHAT cross-correlation with parabolic sub-sample interpolation (`AcousticDoAEstimator`), Doppler shift velocity estimator, camera sector yield interlock (`AcousticExecutive`), tactical 1280x720 acoustic HUD visualizer (`viz.py`), dedicated CLI command group `nearfield360 acoustic` (`info`, `detect`, `doa`, `simulate`, `render`, `audit`), and release audit verification (34 CLI command groups).
 34. ~~ISO 21448 SOTIF / ISO 23374 Dynamic ODD Supervisory Monitor, Environmental Degradation & Safe Fallback Supervisor.~~ Done:
     Multi-factor environmental & sensor envelope metrics evaluation (ambient lux proxy, saturation glare ratio, roadway friction $\mu$, precipitation rate, V2X latency & packet loss, 4-camera lens occlusion & SNR), debounced temporal hysteresis state machine (`ODDStateMachine`), supervisory speed governor and headway scaling, ASIL-D MRM fallback interlock (`ODDSupervisor`), tactical 1280x720 ODD HUD dashboard (`viz.py`), dedicated CLI command group `nearfield360 odd` (`info`, `evaluate`, `simulate`, `render`, `audit`), and release audit verification (35 CLI command groups).
+35. ~~UN R157 / UN R160 Data Storage System for Automated Driving (DSSAD) & Event Data Recorder (EDR) for AVP Incident Forensics.~~ Done:
+    High-frequency circular FIFO telemetry buffering, UN R157 discrete event taxonomy, cryptographic SHA-256 and HMAC audit trail chaining, automatic crash freeze interlock, ISO 14229 UDS DID diagnostic frame export, tactical 1280x720 forensic investigation HUD visualizer (`viz.py`), dedicated CLI command group `nearfield360 dssad` (`info`, `record`, `trigger`, `query`, `verify`, `export`, `render`, `audit`), and release audit verification (36 CLI command groups).
 
 ## Usage: integrated four-camera pipeline and release audit
 
@@ -1407,6 +1410,42 @@ Perform ISO 21448 SOTIF ODD supervisory monitor readiness and safety interlock a
 ```powershell
 uv run nearfield360 odd audit
 uv run nearfield360 odd audit --json --output outputs/odd_audit.json
+```
+
+### UN R157 DSSAD & UN R160 EDR Incident Recording and Regulatory Forensics
+
+Inspect active UN R157 DSSAD and UN R160 EDR parameters:
+
+```powershell
+uv run nearfield360 dssad info
+uv run nearfield360 dssad info --json
+```
+
+Trigger simulated safety incident, freeze pre/post telemetry into incident record, and render HUD dashboard:
+
+```powershell
+uv run nearfield360 dssad trigger --event COLLISION_IMPACT_DETECTED --severity FATAL --delta-v 5.2 --peak-g 3.1 --png outputs/dssad_hud.png --output outputs/dssad_incident.json
+```
+
+Verify cryptographic SHA-256 and HMAC audit trail chain continuity:
+
+```powershell
+uv run nearfield360 dssad verify
+uv run nearfield360 dssad verify --json
+```
+
+Export incident telemetry to ISO 14229 UDS DID (0x19ED) hex frame readout:
+
+```powershell
+uv run nearfield360 dssad export --format uds --json
+uv run nearfield360 dssad export --format csv --output outputs/telemetry.csv
+```
+
+Perform UN R157 & UN R160 regulatory compliance audit:
+
+```powershell
+uv run nearfield360 dssad audit
+uv run nearfield360 dssad audit --json --output outputs/dssad_audit.json
 ```
 
 ## License

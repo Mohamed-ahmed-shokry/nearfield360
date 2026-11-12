@@ -1920,3 +1920,116 @@ Establish an automotive-grade Dynamic Operational Design Domain (ODD) Supervisor
 18. [x] `docs(readme): add dynamic ODD supervisory monitor capability and usage commands`
 19. [x] `docs(progress): record Phase 43 implementation, Decision Log, and quality gates`
 20. [x] `docs(roadmap): mark Phase 43 micro-tasks and acceptance criteria completed`
+
+
+## Phase 44: UN R157 / UN R160 Data Storage System for Automated Driving (DSSAD) & Event Data Recorder (EDR) for AVP Incident Forensics (Roadmap Item 35)
+
+### 1. Objective & Scope
+
+Establish an automotive-grade Data Storage System for Automated Driving (DSSAD) complying with UN Regulation No. 157 and Event Data Recorder (EDR) adhering to UN Regulation No. 160 / 49 CFR Part 563 for NearField360 automated valet parking operations:
+
+- **Continuous High-Frequency EDR Telemetry Sampling & FIFO Circular Ring Buffer**:
+  - High-frequency ($\ge 50\text{ Hz}$) kinematic and chassis state streaming: longitudinal velocity, lateral acceleration, yaw rate, steering angle, accelerator/brake pedal actuation, wheel speeds, gear selection, and 3D vehicle pose $(x, y, z, \text{yaw})$.
+  - Pre-trigger buffer ($5.0\text{ s}$ pre-crash) and post-trigger buffer ($2.0\text{ s}$ post-crash) circular FIFO memory management.
+  - SOTIF ODD state, safety supervisor status, AEB command, and active hazard list synchronization.
+- **UN R157 DSSAD Event Taxonomy & State Transition Logging**:
+  - Discrete event types: `SYSTEM_ACTIVATION`, `SYSTEM_DEACTIVATION`, `DRIVER_TAKEOVER_REQUEST`, `MINIMUM_RISK_MANEUVER_INITIATED`, `EMERGENCY_BRAKING_TRIGGERED`, `ODD_BOUNDARY_BREACH`, `SENSOR_FAILURE_OCCLUSION`, `COLLISION_IMPACT_DETECTED`, `SECURITY_INTRUSION_ALERT`, `ACOUSTIC_SIREN_YIELD`.
+  - Non-volatile event record metadata: monotonic sequence index, ISO 8601 UTC timestamp, nanosecond timestamp, event severity, triggering subsystem, active fault codes (DTCs), and vehicle coordinate pose.
+- **Cryptographic Hash Chaining & Tamper-Proof Audit Trail**:
+  - Each recorded DSSAD / EDR block contains a cryptographically chained SHA-256 hash incorporating the previous block's hash, current payload, and an optional HMAC key (`prev_hash || timestamp || payload || signature`).
+  - Chain verification engine detecting record deletion, reordering, timestamp alteration, or bit corruption.
+- **Crash Freeze & Non-Volatile Memory Emulation**:
+  - Automated freeze trigger upon severe impact (accel threshold $> 2.5\text{ g}$ or direct collision flag or safety supervisor emergency stop), locking the pre/post window into an immutable forensic incident record.
+  - Multi-incident archival storage with overflow protection and regulatory data retention compliance.
+- **Forensic Query, Regulatory Export & ISO 14229 / UDS Diagnostics**:
+  - Filter and query stored incident logs by timestamp range, event type, severity, and incident ID.
+  - Export formats: standardized JSON regulatory report, CSV time-series telemetry table, and hex-encoded UDS DID (Data Identifier) readout frames (e.g., ISO 14229 Service 0x19 / 0x22).
+- **Tactical 1280x720 Forensic HUD Visualizer (`render_dssad_dashboard`)**:
+  - Dark-mode multi-panel diagnostic dashboard displaying:
+    1. Pre/post crash time-series waveform plots (Speed, Steering Angle, Longitudinal & Lateral Accel, Brake Pressure).
+    2. Event sequence timeline with severity-coded badges.
+    3. Cryptographic chain integrity status & hash block verification badge.
+    4. Vehicle state at impact / trigger summary card (pose, ODD state, AEB status, fault codes).
+- **CLI Command Group `nearfield360 dssad`**:
+  - Subcommands: `info`, `record`, `trigger`, `query`, `verify`, `export`, `render`, `audit`.
+- **Root CLI Integration & Release Readiness Audit**:
+  - Register `dssad` command group in `src/nearfield360/cli/app.py`.
+  - Update release audit in `src/nearfield360/cli/release.py` from 35 to 36 verified command groups.
+
+### 2. Architectural Blueprint
+
+- **Configuration (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `DSSADConfig`: Pydantic schema with sampling frequency, pre/post trigger durations, max retained incidents, impact acceleration threshold, tamper-proof hashing flag, and signing key salt.
+- **Domain Models (`src/nearfield360/dssad/models.py`)**:
+  - `DSSADEventType`: Event classifications (activation, MRM, collision, ODD breach, intrusion, siren yield, etc.).
+  - `EventSeverity`: `INFO`, `WARNING`, `CRITICAL`, `FATAL`.
+  - `TelemetrySnapshot`: High-frequency vehicle state (velocity, accel, yaw rate, steering, brake/throttle, pose, ODD state, AEB).
+  - `DSSADEventRecord`: Individual event record with monotonic sequence index, UTC timestamp, trigger source, DTCs, and hash pointer.
+  - `EDRIncidentRecord`: Complete frozen crash record with pre/post telemetry time series, trigger event, and hash chain manifest.
+  - `TamperProofBlock`: Chained cryptographic block with SHA-256 digest and HMAC signature.
+  - `ChainVerificationResult`: Result of chain integrity validation (valid flag, checked count, corrupted index, error message).
+  - `DSSADReport`: Comprehensive forensic archive report.
+- **Circular Ring Buffer & Telemetry Sampler (`src/nearfield360/dssad/buffer.py`)**:
+  - `TelemetryRingBuffer`: High-performance fixed-capacity circular FIFO buffer supporting sub-millisecond telemetry ingestion and pre/post window slicing.
+- **Cryptographic Hash Chainer & Audit Trail (`src/nearfield360/dssad/crypto.py`)**:
+  - `HashChainer`: Computes SHA-256 cumulative block digests with HMAC signatures; verifies unbroken cryptographic sequence.
+- **Crash Freeze Manager & Incident Recorder (`src/nearfield360/dssad/recorder.py`)**:
+  - `DSSADRecorder`: Coordinates telemetry streaming, continuous event evaluation, impact threshold detection, automatic crash freezing, and non-volatile incident persistence.
+- **UDS Diagnostic Exporter & Regulatory Reporter (`src/nearfield360/dssad/exporter.py`)**:
+  - `DSSADExporter`: Exports incident records to ISO 14229 UDS DID frames, CSV time-series tables, and UN R157/R160 compliant JSON packages.
+- **Tactical 1280x720 Forensic HUD Dashboard Visualizer (`src/nearfield360/dssad/viz.py`)**:
+  - `render_dssad_dashboard`: High-resolution dark-mode diagnostic dashboard with telemetry waveforms, event timeline, and chain integrity certification.
+- **CLI Command Group (`src/nearfield360/cli/dssad.py`)**:
+  - `info`, `record`, `trigger`, `query`, `verify`, `export`, `render`, `audit`.
+- **Root App & Release Audit (`src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Registered `dssad` command group; release audit updated to 36 groups.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `DSSADConfig` defined with strict Pydantic bounds and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models for DSSAD events, EDR records, telemetry snapshots, and forensic reports validate and serialize JSON | `uv run pytest tests/unit/dssad/test_dssad_models.py` |
+| AC-3 | High-frequency FIFO circular ring buffer maintains continuous telemetry and slices pre-trigger (-5.0s) and post-trigger (+2.0s) windows accurately | `uv run pytest tests/unit/dssad/test_buffer.py` |
+| AC-4 | Cryptographic SHA-256 hash chaining validates record sequence continuity and detects tampering or bit-flip corruption | `uv run pytest tests/unit/dssad/test_crypto.py` |
+| AC-5 | Crash freeze manager locks incident records upon impact acceleration, ASIL-D MRM, SOTIF ODD breach, or CSMS alerts | `uv run pytest tests/unit/dssad/test_recorder.py` |
+| AC-6 | UDS ISO 14229 diagnostic exporter generates standardized DID readout frames, CSV time-series, and regulatory JSON archives | `uv run pytest tests/unit/dssad/test_exporter.py` |
+| AC-7 | Tactical 1280x720 forensic HUD visualizer renders synchronized pre/post crash telemetry waveforms, event timeline, and chain integrity badge to valid PNG | `uv run pytest tests/unit/dssad/test_dssad_viz.py` |
+| AC-8 | Dedicated CLI group `nearfield360 dssad` executes `info`, `record`, `trigger`, `query`, `verify`, `export`, `render`, and `audit` | `uv run pytest tests/unit/test_dssad_cli.py` |
+| AC-9 | Root CLI registers `dssad` command group, passing release audit with 36 groups | `uv run nearfield360 release audit` |
+| AC-10 | All local CI-parity checks and remote CI workflow runs pass 100% | `pre-commit`, `pytest`, `build` |
+
+### 4. Validation & CI Plan
+
+1. Local checks: `uv lock --check`, `uv run pre-commit run --all-files`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing`, `uv build`, `uv run twine check dist/*`.
+2. End-to-end CLI execution: `nearfield360 dssad trigger --event COLLISION_IMPACT_DETECTED --png artifacts/dssad_dashboard.png --output artifacts/dssad_incident.json`.
+
+### 5. Exclusions
+
+- High-G physical pyro-switch fuse actuation for lithium battery physical pyrotechnic disconnect.
+- Mil-spec radiation-hardened EEPROM physical silicon controller drivers.
+
+### 6. Micro-Task Breakdown
+
+1. [x] `docs(roadmap): define Phase 44 UN R157 DSSAD and UN R160 EDR incident forensics scope`
+2. [x] `feat(config): add DSSADConfig schema and default recording parameters`
+3. [x] `test(config): verify DSSADConfig defaults, validation bounds, and environment overrides`
+4. [x] `feat(dssad): implement DSSAD and EDR domain models, event taxonomy, and telemetry schemas`
+5. [x] `test(dssad): verify DSSAD domain models serialization, validation, and JSON schema integrity`
+6. [x] `feat(dssad): implement continuous circular ring buffer with pre/post trigger window slicing`
+7. [x] `test(dssad): verify circular ring buffer capacity, FIFO rollover, and pre/post trigger window extraction`
+8. [x] `feat(dssad): implement cryptographic SHA-256 hash chaining and tamper-evident audit trail engine`
+9. [x] `test(dssad): verify cryptographic chain integrity, tamper detection, and hash validation`
+10. [x] `feat(dssad): implement crash freeze manager and incident recorder with multi-source trigger interlocks`
+11. [x] `test(dssad): verify crash freeze manager, trigger dispatch, and non-volatile incident persistence`
+12. [x] `feat(dssad): implement UDS ISO 14229 diagnostic service exporter and regulatory report generator`
+13. [x] `test(dssad): verify UDS diagnostic readouts, CSV telemetry, and regulatory JSON exports`
+14. [x] `feat(dssad): implement tactical 1280x720 forensic HUD visualizer (render_dssad_dashboard)`
+15. [x] `test(dssad): verify forensic visualizer renders valid 1280x720 PNG artifacts with telemetry waveforms`
+16. [x] `feat(dssad): export public DSSAD API from package init`
+17. [x] `feat(cli): implement nearfield360 dssad command group (info, record, trigger, query, verify, export, render, audit)`
+18. [x] `feat(cli): register dssad command group and update release audit expected count to 36`
+19. [x] `test(cli): verify dssad CLI command group execution, subcommands, and exit codes`
+20. [x] `docs(readme): add DSSAD & EDR regulatory forensics capability and usage commands`
+21. [x] `docs(progress): record Phase 44 implementation, Decision Log, and quality gates`
+22. [x] `docs(roadmap): mark Phase 44 micro-tasks and acceptance criteria completed`

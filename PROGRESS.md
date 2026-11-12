@@ -3400,3 +3400,114 @@ Phase 43 establishes an automotive-grade Dynamic Operational Design Domain (ODD)
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
 | Remote CI Workflow Status | GitHub Actions PR #27 | Continuous Parity |
+
+
+---
+
+## Phase 44: UN R157 / UN R160 Data Storage System for Automated Driving (DSSAD) & Event Data Recorder (EDR) for AVP Incident Forensics
+
+**Status:** Completed
+**Repository Branch:** `phase/dssad-edr-incident-forensics`
+**Test Suite:** 1,732 passed, 1 skipped (0 failures)
+**Type Checking:** `mypy --strict` clean (0 errors)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** >96% across DSSAD modules (exceeds required 85.0% threshold)
+**CLI Command Groups:** 36 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 44 establishes an automotive-grade Data Storage System for Automated Driving (DSSAD) complying with UN Regulation No. 157 and Event Data Recorder (EDR) adhering to UN Regulation No. 160 / 49 CFR Part 563 for NearField360 automated valet parking operations:
+
+1. **Continuous High-Frequency EDR Telemetry Sampling & FIFO Circular Ring Buffer**:
+   - `DSSADConfig` specifying sampling frequency ($50\text{ Hz}$), pre-trigger duration ($5.0\text{ s}$), post-trigger duration ($2.0\text{ s}$), max retained incidents ($20$), impact acceleration threshold ($2.5\text{ g}$), and cryptographic signing salt.
+   - Fixed-capacity circular FIFO ring buffer (`TelemetryRingBuffer`) supporting microsecond-precision temporal slicing without persistent storage write fatigue.
+2. **Domain Models & Event Taxonomy (`nearfield360.dssad.models`)**:
+   - `DSSADEventType`: UN R157 discrete event taxonomy (`SYSTEM_ACTIVATION`, `SYSTEM_DEACTIVATION`, `DRIVER_TAKEOVER_REQUEST`, `MANUAL_OVERRIDE`, `MINIMUM_RISK_MANEUVER_INITIATED`, `EMERGENCY_BRAKING_TRIGGERED`, `ODD_BOUNDARY_BREACH`, `SENSOR_FAILURE_OCCLUSION`, `COLLISION_IMPACT_DETECTED`, `SECURITY_INTRUSION_ALERT`, `ACOUSTIC_SIREN_YIELD`, `WATCHDOG_HEARTBEAT_TIMEOUT`).
+   - `EventSeverity`: Regulatory classifications (`INFO`, `WARNING`, `CRITICAL`, `FATAL`).
+   - `TelemetrySnapshot`: Synchronized vehicle kinematics (speed, longitudinal/lateral acceleration, yaw rate, steering angle, brake pressure, throttle, gear, coordinate pose, ODD state, AEB status, DTCs).
+   - `TamperProofBlock`, `DSSADEventRecord`, `EDRIncidentRecord`, `ChainVerificationResult`, `DSSADReport`.
+3. **Cryptographic SHA-256 Hash Chaining & HMAC Audit Trail (`HashChainer`)**:
+   - Strict SHA-256 block digest chaining linking every event to its predecessor (`sequence_id:prev_hash:timestamp_ns:payload_digest`).
+   - Keyed HMAC-SHA256 authentication preventing unauthorized log manipulation or insertion.
+   - Comprehensive chain verification engine detecting sequence gaps, reordering, modified preimages, or broken parent hashes.
+4. **Crash Freeze Manager & Multi-Source Trigger Interlocks (`DSSADRecorder`)**:
+   - Automated impact acceleration threshold detection ($\ge 2.5\text{ g}$) triggering immediate freeze.
+   - Safety supervisor ASIL-D MRM interlock triggering automatic incident capture upon SOTIF ODD boundary breach and emergency braking.
+   - Non-volatile memory emulation with FIFO incident retention and write-once locking.
+5. **UDS ISO 14229 Diagnostic Exporter & Regulatory Report Generator (`DSSADExporter`)**:
+   - ISO 14229 Service 0x22 (ReadDataByIdentifier) response frame encoder (`0x62 0x19 0xED ...`).
+   - High-resolution CSV telemetry time-series exporter.
+   - Standardized UN R157 / UN R160 JSON forensic package generator.
+6. **Tactical 1280x720 Forensic HUD Dashboard Visualizer (`render_dssad_dashboard`)**:
+   - 4-panel diagnostic visualizer: Synchronized Pre/Post-Crash Waveforms (Speed, Long/Lat Accel, Brake Pressure), Discrete Event Timeline, Incident Impact Metrics & Chassis Telemetry Card, and Cryptographic Audit & UDS Readout Card.
+7. **CLI Integration & Release Audit**:
+   - Dedicated CLI command group `nearfield360 dssad` (`info`, `record`, `trigger`, `query`, `verify`, `export`, `render`, `audit`).
+   - Root application registration in `src/nearfield360/cli/app.py` and release audit expanded to 36 verified command groups in `src/nearfield360/cli/release.py`.
+
+---
+
+### 2. Delivered Components & Architecture
+
+- **DSSAD Configuration Schema (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `sampling_rate_hz`: 50 Hz.
+  - `pre_trigger_duration_s`: 5.0 s.
+  - `post_trigger_duration_s`: 2.0 s.
+  - `max_retained_incidents`: 20.
+  - `impact_accel_threshold_g`: 2.5 g.
+  - `enable_tamper_proof_chain`: True.
+  - `signing_key_salt`: "nearfield360-dssad-secret-salt-2026".
+  - `auto_freeze_on_mrm`: True.
+- **Domain Models (`src/nearfield360/dssad/models.py`)**:
+  - `DSSADEventType`, `EventSeverity`, `event_severity_rank`, `TelemetrySnapshot`, `TamperProofBlock`, `DSSADEventRecord`, `EDRIncidentRecord`, `ChainVerificationResult`, `DSSADReport`.
+- **Circular FIFO Telemetry Buffer (`src/nearfield360/dssad/buffer.py`)**:
+  - `TelemetryRingBuffer`: Continuous streaming buffer with bounded capacity and pre/post crash window slicing.
+- **Cryptographic Hash Chainer (`src/nearfield360/dssad/crypto.py`)**:
+  - `HashChainer`: SHA-256 cumulative block digests with HMAC signatures and sequence verification.
+- **Crash Freeze Manager & Recorder (`src/nearfield360/dssad/recorder.py`)**:
+  - `DSSADRecorder`: Impact detection, MRM trigger coupling, incident memory locking, and query filtering.
+- **UDS Diagnostic Exporter (`src/nearfield360/dssad/exporter.py`)**:
+  - `DSSADExporter`: ISO 14229 DID frame packing, CSV time-series tables, and JSON report generation.
+- **Tactical 1280x720 Forensic HUD Visualizer (`src/nearfield360/dssad/viz.py`)**:
+  - `render_dssad_dashboard`: Dark-mode HUD generating telemetry waveforms, event timeline, impact metrics, and UDS frames.
+- **CLI Command Group & Release Audit (`src/nearfield360/cli/dssad.py`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Subcommands: `info`, `record`, `trigger`, `query`, `verify`, `export`, `render`, `audit`.
+  - Registered `dssad` command group and expanded release audit check to verify 36 command groups.
+
+---
+
+### 3. Key Findings & Autonomous Decision Log
+
+1. **Decision**: In-Memory FIFO Circular Ring Buffer with Conditional Flash Freezing
+   - *Alternatives Considered*: Direct continuous logging to disk file or SQLite database.
+   - *Rationale & Evidence*: High-frequency ($\ge 50\text{ Hz}$) continuous telemetry logging directly to persistent flash memory creates significant I/O latency spikes and causes premature flash storage degradation (write fatigue) in automotive ECUs. An in-memory fixed-capacity ring buffer maintains strictly bounded $O(1)$ sample appending while preserving sub-millisecond pre-crash telemetry (-5.0s). Only upon an impact threshold breach or safety MRM trigger is the window locked and frozen into persistent memory.
+2. **Decision**: Cryptographic SHA-256 Hash Chaining with Keyed HMAC Signatures
+   - *Alternatives Considered*: Standard CSV logs with an MD5 file checksum.
+   - *Rationale & Evidence*: Under UN R157 §5.5 and judicial accident reconstruction guidelines, event records must provide non-repudiation and tamper evidence. Chaining each block preimage ($i : H_{i-1} : t_i : \text{digest}(P_i)$) and signing each block via HMAC guarantees that any unauthorized deletion of intermediary events, record reordering, or bit corruption is immediately identified by the verification engine.
+3. **Decision**: Standardized ISO 14229 UDS DID Diagnostic Readout Format
+   - *Alternatives Considered*: Proprietary binary format or human-readable text dump only.
+   - *Rationale & Evidence*: Automotive service technicians, fleet control towers, and regulatory authorities require compatibility with standard dealership and workshop scan tools (CAN / DoIP). By providing Service 0x22 ReadDataByIdentifier packing (DID `0x19ED`) returning positive response `0x62 0x19 0xED ...` with packed Delta-V, Peak Accel, and cryptographic root hashes, the system integrates seamlessly into automotive maintenance infrastructure while preserving raw CSV/JSON telemetry for deep forensic analysis.
+
+---
+
+### 4. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| DSSAD Config Validation | `uv run pytest tests/unit/test_config.py` | 131 passed |
+| DSSAD Domain Models & Schemas | `uv run pytest tests/unit/dssad/test_dssad_models.py` | 5 passed |
+| Telemetry Ring Buffer Slicing | `uv run pytest tests/unit/dssad/test_buffer.py` | 5 passed |
+| Cryptographic Hash Chainer & Audit | `uv run pytest tests/unit/dssad/test_crypto.py` | 7 passed |
+| Crash Freeze Manager & Interlocks | `uv run pytest tests/unit/dssad/test_recorder.py` | 6 passed |
+| UDS Exporter & CSV Telemetry | `uv run pytest tests/unit/dssad/test_exporter.py` | 3 passed |
+| Tactical Forensic HUD Visualizer | `uv run pytest tests/unit/dssad/test_dssad_viz.py` | 2 passed |
+| DSSAD CLI Command Group | `uv run pytest tests/unit/test_dssad_cli.py` | 9 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 36 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --all-files` | 100% Passed |
+| Full Test Suite | `uv run pytest -q` | 1,732 passed, 1 skipped |
+| Code Coverage (DSSAD modules) | `uv run pytest ... --cov=nearfield360.dssad` | >96% (exceeds 85% requirement) |
+| Ruff Linting & Formatting | `uv run ruff check .` / `uv run ruff format --check .` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
+| Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
+| Remote CI Workflow Status | GitHub Actions PR #28 | Parity Verified |
