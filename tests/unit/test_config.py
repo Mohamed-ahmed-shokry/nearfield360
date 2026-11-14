@@ -1578,3 +1578,57 @@ def test_wpt_config_rejects_invalid_lateral_offset(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match=r"greater than or equal to 20(\.0)?"):
         load_config(config_path)
+
+
+def test_default_inspection_config() -> None:
+    config = load_config()
+    assert config.inspection.scratch_severity_threshold == 0.35
+    assert config.inspection.dent_depth_threshold_mm == 2.0
+    assert config.inspection.min_legal_tread_depth_mm == 1.6
+    assert config.inspection.recommended_tread_depth_mm == 3.0
+    assert config.inspection.nominal_cold_pressure_bar == 2.4
+    assert config.inspection.pressure_deviation_tolerance_bar == 0.25
+    assert config.inspection.glass_crack_length_threshold_mm == 15.0
+    assert config.inspection.enable_cryptographic_certificate is True
+    assert config.inspection.certificate_signing_salt == "nearfield360-avp-liability-salt-2026"
+
+
+def test_inspection_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "inspection:\n  scratch_severity_threshold: 0.50\n  dent_depth_threshold_mm: 3.5\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_INSPECTION__MIN_LEGAL_TREAD_DEPTH_MM", "2.0")
+    monkeypatch.setenv("NEARFIELD360_INSPECTION__ENABLE_CRYPTOGRAPHIC_CERTIFICATE", "false")
+
+    config = load_config(config_path)
+
+    assert config.inspection.scratch_severity_threshold == 0.50
+    assert config.inspection.dent_depth_threshold_mm == 3.5
+    assert config.inspection.min_legal_tread_depth_mm == 2.0
+    assert config.inspection.enable_cryptographic_certificate is False
+
+
+def test_inspection_config_rejects_invalid_scratch_threshold(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("inspection:\n  scratch_severity_threshold: 0.99\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"less than or equal to 0\.9"):
+        load_config(config_path)
+
+
+def test_inspection_config_rejects_invalid_tread_depth(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("inspection:\n  min_legal_tread_depth_mm: 0.5\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"greater than or equal to 1(\.0)?"):
+        load_config(config_path)
+
+
+def test_inspection_config_rejects_invalid_pressure(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("inspection:\n  nominal_cold_pressure_bar: 5.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"less than or equal to 3\.5"):
+        load_config(config_path)
