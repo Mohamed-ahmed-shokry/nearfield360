@@ -380,3 +380,15 @@ digitalkey:
   session_salt: "nearfield360-ccc-digitalkey-salt-2026"
   enable_standstill_interlock: true
   num_uwb_anchors: 4
+wpt:
+  nominal_frequency_khz: 85.0
+  max_power_kw: 11.0
+  max_lateral_offset_mm: 75.0
+  max_longitudinal_offset_mm: 100.0
+  max_heading_error_deg: 3.0
+  target_air_gap_mm: 170.0
+  fod_q_drop_threshold_percent: 15.0
+  fod_freq_shift_threshold_khz: 1.5
+  inching_speed_mps: 0.08
+  docked_radius_threshold_mm: 30.0
+  enable_emergency_shutoff: true

@@ -52,6 +52,7 @@ the corresponding experiments have run.
 | ISO 21448 SOTIF / ISO 23374 Dynamic ODD Supervisory Monitor & Safe Fallback | Implemented | Multi-factor environmental monitoring (lux, glare, road friction $\mu$, precipitation, V2X latency, 4-camera lens occlusion), debounced hysteresis state machine, actuation speed governor, ASIL-D MRM fallback interlock, tactical 1280x720 ODD HUD dashboard (`nearfield360 odd`), and SOTIF readiness audit |
 | UN R157 / UN R160 Data Storage System for Automated Driving (DSSAD) & Event Data Recorder (EDR) | Implemented | Continuous >=50Hz telemetry ring buffer (-5.0s / +2.0s pre/post crash slicing), UN R157 event taxonomy, SHA-256 cryptographic hash chaining, crash freeze manager, ISO 14229 UDS DID (0x19ED) export, and tactical 1280x720 forensic HUD visualizer (`nearfield360 dssad`) |
 | Facility operations control tower, coordinated day-run simulation & cross-subsystem KPI aggregation | Implemented | Seeded stochastic arrival demand generator, coordinated day-level simulation orchestrating gate arrivals, slot dispatch, EV charging windows, V2G export and settlement billing, hourly facility snapshots, daily cross-subsystem KPI aggregation, unified tactical dashboard visualizer (`nearfield360 ops`), and release audit verification (28 CLI groups) |
+| SAE J2954 Wireless Power Transfer (WPT), High-Precision Magnetic Alignment & Inductive Docking | Implemented | SAE J2954 / ISO 19363 inductive charging, 85 kHz resonant beacon 3D offset estimation, Foreign Object Detection (FOD) with Q-factor detuning, closed-loop creeping Ackermann inching controller, WPT1-WPT4 power governor, tactical 1280x720 HUD visualizer (`nearfield360 wpt`), and regulatory audit |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -1504,6 +1505,59 @@ Perform CCC Digital Key & UWB ranging subsystem self-diagnostic audit:
 ```powershell
 uv run nearfield360 digitalkey audit
 uv run nearfield360 digitalkey audit --json --output outputs/digitalkey_audit.json
+```
+
+### SAE J2954 Wireless Power Transfer (WPT) & Autonomous Inductive Docking
+
+Inspect active SAE J2954 wireless power transfer configuration and alignment tolerances:
+
+```powershell
+uv run nearfield360 wpt info
+uv run nearfield360 wpt info --json
+```
+
+Probe primary (GA) to secondary (VA) low-power magnetic resonance link at 85.0 kHz:
+
+```powershell
+uv run nearfield360 wpt ping --freq 85.0
+```
+
+Estimate 3D coil offset, radial misalignment, and SAE J2954 tolerance classification:
+
+```powershell
+uv run nearfield360 wpt align --dx 20.0 --dy 15.0 --dz 170.0 --dtheta 0.5
+```
+
+Evaluate circuit resonant detuning, Foreign Object Detection (FOD), and Living Object Detection (LOD):
+
+```powershell
+uv run nearfield360 wpt fod --freq 85.2 --q 275.0
+uv run nearfield360 wpt fod --freq 87.5 --q 180.0 --json
+```
+
+Simulate closed-loop autonomous inching docking maneuver to center vehicle coil with ground pad:
+
+```powershell
+uv run nearfield360 wpt dock --init-x 0.20 --init-y 0.04 --init-theta 1.5
+```
+
+Evaluate mutual coupling coefficient $k$, DC-to-DC transfer efficiency, and power governor output:
+
+```powershell
+uv run nearfield360 wpt efficiency --dr 15.0 --dz 170.0 --class WPT3
+```
+
+Render tactical 1280x720 HUD dashboard PNG artifact visualizing magnetic resonance and alignment:
+
+```powershell
+uv run nearfield360 wpt render --output outputs/wpt_dashboard.png
+```
+
+Execute regulatory self-diagnostic safety and compliance audit against SAE J2954:
+
+```powershell
+uv run nearfield360 wpt audit
+uv run nearfield360 wpt audit --json --output outputs/wpt_audit.json
 ```
 
 ## License

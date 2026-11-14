@@ -1521,3 +1521,60 @@ def test_digitalkey_config_rejects_short_salt(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="at least 8 characters"):
         load_config(config_path)
+
+
+def test_load_config_uses_wpt_defaults() -> None:
+    config = load_config()
+
+    assert config.wpt.nominal_frequency_khz == 85.0
+    assert config.wpt.max_power_kw == 11.0
+    assert config.wpt.max_lateral_offset_mm == 75.0
+    assert config.wpt.max_longitudinal_offset_mm == 100.0
+    assert config.wpt.max_heading_error_deg == 3.0
+    assert config.wpt.target_air_gap_mm == 170.0
+    assert config.wpt.fod_q_drop_threshold_percent == 15.0
+    assert config.wpt.fod_freq_shift_threshold_khz == 1.5
+    assert config.wpt.inching_speed_mps == 0.08
+    assert config.wpt.docked_radius_threshold_mm == 30.0
+    assert config.wpt.enable_emergency_shutoff is True
+
+
+def test_wpt_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "wpt:\n  nominal_frequency_khz: 86.5\n  max_power_kw: 22.0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_WPT__MAX_LATERAL_OFFSET_MM", "80.0")
+    monkeypatch.setenv("NEARFIELD360_WPT__ENABLE_EMERGENCY_SHUTOFF", "false")
+
+    config = load_config(config_path)
+
+    assert config.wpt.nominal_frequency_khz == 86.5
+    assert config.wpt.max_power_kw == 22.0
+    assert config.wpt.max_lateral_offset_mm == 80.0
+    assert config.wpt.enable_emergency_shutoff is False
+
+
+def test_wpt_config_rejects_invalid_frequency(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("wpt:\n  nominal_frequency_khz: 75.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"greater than or equal to 81\.38"):
+        load_config(config_path)
+
+
+def test_wpt_config_rejects_invalid_power(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("wpt:\n  max_power_kw: 0.5\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="greater than 1"):
+        load_config(config_path)
+
+
+def test_wpt_config_rejects_invalid_lateral_offset(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("wpt:\n  max_lateral_offset_mm: 5.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"greater than or equal to 20(\.0)?"):
+        load_config(config_path)

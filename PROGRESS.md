@@ -3629,3 +3629,83 @@ Phase 45 establishes an automotive-grade Car Connectivity Consortium (CCC) Digit
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
 | Package Build & Twine Smoke Test | `uv build; uv run twine check dist/*` | Success |
 | Remote CI Workflow Status | GitHub Actions PR #29 | Parity Verified |
+
+
+## Phase 46: SAE J2954 Wireless Power Transfer (WPT), High-Precision Magnetic Alignment & Autonomous Inductive Docking
+
+**Status:** Completed
+**Repository Branch:** `phase/sae-j2954-wpt-inductive-docking`
+**Test Suite:** 34 passed (0 failures, 100.00% coverage on `nearfield360.wpt`)
+**Type Checking:** `mypy --strict` clean (0 errors)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 100.00% across WPT modules (exceeds required 85.0% threshold)
+**CLI Command Groups:** 38 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 46 delivers an automotive-grade SAE J2954 / ISO 19363 Wireless Power Transfer (WPT), high-precision magnetic resonance alignment, circuit detuning-based Foreign Object Detection (FOD) / Living Object Detection (LOD), closed-loop creeping Ackermann inching controller, and tactical HUD visualization subsystem for NearField360:
+
+1. **SAE J2954 Configuration & Tolerance Envelopes (`nearfield360.config`, `configs/default.yaml`)**:
+   - Nominal resonant frequency $f_0 = 85.0\text{ kHz}$ within the standardized $81.38 - 90.00\text{ kHz}$ band.
+   - WPT power classes: WPT1 (3.7 kW), WPT2 (7.7 kW), WPT3 (11.0 kW), and WPT4 (22.0 kW).
+   - SAE J2954 vertical Z-classes: Z1 ($100 - 150\text{ mm}$), Z2 ($140 - 210\text{ mm}$), and Z3 ($170 - 250\text{ mm}$).
+   - Lateral alignment limit $|\Delta y| \le 75\text{ mm}$, longitudinal limit $|\Delta x| \le 100\text{ mm}$, heading tolerance $|\Delta \theta| \le 3.0^\circ$.
+   - Docked radius threshold $\Delta r \le 30.0\text{ mm}$ and creeping speed governor $v \le 0.08\text{ m/s}$.
+2. **Domain Models & Validation Schemas (`nearfield360.wpt.models`)**:
+   - `CoilGeometry`, `CoilOffset3D`, `FODStatus`, `WPTEfficiencyReport`, `WPTDockingStep`, `WPTReport`.
+   - Complete state enums: `WPTPowerClass`, `WPTZClass`, `WPTAlignmentStatus`, `WPTInterlockState`.
+3. **Magnetic Beacon Differential Sensing & 3D Offset Estimator (`nearfield360.wpt.beacon`)**:
+   - 4-quadrant pick-up coil differential voltage processing ($V_{\text{front}}, V_{\text{rear}}, V_{\text{left}}, V_{\text{right}}, V_{\text{heading}}$).
+   - Inverse cubic magnetic dipole relation normalized to nominal air gap for 3D coordinate and heading resolution.
+4. **Resonant Detuning FOD & Living Object LOD Engine (`nearfield360.wpt.fod`)**:
+   - Eddy current dissipation detection measuring quality factor drop ($\Delta Q \ge 15.0\%$) and resonant frequency shift ($\Delta f_0 \ge 1.5\text{ kHz}$).
+   - Fast fail-safe interlock state transitions (`NORMAL`, `FOD_FAULT`, `LOD_FAULT`, `EMERGENCY_SHUTDOWN`) with instantaneous power shutoff commands.
+5. **Coupling Coefficient $k$ & Electrical Efficiency Model (`nearfield360.wpt.efficiency`)**:
+   - Mutual coupling decay function $k(\Delta r, \Delta z) = k_0 \cdot \exp(-0.5 (\Delta r / \sigma_r)^2) \cdot (z_0 / \Delta z)^{1.8}$.
+   - End-to-end DC-to-DC transfer efficiency $\eta = \frac{k^2 Q^2}{(1 + \sqrt{1 + k^2 Q^2})^2} \cdot \eta_{\text{inverter}}$, exceeding $85\%$ within alignment envelope.
+   - Power governor throttling power smoothly on misalignment and clamping strictly to $0\text{ kW}$ on interlock trip.
+6. **Closed-Loop Micro-Docking Inching Controller (`nearfield360.wpt.controller`)**:
+   - Creeping bicycle kinematic model with steered front-axle course angle kinematics.
+   - Proportional-derivative Ackermann steering trim $\Delta \delta = -K_p \cdot \Delta y - K_d \cdot \Delta \theta$.
+   - Smooth deceleration tapering down to $0\text{ m/s}$ as vehicle centers within $\le 30\text{ mm}$ radius.
+7. **Tactical 1280x720 HUD Dashboard Visualizer (`nearfield360.wpt.viz`)**:
+   - 4-panel diagnostic visualizer: Top-Down Magnetic Alignment View with SAE J2954 Tolerance Box, Electrical Transfer Efficiency & Power Governor Gauge, Foreign Object Detection & Safety Interlock Card, and Autonomous Docking Inching Trajectory Telemetry.
+8. **CLI Command Group & Release Audit (`nearfield360.cli.wpt`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+   - Subcommands: `info`, `ping`, `align`, `fod`, `dock`, `efficiency`, `render`, `audit`.
+   - Root application registration in `src/nearfield360/cli/app.py` and release audit expanded to 38 verified command groups in `src/nearfield360/cli/release.py`.
+
+---
+
+### 2. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Secondary Pick-Up Coil Situated on Steered Front Axle in Kinematic Bicycle Model
+   - *Alternatives Considered*: Standard rear-axle reference kinematics without course angle steering inclination.
+   - *Rationale & Evidence*: In low-speed creeping mode ($v \le 0.08\text{ m/s}$), vehicle yaw rate $\omega = \frac{v}{L} \tan\delta$ changes heading very slowly ($\approx 0.8^\circ/\text{s}$). If the secondary coil is modeled at the rear axle, lateral correction across a short $0.20\text{ m}$ approach distance has insufficient authority to null a $40\text{ mm}$ lateral offset. Positioning the secondary coil on the steered front suspension structure means its instantaneous course angle is $\theta + \delta$, providing direct lateral displacement authority $v_{\text{lat}} = v \sin(\theta + \delta)$ to achieve millimeter-level centering ($< 30\text{ mm}$) within 125 control cycles.
+2. **Decision**: Multi-Factor Resonant Detuning for Metallic Foreign Object Detection (FOD)
+   - *Alternatives Considered*: Pure thermal imaging or camera-only surface inspection.
+   - *Rationale & Evidence*: Optical sensors are vulnerable to grease, dirt, darkness, and blind spots beneath the vehicle chassis. Metallic objects (coins, aluminum foil, soda cans) dissipate eddy currents in the $85\text{ kHz}$ alternating magnetic field, directly lowering the resonant tank circuit quality factor ($\Delta Q \ge 15\%$) or shifting the resonant peak ($\Delta f_0 \ge 1.5\text{ kHz}$). Tripping `WPTInterlockState.FOD_FAULT` from high-speed electrical sensor telemetry ensures $< 50\text{ ms}$ power shutdown before foreign objects reach hazardous temperatures.
+3. **Decision**: Graduated Power Governor Throttling Within Tolerance Box
+   - *Alternatives Considered*: Binary power transfer (100% full rated power anywhere inside the tolerance box, 0% outside).
+   - *Rationale & Evidence*: While SAE J2954 allows magnetic charging throughout the $\pm 100\text{ mm} \times \pm 75\text{ mm}$ envelope, operating at full 11 kW when lateral or longitudinal offset is near the tolerance boundary elevates magnetic fringing fields and thermal dissipation losses. The `WPTEfficiencyModel` implements graduated power scaling: full rated power (11 kW) is delivered when docked ($\le 30\text{ mm}$), while marginal positions within tolerance scale smoothly down to $50\%$ rated power, and out-of-tolerance probing is restricted to a $0.5\text{ kW}$ beacon.
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| WPT Config Validation | `uv run pytest tests/unit/test_config.py` | 136 passed |
+| WPT Domain Models & Schemas | `uv run pytest tests/unit/wpt/test_wpt_models.py` | 6 passed |
+| Magnetic Beacon Differential Estimator | `uv run pytest tests/unit/wpt/test_beacon.py` | 3 passed |
+| Resonant Detuning FOD & Living Object Detection | `uv run pytest tests/unit/wpt/test_fod.py` | 5 passed |
+| Coupling Factor k & Efficiency Model | `uv run pytest tests/unit/wpt/test_efficiency.py` | 5 passed |
+| Micro-Docking Inching Controller | `uv run pytest tests/unit/wpt/test_controller.py` | 4 passed |
+| Tactical 1280x720 WPT HUD Visualizer | `uv run pytest tests/unit/wpt/test_wpt_viz.py` | 3 passed |
+| WPT CLI Command Group | `uv run pytest tests/unit/test_wpt_cli.py` | 8 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 38 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --files ...` | 100% Passed |
+| Code Coverage (`nearfield360.wpt`) | `uv run pytest --cov=nearfield360.wpt` | 100.00% (exceeds 85% requirement) |
+| Ruff Linting & Formatting | `uv run ruff check` / `uv run ruff format` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
