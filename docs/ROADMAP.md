@@ -2245,25 +2245,25 @@ Establish an automotive-grade SAE J2954 Wireless Power Transfer (WPT) subsystem 
 
 ### 6. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 46 SAE J2954 WPT and autonomous inductive docking scope`
-2. [ ] `feat(config): add WPTConfig schema and default inductive charging parameters`
-3. [ ] `test(config): verify WPTConfig defaults, validation bounds, and environment overrides`
-4. [ ] `feat(wpt): implement SAE J2954 WPT domain models, power classes, and alignment schemas`
-5. [ ] `test(wpt): verify WPT domain models validation, serialization, and JSON schema integrity`
-6. [ ] `feat(wpt): implement magnetic beacon differential sensing and coil offset estimator`
-7. [ ] `test(wpt): verify magnetic coil differential sensing and relative offset estimation`
-8. [ ] `feat(wpt): implement resonant frequency detuning FOD and living object detection LOD engine`
-9. [ ] `test(wpt): verify FOD metal detuning, Q-factor degradation, and LOD interlock tripping`
-10. [ ] `feat(wpt): implement coil coupling factor k and electrical transfer efficiency model`
-11. [ ] `test(wpt): verify coupling factor calculation, efficiency curves, and power throttling`
-12. [ ] `feat(wpt): implement closed-loop autonomous micro-docking inching controller`
-13. [ ] `test(wpt): verify micro-docking inching controller, Ackermann steering corrections, and docking success`
-14. [ ] `feat(wpt): implement tactical 1280x720 WPT HUD visualizer (render_wpt_dashboard)`
-15. [ ] `test(wpt): verify tactical WPT visualizer renders valid 1280x720 PNG artifacts`
-16. [ ] `feat(wpt): export public WPT API from package init`
-17. [ ] `feat(cli): implement nearfield360 wpt command group (info, ping, align, fod, dock, efficiency, render, audit)`
-18. [ ] `feat(cli): register wpt command group and update release audit expected count to 38`
-19. [ ] `test(cli): verify wpt CLI command group execution, subcommands, and exit codes`
-20. [ ] `docs(readme): add SAE J2954 WPT inductive docking capability and usage commands`
-21. [ ] `docs(progress): record Phase 46 implementation, Decision Log, and quality gates`
-22. [ ] `docs(roadmap): mark Phase 46 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 46 SAE J2954 WPT and autonomous inductive docking scope`
+2. [x] `feat(config): add WPTConfig schema and default inductive charging parameters`
+3. [x] `test(config): verify WPTConfig defaults, validation bounds, and environment overrides`
+4. [x] `feat(wpt): implement SAE J2954 WPT domain models, power classes, and alignment schemas`
+5. [x] `test(wpt): verify WPT domain models validation, serialization, and JSON schema integrity`
+6. [x] `feat(wpt): implement magnetic beacon differential sensing and coil offset estimator`
+7. [x] `test(wpt): verify magnetic coil differential sensing and relative offset estimation`
+8. [x] `feat(wpt): implement resonant frequency detuning FOD and living object detection LOD engine`
+9. [x] `test(wpt): verify FOD metal detuning, Q-factor degradation, and LOD interlock tripping`
+10. [x] `feat(wpt): implement coil coupling factor k and electrical transfer efficiency model`
+11. [x] `test(wpt): verify coupling factor calculation, efficiency curves, and power throttling`
+12. [x] `feat(wpt): implement closed-loop autonomous micro-docking inching controller`
+13. [x] `test(wpt): verify micro-docking inching controller, Ackermann steering corrections, and docking success`
+14. [x] `feat(wpt): implement tactical 1280x720 WPT HUD visualizer (render_wpt_dashboard)`
+15. [x] `test(wpt): verify tactical WPT visualizer renders valid 1280x720 PNG artifacts`
+16. [x] `feat(wpt): export public WPT API from package init`
+17. [x] `feat(cli): implement nearfield360 wpt command group (info, ping, align, fod, dock, efficiency, render, audit)`
+18. [x] `feat(cli): register wpt command group and update release audit expected count to 38`
+19. [x] `test(cli): verify wpt CLI command group execution, subcommands, and exit codes`
+20. [x] `docs(readme): add SAE J2954 WPT inductive docking capability and usage commands`
+21. [x] `docs(progress): record Phase 46 implementation, Decision Log, and quality gates`
+22. [x] `docs(roadmap): mark Phase 46 micro-tasks and acceptance criteria completed`
