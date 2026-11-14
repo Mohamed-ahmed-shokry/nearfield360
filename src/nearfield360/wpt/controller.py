@@ -19,9 +19,9 @@ class WPTInchingController:
     def __init__(
         self,
         config: WPTConfig | None = None,
-        kp_lat: float = 0.45,
-        kd_heading: float = 0.25,
-        dt_s: float = 0.1,
+        kp_lat: float = 2.0,
+        kd_heading: float = 0.5,
+        dt_s: float = 0.05,
         wheelbase_m: float = 2.8,
     ) -> None:
         self.config = config or WPTConfig()
@@ -37,17 +37,18 @@ class WPTInchingController:
         steer_p = -self.kp_lat * delta_y_m * (180.0 / math.pi)
         steer_d = -self.kd_heading * heading_err_deg
         raw_steer = steer_p + steer_d
-        # Limit steering angle to practical inching rack limits (+/- 30 deg)
-        return float(max(-30.0, min(30.0, raw_steer)))
+        # Limit steering angle to practical inching rack limits (+/- 25 deg)
+        return float(max(-25.0, min(25.0, raw_steer)))
 
     def compute_velocity_command(self, delta_x_m: float, delta_r_mm: float) -> float:
         """Calculate creeping velocity, decelerating smoothly to 0 as alignment is reached."""
         if delta_r_mm <= self.config.docked_radius_threshold_mm and abs(delta_x_m) <= 0.02:
             return 0.0
 
-        # Creep velocity scaled by longitudinal distance remaining
         max_speed = self.config.inching_speed_mps
-        speed_factor = max(0.2, min(1.0, abs(delta_x_m) / 0.25))
+        speed_factor = max(0.08, min(1.0, abs(delta_x_m) / 0.12))
+        if abs(delta_x_m) <= 0.025:
+            speed_factor = 0.08
         return float(round(max_speed * speed_factor, 3))
 
     def step(
@@ -110,13 +111,14 @@ class WPTInchingController:
         if is_docked or velocity_cmd == 0.0:
             return step_record, current_x_m, current_y_m, current_heading_deg
 
-        # Kinematic bicycle model update: vehicle approaching pad along x axis
+        # Kinematic bicycle model update: secondary coil situated on steered front axle
         heading_rad = math.radians(current_heading_deg)
         steer_rad = math.radians(steering_cmd_deg)
+        course_rad = heading_rad + steer_rad
 
         # Vehicle moves forward (decreasing remaining positive x)
-        next_x = current_x_m - velocity_cmd * math.cos(heading_rad) * self.dt_s
-        next_y = current_y_m + velocity_cmd * math.sin(heading_rad) * self.dt_s
+        next_x = current_x_m - velocity_cmd * math.cos(course_rad) * self.dt_s
+        next_y = current_y_m + velocity_cmd * math.sin(course_rad) * self.dt_s
         angular_rate = (velocity_cmd / self.wheelbase_m) * math.tan(steer_rad)
         next_heading = current_heading_deg + math.degrees(angular_rate) * self.dt_s
 
