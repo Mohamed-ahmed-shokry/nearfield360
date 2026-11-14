@@ -733,6 +733,24 @@ class DigitalKeyConfig(BaseModel):
     num_uwb_anchors: int = Field(default=4, ge=3, le=8)
 
 
+class WPTConfig(BaseModel):
+    """Parameters for SAE J2954 Wireless Power Transfer (WPT) and autonomous inductive docking."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    nominal_frequency_khz: float = Field(default=85.0, ge=81.38, le=90.0, allow_inf_nan=False)
+    max_power_kw: float = Field(default=11.0, gt=1.0, le=50.0, allow_inf_nan=False)
+    max_lateral_offset_mm: float = Field(default=75.0, ge=20.0, le=200.0, allow_inf_nan=False)
+    max_longitudinal_offset_mm: float = Field(default=100.0, ge=20.0, le=250.0, allow_inf_nan=False)
+    max_heading_error_deg: float = Field(default=3.0, ge=0.5, le=10.0, allow_inf_nan=False)
+    target_air_gap_mm: float = Field(default=170.0, ge=100.0, le=250.0, allow_inf_nan=False)
+    fod_q_drop_threshold_percent: float = Field(default=15.0, ge=5.0, le=50.0, allow_inf_nan=False)
+    fod_freq_shift_threshold_khz: float = Field(default=1.5, ge=0.2, le=5.0, allow_inf_nan=False)
+    inching_speed_mps: float = Field(default=0.08, ge=0.01, le=0.25, allow_inf_nan=False)
+    docked_radius_threshold_mm: float = Field(default=30.0, ge=5.0, le=60.0, allow_inf_nan=False)
+    enable_emergency_shutoff: bool = True
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -787,6 +805,7 @@ class ProjectConfig(BaseSettings):
     odd: ODDConfig = Field(default_factory=ODDConfig)
     dssad: DSSADConfig = Field(default_factory=DSSADConfig)
     digitalkey: DigitalKeyConfig = Field(default_factory=DigitalKeyConfig)
+    wpt: WPTConfig = Field(default_factory=WPTConfig)
 
     @classmethod
     def settings_customise_sources(

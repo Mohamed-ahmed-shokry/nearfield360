@@ -2150,3 +2150,120 @@ Establish an automotive-grade Car Connectivity Consortium (CCC) Digital Key Rele
 22. [x] `docs(readme): add CCC Digital Key 3.0 & UWB proximity interlock capability and usage commands`
 23. [x] `docs(progress): record Phase 45 implementation, Decision Log, and quality gates`
 24. [x] `docs(roadmap): mark Phase 45 micro-tasks and acceptance criteria completed`
+
+
+## Phase 46: SAE J2954 Wireless Power Transfer (WPT), High-Precision Magnetic Resonance Alignment, Foreign Object Detection (FOD) & Autonomous Inductive Docking (Roadmap Item 37)
+
+### 1. Objective & Scope
+
+Establish an automotive-grade SAE J2954 Wireless Power Transfer (WPT) subsystem for NearField360 automated valet parking operations, supporting magnetic resonance coil alignment, Foreign Object Debris (FOD) detection, Living Object Detection (LOD), electrical transfer efficiency modeling, and closed-loop autonomous micro-docking inching control:
+
+- **SAE J2954 Standard Power & Z-Classes**:
+  - Power Classes: WPT1 ($3.7\text{ kW}$), WPT2 ($7.7\text{ kW}$), WPT3 ($11.0\text{ kW}$), WPT4 ($22.0\text{ kW}$).
+  - Z-Classes (Ground-to-vehicle air gap): $Z_1$ ($100-150\text{ mm}$), $Z_2$ ($140-210\text{ mm}$), $Z_3$ ($170-250\text{ mm}$).
+  - Operational frequency: nominal $85\text{ kHz}$ resonant band ($81.38-90.00\text{ kHz}$).
+  - Alignment tolerance box: Lateral $\Delta y \le \pm 75\text{ mm}$, Longitudinal $\Delta x \le \pm 100\text{ mm}$, Heading $|\Delta \theta| \le 3.0^\circ$.
+- **Magnetic Beacon Low-Frequency Positioning (LFP) Differential Sensing**:
+  - Primary Ground Assembly (GA) pad emits low-frequency positioning pulse pings.
+  - Secondary Vehicle Assembly (VA) coil differential sensing array computes millimeter-precision relative spatial offset $(\Delta x, \Delta y, \Delta z, \Delta \theta)$.
+- **Foreign Object Debris (FOD) & Living Object Detection (LOD) Safety Interlocks**:
+  - Resonant frequency detuning ($\Delta f_0 > 1.5\text{ kHz}$) and quality factor degradation ($\Delta Q > 15\%$) tracking detecting metallic foreign objects (coins, cans, foil) heating up via eddy currents.
+  - Living Object Detection (LOD / LOP): Underbody perimeter obstacle detection detecting living entities under the chassis.
+  - Fail-safe safety interlock disabling magnetic field energization immediately upon FOD/LOD trip.
+- **Coil Coupling ($k$-factor) & Electrical Transfer Efficiency Model**:
+  - Mutual inductance $M$ and coupling factor $k = \frac{M}{\sqrt{L_1 L_2}} \in [0.08, 0.35]$.
+  - DC-to-DC coil transfer efficiency model $\eta(k, Q_1, Q_2, \Delta r, \Delta z)$ achieving $> 85\%$ target efficiency.
+  - Dynamic power ramp governor scaling charging power up to nominal WPT3 ($11\text{ kW}$) when centered ($\Delta r \le 30\text{ mm}$) and throttling down when misaligned.
+- **Autonomous Micro-Docking Inching Controller**:
+  - Closed-loop creeping / inching controller ($v \le 0.10\text{ m/s}$) with Ackermann steering corrections ($\Delta \delta$) to bring vehicle pad from initial approach into target center ($\Delta r \le 30\text{ mm}, |\Delta \theta| \le 1.0^\circ$).
+- **Tactical 1280x720 WPT HUD Dashboard Visualizer (`render_wpt_dashboard`)**:
+  - 4-panel dark-mode diagnostic canvas:
+    1. Magnetic flux heatmap and SAE J2954 alignment bullseye (GA/VA coil outlines, live alignment crosshairs).
+    2. Resonant frequency ($85\text{ kHz}$) and Q-factor resonance curves (nominal vs FOD detuned).
+    3. Electrical power transfer efficiency gauge (coupling $k$, power kW, efficiency $\eta\%$, Z-gap mm).
+    4. FOD/LOD perimeter safety status and interlock command card.
+- **CLI Command Group `nearfield360 wpt`**:
+  - Subcommands: `info`, `ping`, `align`, `fod`, `dock`, `efficiency`, `render`, `audit`.
+- **Root CLI Integration & Release Audit**:
+  - Register `wpt` command group in `src/nearfield360/cli/app.py`.
+  - Update release audit in `src/nearfield360/cli/release.py` from 37 to 38 verified command groups.
+
+### 2. Architectural Blueprint
+
+- **Configuration (`src/nearfield360/config.py`, `configs/default.yaml`)**:
+  - `WPTConfig`: Pydantic schema with nominal frequency, max power, alignment bounds, FOD Q-factor threshold, inching speed, and Z-class limits.
+- **Domain Models (`src/nearfield360/wpt/models.py`)**:
+  - `WPTPowerClass`: `WPT1`, `WPT2`, `WPT3`, `WPT4`.
+  - `WPTZClass`: `Z1`, `Z2`, `Z3`.
+  - `WPTAlignmentStatus`: `OUT_OF_RANGE`, `APPROACHING`, `ALIGNED`, `MISALIGNED`, `DOCKED`.
+  - `WPTInterlockState`: `NORMAL`, `FOD_FAULT`, `LOD_FAULT`, `EMERGENCY_SHUTDOWN`.
+  - `CoilGeometry`: Length, width, turns, self-inductance ($L$).
+  - `CoilOffset3D`: $\Delta x\text{ (mm)}, \Delta y\text{ (mm)}, \Delta z\text{ (mm)}, \Delta \theta\text{ (deg)}$, radial offset $\Delta r\text{ (mm)}$, alignment status.
+  - `FODStatus`: Metallic debris detected flag, frequency shift $\Delta f_0$, Q-factor drop $\Delta Q$, living object detected flag.
+  - `WPTEfficiencyReport`: Coupling factor $k$, efficiency $\eta$, transfer power kW, loss kW.
+  - `WPTDockingStep`: Step index, vehicle pose $(x, y, \theta)$, steering angle $\delta$, inching velocity $v$, coil offset, docked flag.
+  - `WPTReport`: Full diagnostic audit report.
+- **Magnetic Beacon Differential Sensing Engine (`src/nearfield360/wpt/beacon.py`)**:
+  - `MagneticBeaconEstimator`: Converts differential coil array induced voltages into estimated spatial offsets $(\Delta x, \Delta y, \Delta z, \Delta \theta)$.
+- **FOD & LOD Safety Interlock Engine (`src/nearfield360/wpt/fod.py`)**:
+  - `FODDetector`: Evaluates circuit resonance metrics ($f_0, Q$) against nominal baselines, assesses underbody living entity sensors, and enforces hard power shutoff.
+- **Coupling & Electrical Efficiency Model (`src/nearfield360/wpt/efficiency.py`)**:
+  - `WPTEfficiencyModel`: Computes mutual inductance, coupling coefficient $k$, DC transfer efficiency $\eta$, and power throttling curves.
+- **Autonomous Inching Controller (`src/nearfield360/wpt/controller.py`)**:
+  - `WPTInchingController`: Closed-loop micro-docking controller commanding low-speed creeping and steering trim to achieve SAE J2954 docking.
+- **Tactical 1280x720 HUD Dashboard Visualizer (`src/nearfield360/wpt/viz.py`)**:
+  - `render_wpt_dashboard`: Dark-mode HUD displaying flux heatmap, resonance spectrum, power efficiency, and safety status.
+- **CLI Command Group (`src/nearfield360/cli/wpt.py`)**:
+  - `info`, `ping`, `align`, `fod`, `dock`, `efficiency`, `render`, `audit`.
+- **Root App & Release Audit (`src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+  - Registered `wpt` command group; release audit updated to 38 groups.
+
+### 3. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `WPTConfig` defined with strict Pydantic bounds and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models for SAE J2954 WPT, coil offsets, FOD/LOD status, and docking steps validate and serialize JSON | `uv run pytest tests/unit/wpt/test_wpt_models.py` |
+| AC-3 | Magnetic beacon estimator computes millimeter-accurate coil offset $(\Delta x, \Delta y, \Delta z, \Delta \theta)$ from differential sensor voltages | `uv run pytest tests/unit/wpt/test_beacon.py` |
+| AC-4 | Resonant FOD engine detects metallic foreign objects via frequency/Q shifts and LOD trips emergency field shutoff | `uv run pytest tests/unit/wpt/test_fod.py` |
+| AC-5 | Coupling model computes $k$-factor and electrical transfer efficiency $\eta > 85\%$ within SAE J2954 tolerance box | `uv run pytest tests/unit/wpt/test_efficiency.py` |
+| AC-6 | Micro-docking inching controller converges from initial offset to aligned docked target ($\Delta r \le 30\text{ mm}$) | `uv run pytest tests/unit/wpt/test_controller.py` |
+| AC-7 | Tactical 1280x720 visualizer renders magnetic flux heatmap, resonance curves, efficiency gauge, and safety card to valid PNG | `uv run pytest tests/unit/wpt/test_wpt_viz.py` |
+| AC-8 | Dedicated CLI command group `nearfield360 wpt` executes `info`, `ping`, `align`, `fod`, `dock`, `efficiency`, `render`, and `audit` | `uv run pytest tests/unit/test_wpt_cli.py` |
+| AC-9 | Root CLI registers `wpt` command group, passing release audit with 38 groups | `uv run nearfield360 release audit` |
+| AC-10 | All local CI-parity checks and remote CI workflow runs pass 100% | `pre-commit`, `pytest`, `build` |
+
+### 4. Validation & CI Plan
+
+1. Local checks: `uv lock --check`, `uv run pre-commit run --all-files`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing`, `uv build`, `uv run twine check dist/*`.
+2. End-to-end CLI execution: `nearfield360 wpt dock --png artifacts/wpt_dashboard.png --output artifacts/wpt_report.json`.
+
+### 5. Exclusions
+
+- High-voltage 800V DC-DC silicon carbide (SiC) MOSFET gate driver switching transients.
+- Physical hydraulic air suspension dynamic height leveling actuators.
+
+### 6. Micro-Task Breakdown
+
+1. [ ] `docs(roadmap): define Phase 46 SAE J2954 WPT and autonomous inductive docking scope`
+2. [ ] `feat(config): add WPTConfig schema and default inductive charging parameters`
+3. [ ] `test(config): verify WPTConfig defaults, validation bounds, and environment overrides`
+4. [ ] `feat(wpt): implement SAE J2954 WPT domain models, power classes, and alignment schemas`
+5. [ ] `test(wpt): verify WPT domain models validation, serialization, and JSON schema integrity`
+6. [ ] `feat(wpt): implement magnetic beacon differential sensing and coil offset estimator`
+7. [ ] `test(wpt): verify magnetic coil differential sensing and relative offset estimation`
+8. [ ] `feat(wpt): implement resonant frequency detuning FOD and living object detection LOD engine`
+9. [ ] `test(wpt): verify FOD metal detuning, Q-factor degradation, and LOD interlock tripping`
+10. [ ] `feat(wpt): implement coil coupling factor k and electrical transfer efficiency model`
+11. [ ] `test(wpt): verify coupling factor calculation, efficiency curves, and power throttling`
+12. [ ] `feat(wpt): implement closed-loop autonomous micro-docking inching controller`
+13. [ ] `test(wpt): verify micro-docking inching controller, Ackermann steering corrections, and docking success`
+14. [ ] `feat(wpt): implement tactical 1280x720 WPT HUD visualizer (render_wpt_dashboard)`
+15. [ ] `test(wpt): verify tactical WPT visualizer renders valid 1280x720 PNG artifacts`
+16. [ ] `feat(wpt): export public WPT API from package init`
+17. [ ] `feat(cli): implement nearfield360 wpt command group (info, ping, align, fod, dock, efficiency, render, audit)`
+18. [ ] `feat(cli): register wpt command group and update release audit expected count to 38`
+19. [ ] `test(cli): verify wpt CLI command group execution, subcommands, and exit codes`
+20. [ ] `docs(readme): add SAE J2954 WPT inductive docking capability and usage commands`
+21. [ ] `docs(progress): record Phase 46 implementation, Decision Log, and quality gates`
+22. [ ] `docs(roadmap): mark Phase 46 micro-tasks and acceptance criteria completed`
