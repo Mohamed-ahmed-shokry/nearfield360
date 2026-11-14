@@ -25,6 +25,7 @@ class MagneticBeaconEstimator:
         v_rear_mv: float,
         v_left_mv: float,
         v_right_mv: float,
+        v_heading_mv: float = 0.0,
         v_ref_mv: float = 850.0,
         timestamp_ns: int = 0,
     ) -> CoilOffset3D:
@@ -43,9 +44,7 @@ class MagneticBeaconEstimator:
         air_gap_mm = round(self.config.target_air_gap_mm * (ratio ** (1.0 / 3.0)), 1)
         clamped_gap = max(80.0, min(300.0, air_gap_mm))
 
-        # Heading angle differential
-        diag_diff = (v_front_mv - v_left_mv) - (v_rear_mv - v_right_mv)
-        delta_theta = round(diag_diff / self.angular_sensitivity, 2)
+        delta_theta = round(v_heading_mv / self.angular_sensitivity, 2)
 
         return self.compute_status(
             delta_x_mm=delta_x,
