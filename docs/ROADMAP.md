@@ -2267,3 +2267,86 @@ Establish an automotive-grade SAE J2954 Wireless Power Transfer (WPT) subsystem 
 20. [x] `docs(readme): add SAE J2954 WPT inductive docking capability and usage commands`
 21. [x] `docs(progress): record Phase 46 implementation, Decision Log, and quality gates`
 22. [x] `docs(roadmap): mark Phase 46 micro-tasks and acceptance criteria completed`
+
+
+## Phase 47: Automated Vehicle Condition Inspection, 360° Optical Damage Assessment, Tire Tread Profiling & Liability Handover Audit (Roadmap Item 38)
+
+### 1. Objective & Scope
+
+Establish an automotive-grade automated vehicle condition inspection, 360° surround fisheye optical damage assessment, tire tread profiling, glass integrity verification, and cryptographically signed pre/post AVP liability handover certificate subsystem for NearField360:
+
+- **360° Surround Fisheye Optical Damage Assessment (`nearfield360.inspection.optical`)**:
+  - Four-camera surround views (`FV`, `RV`, `MVL`, `MVR`) surface scratch, dent, paint chip, and panel misalignment detection using multi-scale gradient anomaly detection.
+  - Anomaly classification: type (`SCRATCH`, `DENT`, `PAINT_CHIP`, `GLASS_CRACK`, `PANEL_MISALIGNMENT`), severity (`NEGLIGIBLE`, `MINOR`, `MODERATE`, `SEVERE`, `CRITICAL`), normalized bounding boxes, and surface location estimation.
+- **Tire Tread Profiling & Cold TPMS Pressure Analyzer (`nearfield360.inspection.tires`)**:
+  - 4-wheel multi-groove tread depth analysis (inner rib, center rib, outer rib).
+  - Wear asymmetry detection identifying camber/toe suspension misalignment and under/over-inflation.
+  - Tire health classification against legal safety limits ($1.6\text{ mm}$ minimum, $3.0\text{ mm}$ recommended) and cold TPMS pressure tolerances ($2.4\text{ bar} \pm 0.25\text{ bar}$).
+- **Windshield & Window Glass Integrity Inspection (`nearfield360.inspection.glass`)**:
+  - ECE R43 compliant optical clarity, chip count, radial fissure detection, and optical transmittance assessment ($\ge 70\%$ legal minimum).
+- **Cryptographic Liability Handover Certificate Manager (`nearfield360.inspection.certificate`)**:
+  - Canonical JSON serialization of `VehicleConditionSnapshot` with SHA-256 payload digest and HMAC-SHA256 authentication.
+  - Automated pre-dropoff vs post-pickup condition differential analysis: isolates new damage introduced during autonomous valet parking with deterministic liability verdict (`NO_NEW_DAMAGE`, `PRE_EXISTING_DOCUMENTED`, `NEW_DAMAGE_DETECTED`, `DISPUTE_REQUIRES_REVIEW`).
+- **Tactical 1280x720 HUD Inspection Dashboard Visualizer (`nearfield360.inspection.viz`)**:
+  - 4-panel dark-mode diagnostic canvas:
+    1. 360° Vehicle Silhouette with Damage Hot-Spot Overlays and Severity Indicators.
+    2. 4-Corner Tire Tread Depth & Cold TPMS Pressure Status Cards.
+    3. ECE R43 Windshield & Window Glass Clarity Radar.
+    4. Cryptographic Liability Handover Certificate Card with SHA-256 Digest and HMAC Signature Badge.
+- **CLI Command Group `nearfield360 inspect` (`nearfield360.cli.inspect`)**:
+  - Subcommands: `info`, `scan`, `tire`, `glass`, `certificate`, `compare`, `render`, `audit`.
+  - Expand release audit from 38 to 39 registered command groups.
+
+### 2. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `InspectionConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for optical anomalies, tire telemetry, glass integrity, and liability certificates | `uv run pytest tests/unit/inspection/test_inspection_models.py` |
+| AC-3 | `OpticalDamageDetector` detects scratches, dents, paint chips, and classifies severity from multi-view inputs | `uv run pytest tests/unit/inspection/test_optical.py` |
+| AC-4 | `TireProfiler` evaluates 4-corner multi-groove tread depth, asymmetric shoulder wear, and TPMS pressure limits | `uv run pytest tests/unit/inspection/test_tires.py` |
+| AC-5 | `GlassIntegrityAnalyzer` evaluates ECE R43 compliance, crack lengths, chips, and optical transmittance | `uv run pytest tests/unit/inspection/test_glass.py` |
+| AC-6 | `LiabilityCertificateManager` generates cryptographically signed certificates and compares pre/post snapshots | `uv run pytest tests/unit/inspection/test_certificate.py` |
+| AC-7 | Tactical 1280x720 inspection HUD visualizer renders valid PNG dashboard artifacts with 4 diagnostic panels | `uv run pytest tests/unit/inspection/test_inspection_viz.py` |
+| AC-8 | Dedicated CLI command group `nearfield360 inspect` executes all subcommands with JSON and artifact export | `uv run pytest tests/unit/test_inspect_cli.py` |
+| AC-9 | Root CLI registers `inspect` command group, passing release audit with 39 verified command groups | `uv run nearfield360 release audit` |
+| AC-10 | Full test suite passes with zero failures, 100% green CI parity locally and remotely, clean Ruff, and clean Mypy | `uv run pre-commit run --all-files`, remote CI green |
+
+### 3. Validation Plan
+
+1. Local unit test coverage: `tests/unit/inspection/` and `tests/unit/test_inspect_cli.py` maintaining $\ge 85.0\%$ coverage.
+2. CLI verification: execute all 8 subcommands of `nearfield360 inspect` with `--json` and `--output`.
+3. Strict static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit verification: `uv run nearfield360 release audit` passing with exactly 39 groups.
+5. Full repository test suite: `uv run pytest -q`.
+6. Remote GitHub Actions CI parity: verify 100% green status across all 6 runner matrix jobs.
+
+### 4. Exclusions
+
+- Ultrasonic non-destructive thickness testing of internal sheet metal alloys.
+- Chemical spectrometer analysis of motor oil or brake fluid contaminants.
+
+### 5. Micro-Task Breakdown
+
+1. [ ] `docs(roadmap): define Phase 47 vehicle condition inspection and damage audit scope`
+2. [ ] `feat(config): add InspectionConfig schema and default inspection parameters`
+3. [ ] `test(config): verify InspectionConfig defaults, validation bounds, and overrides`
+4. [ ] `feat(inspection): implement domain models, damage enums, and certificate schemas`
+5. [ ] `test(inspection): verify inspection domain models validation, serialization, and JSON schemas`
+6. [ ] `feat(inspection): implement 360-degree optical surface damage and anomaly detector`
+7. [ ] `test(inspection): verify optical scratch, dent, chip detection, and severity scoring`
+8. [ ] `feat(inspection): implement 4-wheel tire tread depth profiling and TPMS pressure analyzer`
+9. [ ] `test(inspection): verify tire tread depth, shoulder wear asymmetry, and pressure faults`
+10. [ ] `feat(inspection): implement windshield and window glass integrity analyzer (ECE R43)`
+11. [ ] `test(inspection): verify glass crack detection, chip count, and transmittance assessment`
+12. [ ] `feat(inspection): implement cryptographically signed liability certificate manager`
+13. [ ] `test(inspection): verify certificate signing, HMAC verification, and pre/post comparison`
+14. [ ] `feat(inspection): implement tactical 1280x720 inspection HUD visualizer (render_inspection_dashboard)`
+15. [ ] `test(inspection): verify tactical inspection visualizer renders valid 1280x720 PNG artifacts`
+16. [ ] `feat(inspection): export public inspection API from package init`
+17. [ ] `feat(cli): implement nearfield360 inspect command group (info, scan, tire, glass, certificate, compare, render, audit)`
+18. [ ] `feat(cli): register inspect command group and update release audit expected count to 39`
+19. [ ] `test(cli): verify inspect CLI command group execution, subcommands, and exit codes`
+20. [ ] `docs(readme): add vehicle condition inspection capability and CLI usage commands`
+21. [ ] `docs(progress): record Phase 47 implementation, Decision Log, and quality gates`
+22. [ ] `docs(roadmap): mark Phase 47 micro-tasks and acceptance criteria completed`
