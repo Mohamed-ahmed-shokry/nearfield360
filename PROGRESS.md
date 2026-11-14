@@ -3709,3 +3709,84 @@ Phase 46 delivers an automotive-grade SAE J2954 / ISO 19363 Wireless Power Trans
 | Code Coverage (`nearfield360.wpt`) | `uv run pytest --cov=nearfield360.wpt` | 100.00% (exceeds 85% requirement) |
 | Ruff Linting & Formatting | `uv run ruff check` / `uv run ruff format` | Clean |
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
+
+## Phase 47: Automated Vehicle Condition Inspection, 360° Optical Damage Assessment, Tire Tread Profiling & Liability Handover Audit
+
+**Status:** Completed
+**Repository Branch:** `phase/vehicle-condition-inspection-damage-audit`
+**Test Suite:** 36 passed (0 failures, 93.08% coverage on `nearfield360.inspection`)
+**Type Checking:** `mypy --strict` clean (0 errors)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 93.08% across inspection modules (exceeds required 85.0% threshold)
+**CLI Command Groups:** 39 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 47 delivers an automotive-grade automated vehicle condition inspection, 360-degree optical surface damage assessment, 4-wheel tire tread depth profiling, ECE R43 glazing integrity verification, and cryptographically signed liability certificate management subsystem for NearField360:
+
+1. **Inspection Configuration & Safety Bounds (`nearfield360.config`, `configs/default.yaml`)**:
+   - Scratch severity sensitivity threshold ($0.25$), dent depth limit ($1.5\text{ mm}$), and paint chip area threshold ($1.0\text{ cm}^2$).
+   - 4-wheel tire profiling parameters: legal minimum tread depth ($1.6\text{ mm}$), recommended replacement threshold ($3.0\text{ mm}$), max axle wear variance ($2.0\text{ mm}$), and nominal cold TPMS pressure ($2.40\text{ bar} \pm 0.25\text{ bar}$).
+   - ECE R43 regulatory glazing criteria: minimum optical transmittance ($\ge 70.0\%$), maximum crack length threshold ($15.0\text{ mm}$), and maximum stone chip count ($5$).
+   - Cryptographic liability certificates: SHA-256 canonical hashing, HMAC-SHA256 signature with salt authentication.
+2. **Domain Models & Validation Schemas (`nearfield360.inspection.models`)**:
+   - `OpticalAnomaly`, `TireTelemetry`, `GlassInspectionReport`, `VehicleConditionSnapshot`, `LiabilityCertificate`, `InspectionReport`.
+   - Comprehensive enums: `DamageType`, `DamageSeverity`, `TirePosition`, `TireWearStatus`, `InspectionPhase`, `LiabilityVerdict`.
+3. **360-Degree Surround Fisheye Damage & Anomaly Detector (`nearfield360.inspection.optical`)**:
+   - Multi-camera coverage across `FV`, `RV`, `MVL`, and `MVR` channels.
+   - Severity classification (`NEGLIGIBLE`, `MINOR`, `MODERATE`, `SEVERE`, `CRITICAL`) based on surface area and defect depth.
+   - Overall surface condition scoring starting at $100.0\%$ with weighted deductions per anomaly severity.
+4. **4-Wheel Tire Tread Profiler & Cold TPMS Analyzer (`nearfield360.inspection.tires`)**:
+   - Multi-groove measurement across inner, center, and outer tread ribs.
+   - Shoulder wear asymmetry detection ($|\text{inner} - \text{outer}| \ge 1.5\text{ mm}$) to diagnose suspension camber/toe misalignment.
+   - Multi-stage status classification: `GOOD`, `ACCEPTABLE`, `WARNING_LOW_TREAD`, `CRITICAL_REPLACE`, `ASYMMETRIC_WEAR`, `PRESSURE_FAULT`.
+   - Axle wear variance calculation across front and rear wheel pairs.
+5. **ECE R43 Windshield & Window Glass Integrity Analyzer (`nearfield360.inspection.glass`)**:
+   - Optical transmittance threshold checking ($\ge 70\%$ requirement per ECE R43).
+   - Structural crack evaluation flagging severe hazards when crack length exceeds $15.0\text{ mm}$.
+   - Stone chip density assessment.
+6. **Cryptographically Signed Liability Certificate Manager (`nearfield360.inspection.certificate`)**:
+   - Canonical JSON digest generation using SHA-256 over VIN, phase, mileage, anomalies, tires, and condition score.
+   - HMAC-SHA256 signature issuance and tamper-proof verification.
+   - Pre-dropoff vs. post-pickup snapshot differential comparison isolating newly introduced damage and determining definitive liability verdicts (`NO_NEW_DAMAGE`, `PRE_EXISTING_DOCUMENTED`, `NEW_DAMAGE_DETECTED`, `DISPUTE_REQUIRES_REVIEW`).
+7. **Tactical 1280x720 HUD Dashboard Visualizer (`nearfield360.inspection.viz`)**:
+   - 4-quadrant inspection dashboard: 360° Optical Surface Damage Map with labeled bounding boxes, 4-Wheel Tire Profiling & TPMS Telemetry Card, ECE R43 Glass Integrity & Transmittance Gauge, and Cryptographic Liability Certificate & Verdict Header.
+8. **CLI Command Group & Release Audit (`nearfield360.cli.inspect`, `src/nearfield360/cli/app.py`, `src/nearfield360/cli/release.py`)**:
+   - Subcommands: `info`, `scan`, `tire`, `glass`, `certificate`, `compare`, `render`, `audit`.
+   - Typer app registration in `src/nearfield360/cli/app.py` and release audit expanded to 39 verified command groups in `src/nearfield360/cli/release.py`.
+
+---
+
+### 2. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Multi-Rib Tread Profiling with Explicit Shoulder Wear Asymmetry Detection
+   - *Alternatives Considered*: Single-point scalar tire depth measurement.
+   - *Rationale & Evidence*: A single center-tread depth measurement fails to detect critical mechanical issues such as severe inner shoulder wear caused by improper negative camber or toe misalignment. By profiling inner, center, and outer tread ribs separately, the system flags suspension faults when $|inner - outer| \ge 1.5\text{ mm}$ even if center tread exceeds the legal $1.6\text{ mm}$ minimum, preventing catastrophic blowouts.
+2. **Decision**: Cryptographic Canonical SHA-256 & HMAC Liability Certificate Architecture
+   - *Alternatives Considered*: Unsigned plain text inspection logs or database state entries.
+   - *Rationale & Evidence*: In autonomous valet parking (AVP) operations, customer dispute resolution requires unalterable legal evidence of vehicle condition at dropoff and pickup. Canonical JSON sorting and normalization combined with SHA-256 hashing and HMAC-SHA256 signatures guarantee non-repudiation: any alteration of mileage, timestamps, or damage severity renders the signature invalid upon cryptographic verification.
+3. **Decision**: Weighted Condition Score Degradation with Strict Minimum Clamp
+   - *Alternatives Considered*: Simple defect count deduction without severity weighting.
+   - *Rationale & Evidence*: A small $2\text{ mm}$ rock chip on a bumper should not degrade vehicle health equally to a $30\text{ cm}$ crease dent across multiple door panels. The scoring model applies graduated penalties: negligible $(-0.5)$, minor $(-2.5)$, moderate $(-7.0)$, severe $(-15.0)$, critical $(-30.0)$, clamped strictly in the range $[0.0, 100.0]\%$, providing transparent condition metrics for fleet operations and handover audits.
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Inspection Config Validation | `uv run pytest tests/unit/test_config.py` | 136 passed |
+| Inspection Domain Models & Schemas | `uv run pytest tests/unit/inspection/test_inspection_models.py` | 6 passed |
+| 360 Optical Damage Detector | `uv run pytest tests/unit/inspection/test_optical.py` | 5 passed |
+| 4-Wheel Tire Profiler & TPMS | `uv run pytest tests/unit/inspection/test_tires.py` | 5 passed |
+| ECE R43 Glass Integrity Analyzer | `uv run pytest tests/unit/inspection/test_glass.py` | 4 passed |
+| Cryptographic Certificate & Comparator | `uv run pytest tests/unit/inspection/test_certificate.py` | 5 passed |
+| Tactical 1280x720 Inspection HUD | `uv run pytest tests/unit/inspection/test_inspection_viz.py` | 3 passed |
+| Inspect CLI Command Group | `uv run pytest tests/unit/test_inspect_cli.py` | 8 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 39 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --files ...` | 100% Passed |
+| Code Coverage (`nearfield360.inspection`) | `uv run pytest tests/unit/inspection/ --cov=nearfield360.inspection` | 93.08% (exceeds 85% requirement) |
+| Ruff Linting & Formatting | `uv run ruff check` / `uv run ruff format` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |
