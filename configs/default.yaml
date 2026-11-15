@@ -392,3 +392,14 @@ wpt:
   inching_speed_mps: 0.08
   docked_radius_threshold_mm: 30.0
   enable_emergency_shutoff: true
+inspection:
+  scratch_severity_threshold: 0.35
+  dent_depth_threshold_mm: 2.0
+  min_legal_tread_depth_mm: 1.6
+  recommended_tread_depth_mm: 3.0
+  max_tread_wear_variance_mm: 1.5
+  nominal_cold_pressure_bar: 2.4
+  pressure_deviation_tolerance_bar: 0.25
+  glass_crack_length_threshold_mm: 15.0
+  enable_cryptographic_certificate: true
+  certificate_signing_salt: "nearfield360-avp-liability-salt-2026"

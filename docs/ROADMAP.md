@@ -2328,25 +2328,25 @@ Establish an automotive-grade automated vehicle condition inspection, 360° surr
 
 ### 5. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 47 vehicle condition inspection and damage audit scope`
-2. [ ] `feat(config): add InspectionConfig schema and default inspection parameters`
-3. [ ] `test(config): verify InspectionConfig defaults, validation bounds, and overrides`
-4. [ ] `feat(inspection): implement domain models, damage enums, and certificate schemas`
-5. [ ] `test(inspection): verify inspection domain models validation, serialization, and JSON schemas`
-6. [ ] `feat(inspection): implement 360-degree optical surface damage and anomaly detector`
-7. [ ] `test(inspection): verify optical scratch, dent, chip detection, and severity scoring`
-8. [ ] `feat(inspection): implement 4-wheel tire tread depth profiling and TPMS pressure analyzer`
-9. [ ] `test(inspection): verify tire tread depth, shoulder wear asymmetry, and pressure faults`
-10. [ ] `feat(inspection): implement windshield and window glass integrity analyzer (ECE R43)`
-11. [ ] `test(inspection): verify glass crack detection, chip count, and transmittance assessment`
-12. [ ] `feat(inspection): implement cryptographically signed liability certificate manager`
-13. [ ] `test(inspection): verify certificate signing, HMAC verification, and pre/post comparison`
-14. [ ] `feat(inspection): implement tactical 1280x720 inspection HUD visualizer (render_inspection_dashboard)`
-15. [ ] `test(inspection): verify tactical inspection visualizer renders valid 1280x720 PNG artifacts`
-16. [ ] `feat(inspection): export public inspection API from package init`
-17. [ ] `feat(cli): implement nearfield360 inspect command group (info, scan, tire, glass, certificate, compare, render, audit)`
-18. [ ] `feat(cli): register inspect command group and update release audit expected count to 39`
-19. [ ] `test(cli): verify inspect CLI command group execution, subcommands, and exit codes`
-20. [ ] `docs(readme): add vehicle condition inspection capability and CLI usage commands`
-21. [ ] `docs(progress): record Phase 47 implementation, Decision Log, and quality gates`
-22. [ ] `docs(roadmap): mark Phase 47 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 47 vehicle condition inspection and damage audit scope`
+2. [x] `feat(config): add InspectionConfig schema and default inspection parameters`
+3. [x] `test(config): verify InspectionConfig defaults, validation bounds, and overrides`
+4. [x] `feat(inspection): implement domain models, damage enums, and certificate schemas`
+5. [x] `test(inspection): verify inspection domain models validation, serialization, and JSON schemas`
+6. [x] `feat(inspection): implement 360-degree optical surface damage and anomaly detector`
+7. [x] `test(inspection): verify optical scratch, dent, chip detection, and severity scoring`
+8. [x] `feat(inspection): implement 4-wheel tire tread depth profiling and TPMS pressure analyzer`
+9. [x] `test(inspection): verify tire tread depth, shoulder wear asymmetry, and pressure faults`
+10. [x] `feat(inspection): implement windshield and window glass integrity analyzer (ECE R43)`
+11. [x] `test(inspection): verify glass crack detection, chip count, and transmittance assessment`
+12. [x] `feat(inspection): implement cryptographically signed liability certificate manager`
+13. [x] `test(inspection): verify certificate signing, HMAC verification, and pre/post comparison`
+14. [x] `feat(inspection): implement tactical 1280x720 inspection HUD visualizer (render_inspection_dashboard)`
+15. [x] `test(inspection): verify tactical inspection visualizer renders valid 1280x720 PNG artifacts`
+16. [x] `feat(inspection): export public inspection API from package init`
+17. [x] `feat(cli): implement nearfield360 inspect command group (info, scan, tire, glass, certificate, compare, render, audit)`
+18. [x] `feat(cli): register inspect command group and update release audit expected count to 39`
+19. [x] `test(cli): verify inspect CLI command group execution, subcommands, and exit codes`
+20. [x] `docs(readme): add vehicle condition inspection capability and CLI usage commands`
+21. [x] `docs(progress): record Phase 47 implementation, Decision Log, and quality gates`
+22. [x] `docs(roadmap): mark Phase 47 micro-tasks and acceptance criteria completed`

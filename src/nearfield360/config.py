@@ -751,6 +751,29 @@ class WPTConfig(BaseModel):
     enable_emergency_shutoff: bool = True
 
 
+class InspectionConfig(BaseModel):
+    """Parameters for automated vehicle condition inspection, damage assessment, and liability."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    scratch_severity_threshold: float = Field(default=0.35, ge=0.05, le=0.90, allow_inf_nan=False)
+    dent_depth_threshold_mm: float = Field(default=2.0, ge=0.5, le=10.0, allow_inf_nan=False)
+    min_legal_tread_depth_mm: float = Field(default=1.6, ge=1.0, le=4.0, allow_inf_nan=False)
+    recommended_tread_depth_mm: float = Field(default=3.0, ge=1.5, le=6.0, allow_inf_nan=False)
+    max_tread_wear_variance_mm: float = Field(default=1.5, ge=0.2, le=5.0, allow_inf_nan=False)
+    nominal_cold_pressure_bar: float = Field(default=2.4, ge=1.5, le=3.5, allow_inf_nan=False)
+    pressure_deviation_tolerance_bar: float = Field(
+        default=0.25, ge=0.05, le=1.0, allow_inf_nan=False
+    )
+    glass_crack_length_threshold_mm: float = Field(
+        default=15.0, ge=2.0, le=50.0, allow_inf_nan=False
+    )
+    enable_cryptographic_certificate: bool = True
+    certificate_signing_salt: str = Field(
+        default="nearfield360-avp-liability-salt-2026", min_length=8
+    )
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -806,6 +829,7 @@ class ProjectConfig(BaseSettings):
     dssad: DSSADConfig = Field(default_factory=DSSADConfig)
     digitalkey: DigitalKeyConfig = Field(default_factory=DigitalKeyConfig)
     wpt: WPTConfig = Field(default_factory=WPTConfig)
+    inspection: InspectionConfig = Field(default_factory=InspectionConfig)
 
     @classmethod
     def settings_customise_sources(
