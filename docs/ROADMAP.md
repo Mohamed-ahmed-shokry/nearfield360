@@ -2350,3 +2350,94 @@ Establish an automotive-grade automated vehicle condition inspection, 360° surr
 20. [x] `docs(readme): add vehicle condition inspection capability and CLI usage commands`
 21. [x] `docs(progress): record Phase 47 implementation, Decision Log, and quality gates`
 22. [x] `docs(roadmap): mark Phase 47 micro-tasks and acceptance criteria completed`
+
+## Phase 48: High-Definition (HD) Map Vector Tile Generation, Lanelet2 / OpenDRIVE Topology & Fisheye Feature-Map Localization (Roadmap Item 39)
+
+### 1. Objective & Scope
+
+Establish an automotive-grade High-Definition (HD) vector map generator, metric spatial tiling, Lanelet2 / OpenDRIVE topological graph exporter, and multi-hypothesis particle filter / Monte Carlo Localizer (MCL) fusing 4-camera fisheye semantic observations with vehicle odometry for GPS-denied autonomous valet parking facilities:
+
+- **HD Map Vector Primitives & Domain Schemas (`nearfield360.hdmap.models`)**:
+  - Geometric primitives: 2D points, polylines, bounding boxes, and metric polygon boundaries.
+  - Semantic map entities: `Lanelet` (left boundary, right boundary, centerline, direction, speed limit), `ParkingSpaceFeature` (slot ID, bounding polygon, entry heading, slot type), `ObstacleZone` (pillars, walls, curbs).
+  - Spatial indexing containers: `MapTile` with metric coordinate bounds `[x_min, y_min, x_max, y_max]` and spatial tile IDs.
+  - Localization state models: `PoseHypothesis` (x, y, theta, weight), `ParticleCloud`, and `LocalizationState` (estimated pose, covariance matrix, uncertainty ellipse, convergence status).
+- **BEV Raster Vectorizer & Topology Generator (`nearfield360.hdmap.vectorizer`)**:
+  - Automated contour tracing and Douglas-Peucker polyline simplification of near-field bird's-eye-view (BEV) semantic rasters into metric lane boundaries and curb lines.
+  - Centerline extraction and connectivity graph synthesis (predecessor / successor topological linkages).
+- **Spatial Metric Map Tiler (`nearfield360.hdmap.tiler`)**:
+  - Quadtree / uniform grid metric tiling (default 50m x 50m tiles) enabling sub-millisecond local map retrieval for real-time localization.
+  - Spatial query interface: retrieve map features within vehicle bounding radius $R$.
+- **Standardized Map Exporters (`nearfield360.hdmap.formats`)**:
+  - OpenDRIVE (.xodr) XML topology serialization.
+  - Lanelet2 (.osm) XML topological primitive exporter.
+  - GeoJSON FeatureCollection serialization with metric UTM / local tangent plane coordinates.
+- **Fisheye Feature-Map Matching Monte Carlo Localizer (`nearfield360.hdmap.particle_filter`)**:
+  - 4-camera surround fisheye observation fusion: matches detected curb lines, parking slot markings, and lane boundaries against active local map tile.
+  - Motion model: kinematic bicycle odometry propagation with Gaussian process noise.
+  - Likelihood model: Point-to-polyline orthogonal distance residual weighting $w_i = \exp(-\frac{1}{2} d_{\perp}^2 / \sigma_{\text{obs}}^2)$.
+  - Adaptive Low-Variance Resampling with Kidnapped-Robot random injection when likelihood drops below threshold.
+  - Sub-10cm lateral accuracy in covered, multi-level GPS-denied parking facilities.
+- **Tactical 1280x720 HUD Diagnostic Visualizer (`nearfield360.hdmap.viz`)**:
+  - 4-panel dark-mode diagnostic canvas:
+    1. Top-Down Vectorized HD Map View with lanelet centerlines, curb polylines, and parking space polygons.
+    2. Real-Time Particle Cloud Distribution with $2\sigma$ uncertainty covariance ellipse.
+    3. Fisheye Observation vs. Map Feature Residual Association Radar.
+    4. Metric Localization Telemetry & Convergence Health Card.
+- **CLI Command Group `nearfield360 hdmap` (`nearfield360.cli.hdmap`)**:
+  - Subcommands: `info`, `vectorize`, `tile`, `localize`, `export`, `render`, `audit`.
+  - Expand release audit from 39 to 40 registered command groups.
+
+### 2. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `HDMapConfig` defined with Pydantic validation and configured in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Pydantic domain models for vector primitives, lanelets, parking spaces, map tiles, and localization state | `uv run pytest tests/unit/hdmap/test_hdmap_models.py` |
+| AC-3 | `BEVVectorizer` converts semantic occupancy rasters to Douglas-Peucker simplified metric polylines and lanelet topology | `uv run pytest tests/unit/hdmap/test_vectorizer.py` |
+| AC-4 | `MapTiler` partitions HD vector maps into spatial tiles with sub-millisecond radius search query performance | `uv run pytest tests/unit/hdmap/test_tiler.py` |
+| AC-5 | `MapFormatExporter` outputs valid Lanelet2 OSM, OpenDRIVE XML, and GeoJSON schemas | `uv run pytest tests/unit/hdmap/test_formats.py` |
+| AC-6 | `FisheyeParticleFilter` localizer converges to $< 0.10\text{ m}$ lateral error and $< 1.5^\circ$ heading error in GPS-denied environment | `uv run pytest tests/unit/hdmap/test_particle_filter.py` |
+| AC-7 | Tactical 1280x720 HD Map HUD visualizer renders valid PNG dashboard artifacts with 4 diagnostic panels | `uv run pytest tests/unit/hdmap/test_hdmap_viz.py` |
+| AC-8 | Dedicated CLI command group `nearfield360 hdmap` executes all subcommands with JSON and artifact export | `uv run pytest tests/unit/test_hdmap_cli.py` |
+| AC-9 | Root CLI registers `hdmap` command group, passing release audit with 40 verified command groups | `uv run nearfield360 release audit` |
+| AC-10 | Full test suite passes with zero failures, 100% green CI parity locally and remotely, clean Ruff, and clean Mypy | `uv run pre-commit run --all-files`, remote CI green |
+
+### 3. Validation Plan
+
+1. Local unit test coverage: `tests/unit/hdmap/` and `tests/unit/test_hdmap_cli.py` maintaining $\ge 85.0\%$ coverage.
+2. CLI verification: execute all 7 subcommands of `nearfield360 hdmap` with `--json` and `--output`.
+3. Strict static analysis: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+4. Release audit verification: `uv run nearfield360 release audit` passing with exactly 40 groups.
+5. Full repository test suite: `uv run pytest -q`.
+6. Remote GitHub Actions CI parity: verify 100% green status across all 6 runner matrix jobs.
+
+### 4. Exclusions
+
+- Satellite orbital ephemeris differential corrections (RTK-GPS) since operation occurs inside multi-story/underground GPS-denied structures.
+- Airborne LiDAR point cloud registration.
+
+### 5. Micro-Task Breakdown
+
+1. [ ] `docs(roadmap): define Phase 48 HD map vector tiling and fisheye localization scope`
+2. [ ] `feat(config): add HDMapConfig schema and default mapping parameters`
+3. [ ] `test(config): verify HDMapConfig defaults, validation bounds, and overrides`
+4. [ ] `feat(hdmap): implement vector primitives, lanelets, and localization domain models`
+5. [ ] `test(hdmap): verify HD map domain models validation, serialization, and JSON schemas`
+6. [ ] `feat(hdmap): implement BEV semantic raster to vector polyline extractor and Douglas-Peucker simplifier`
+7. [ ] `test(hdmap): verify vectorizer polyline simplification, lanelet extraction, and curvature bounds`
+8. [ ] `feat(hdmap): implement spatial metric map tiler and radius spatial query engine`
+9. [ ] `test(hdmap): verify spatial map tiling, index hashing, and localized radius queries`
+10. [ ] `feat(hdmap): implement OpenDRIVE, Lanelet2 OSM, and GeoJSON format exporters`
+11. [ ] `test(hdmap): verify format export schemas, XML/JSON generation, and coordinate integrity`
+12. [ ] `feat(hdmap): implement multi-hypothesis fisheye feature-map matching Monte Carlo particle filter localizer`
+13. [ ] `test(hdmap): verify particle filter convergence, observation weighting, and kidnapped robot recovery`
+14. [ ] `feat(hdmap): implement tactical 1280x720 HD map and localization HUD visualizer (render_hdmap_dashboard)`
+15. [ ] `test(hdmap): verify tactical HD map visualizer renders valid 1280x720 PNG artifacts`
+16. [ ] `feat(hdmap): export public HD map API from package init`
+17. [ ] `feat(cli): implement nearfield360 hdmap command group (info, vectorize, tile, localize, export, render, audit)`
+18. [ ] `feat(cli): register hdmap command group and update release audit expected count to 40`
+19. [ ] `test(cli): verify hdmap CLI command group execution, subcommands, and exit codes`
+20. [ ] `docs(readme): add HD map vector tiling and fisheye localization capability and CLI usage commands`
+21. [ ] `docs(progress): record Phase 48 implementation, Decision Log, and quality gates`
+22. [ ] `docs(roadmap): mark Phase 48 micro-tasks and acceptance criteria completed`
