@@ -774,6 +774,32 @@ class InspectionConfig(BaseModel):
     )
 
 
+class HDMapConfig(BaseModel):
+    """Parameters for High-Definition (HD) vector map tiling, OpenDRIVE/Lanelet2 export,
+    and 4-camera fisheye feature-map matching localization.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    tile_size_m: float = Field(default=50.0, ge=10.0, le=250.0, allow_inf_nan=False)
+    douglas_peucker_epsilon_m: float = Field(default=0.15, ge=0.01, le=1.0, allow_inf_nan=False)
+    min_lane_width_m: float = Field(default=2.5, ge=1.5, le=5.0, allow_inf_nan=False)
+    max_lane_width_m: float = Field(default=4.5, ge=2.5, le=8.0, allow_inf_nan=False)
+    default_speed_limit_mps: float = Field(default=3.0, ge=0.5, le=15.0, allow_inf_nan=False)
+    num_particles: int = Field(default=200, ge=20, le=2000)
+    process_noise_pos_m: float = Field(default=0.05, ge=0.001, le=0.5, allow_inf_nan=False)
+    process_noise_yaw_rad: float = Field(default=0.02, ge=0.001, le=0.2, allow_inf_nan=False)
+    observation_sigma_m: float = Field(default=0.20, ge=0.01, le=1.0, allow_inf_nan=False)
+    kidnapped_robot_threshold: float = Field(default=0.001, ge=1e-6, le=0.1, allow_inf_nan=False)
+    kidnapped_injection_ratio: float = Field(default=0.05, ge=0.0, le=0.5, allow_inf_nan=False)
+    lateral_convergence_threshold_m: float = Field(
+        default=0.10, ge=0.02, le=0.50, allow_inf_nan=False
+    )
+    heading_convergence_threshold_deg: float = Field(
+        default=2.0, ge=0.5, le=10.0, allow_inf_nan=False
+    )
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -830,6 +856,7 @@ class ProjectConfig(BaseSettings):
     digitalkey: DigitalKeyConfig = Field(default_factory=DigitalKeyConfig)
     wpt: WPTConfig = Field(default_factory=WPTConfig)
     inspection: InspectionConfig = Field(default_factory=InspectionConfig)
+    hdmap: HDMapConfig = Field(default_factory=HDMapConfig)
 
     @classmethod
     def settings_customise_sources(

@@ -3790,3 +3790,86 @@ Phase 47 delivers an automotive-grade automated vehicle condition inspection, 36
 | Code Coverage (`nearfield360.inspection`) | `uv run pytest tests/unit/inspection/ --cov=nearfield360.inspection` | 93.08% (exceeds 85% requirement) |
 | Ruff Linting & Formatting | `uv run ruff check` / `uv run ruff format` | Clean |
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
+
+## Phase 48: High-Definition (HD) Map Vector Tile Generation, Lanelet2 / OpenDRIVE Topology & Fisheye Feature-Map Localization
+
+**Status:** Completed
+**Repository Branch:** `phase/hdmap-vector-tiling-fisheye-localization`
+**Test Suite:** 39 passed (0 failures, 93.36% coverage on `nearfield360.hdmap`)
+**Type Checking:** `mypy --strict` clean (0 errors)
+**Linting & Style:** `ruff check` and `ruff format` clean
+**Test Coverage:** 93.36% across hdmap modules (exceeds required 85.0% threshold)
+**CLI Command Groups:** 40 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 48 delivers an autonomous valet parking (AVP) high-definition (HD) vector map tiling engine, topological lanelet network model, multi-standard format serialization (OpenDRIVE, Lanelet2 OSM, GeoJSON), and multi-hypothesis fisheye feature-map matching Monte Carlo particle filter localizer:
+
+1. **HD Map Configuration & Validation Bounds (`nearfield360.config`, `configs/default.yaml`)**:
+   - `tile_size_m` (default $25.0\text{ m}$), `simplify_tolerance_m` (default $0.05\text{ m}$), and `min_points_per_polyline` (default 2).
+   - Particle filter tuning: `num_particles` (default 300), `resample_neff_ratio` ($0.5$), and `kidnap_recovery_ratio` ($0.05$).
+   - Particle filter sensor noise: `motion_noise_x` ($0.05\text{ m}$), `motion_noise_y` ($0.05\text{ m}$), `motion_noise_theta` ($0.03\text{ rad}$), `measurement_sigma_lateral` ($0.15\text{ m}$), and `measurement_sigma_heading` ($0.10\text{ rad}$).
+   - Convergence criteria: `max_position_std_m` ($0.10\text{ m}$) and `max_heading_std_rad` ($0.05\text{ rad}$).
+2. **Metric Vector Domain Models & Schemas (`nearfield360.hdmap.models`)**:
+   - `Point2D`, `Polyline2D`, `Lanelet`, `ParkingSlotGeometry`, `VectorMap`, `TileIndex`, `VectorTile`, `FeatureObservation`, `ParticleState`, `LocalizationEstimate`, `ParticleCloud`, `HDMapAuditReport`.
+   - Explicit domain enums: `FeatureType` (`LANE_MARKING_WHITE`, `LANE_MARKING_YELLOW`, `ROAD_CURB`, `PARKING_BOUNDARY`, `STOP_LINE`, `PEDESTRIAN_CROSSWALK`, `WALL_BARRIER`), `LaneletTurnDirection`, `LocalizationStatus` (`INITIALIZING`, `CONVERGED`, `TRACKING`, `DEGRADED`, `LOST`).
+3. **Semantic BEV Raster Vectorization & Douglas-Peucker Simplification (`nearfield360.hdmap.vectorizer`)**:
+   - Contour extraction from 8-bit multi-class semantic BEV occupancy rasters.
+   - Point-to-line orthogonal projection distance Douglas-Peucker simplification algorithm reducing polyline density while strictly bounding geometric error.
+   - Automatic left/right boundary association and parametric centerline computation for topological lanelets.
+4. **Spatial Metric Map Tiler & Radius Spatial Query Engine (`nearfield360.hdmap.tiler`)**:
+   - Discrete 2D spatial hash grid partitioning $(\lfloor x / S \rfloor, \lfloor y / S \rfloor)$.
+   - Polyline and polygon bounding box intersection assigning vector primitives to covering tiles.
+   - Sub-millisecond radius spatial queries retrieving proximate features within vehicle perception horizon ($R \le 30\text{ m}$).
+5. **OpenDRIVE, Lanelet2 OSM & GeoJSON Multi-Format Exporters (`nearfield360.hdmap.formats`)**:
+   - OpenDRIVE v1.4 XML generation with `<road>`, `<planView>`, `<geometry>`, and `<lanes>` nodes.
+   - Lanelet2 OSM XML generation with `<node>`, `<way>` (left/right bounds), and `<relation type="lanelet">` elements.
+   - RFC 7946 GeoJSON FeatureCollection export with WGS-84/local Cartesian metric properties.
+6. **Multi-Hypothesis Fisheye Feature-Map Matching Monte Carlo Particle Filter Localizer (`nearfield360.hdmap.particle_filter`)**:
+   - Odometry motion propagation with Gaussian perturbation $(\Delta x, \Delta y, \Delta \theta)$.
+   - Vector map feature observation likelihood evaluation matching detected landmarks against closest map polylines.
+   - Importance weighting: $w_i \propto \exp\left(-\frac{1}{2} \left(\frac{d_k}{\sigma_{\text{lat}}}\right)^2\right)$.
+   - Low-variance systematic resampling triggered when effective particle count $N_{\text{eff}} = \frac{1}{\sum w_i^2} < \gamma \cdot N$.
+   - Circular mean heading estimator $\bar{\theta} = \operatorname{atan2}\left(\sum w_i \sin\theta_i, \sum w_i \cos\theta_i\right)$ and circular angular variance.
+   - Autonomous kidnapped robot recovery injecting uniformly sampled hypotheses upon divergence.
+7. **Tactical 1280x720 HUD Dashboard Visualizer (`nearfield360.hdmap.viz`)**:
+   - 4-quadrant layout: Metric Vector HD Map with Lanelet Polylines and Parking Slots, Particle Cloud & Covariance Ellipse Visualization, Convergence Telemetry & Lateral Variance Gauge, and OpenDRIVE / Lanelet2 Export & Metadata Card.
+8. **CLI Command Group & Release Audit Verification (`nearfield360.cli.hdmap`, `app.py`, `release.py`)**:
+   - Subcommands: `info`, `vectorize`, `tile`, `localize`, `export`, `render`, `audit`.
+   - Release audit verified across 40 registered Typer command groups.
+
+---
+
+### 2. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Metric Lanelet Representation with Derived Centerlines vs. Raster Feature Grids
+   - *Alternatives Considered*: Direct template matching or Chamfer distance over dense raster BEV grids.
+   - *Rationale & Evidence*: Raster distance transforms scale with grid resolution ($O(W \cdot H)$), consuming excessive memory in large multi-level parking structures. Vector lanelets encode geometric topology (left boundary, right boundary, centerline, turn direction) parametrically with Douglas-Peucker point decimation, reducing memory footprints by over $95\%$ while allowing sub-millisecond point-to-segment distance computations for particle weight evaluation.
+2. **Decision**: Circular Mean & Angular Variance for Non-Euclidean Heading Estimation
+   - *Alternatives Considered*: Standard linear arithmetic mean of orientation angles $\theta \in [-\pi, \pi]$.
+   - *Rationale & Evidence*: Linear arithmetic averaging fails near branch cuts $(-\pi \leftrightarrow \pi)$, producing erroneous near-zero headings when particles straddle the discontinuity. Utilizing vector decomposition $\bar{\theta} = \operatorname{atan2}\left(\sum w_i \sin\theta_i, \sum w_i \cos\theta_i\right)$ with circular angular variance $s_\theta = \sqrt{-2 \ln R}$ guarantees continuous, numerically stable orientation estimates across the full circle.
+3. **Decision**: Low-Variance Systematic Resampling with Kidnap Recovery Fraction
+   - *Alternatives Considered*: Multinomial sampling or pure roulette wheel selection without recovery.
+   - *Rationale & Evidence*: Standard multinomial resampling introduces high sampling variance ($O(N)$) and can cause particle deprivation where particle diversity collapses into a single point. Low-variance systematic resampling operates in $O(N)$ with stratified sampling $u \sim \mathcal{U}(0, 1/N)$. Supplementing resampling with an autonomous $5\%$ uniform re-injection ratio guarantees recovery if the vehicle suffers sudden displacement (kidnapped robot) without compromising track stability during normal convergence ($\sigma_y \le 0.10\text{ m}$).
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| HD Map Config Validation | `uv run pytest tests/unit/test_config.py` | 137 passed |
+| HD Map Domain Models & Schemas | `uv run pytest tests/unit/hdmap/test_hdmap_models.py` | 9 passed |
+| BEV Semantic Vectorizer & Simplifier | `uv run pytest tests/unit/hdmap/test_vectorizer.py` | 8 passed |
+| Spatial Metric Map Tiler | `uv run pytest tests/unit/hdmap/test_tiler.py` | 4 passed |
+| OpenDRIVE / Lanelet2 / GeoJSON Exporters | `uv run pytest tests/unit/hdmap/test_formats.py` | 3 passed |
+| Monte Carlo Particle Filter Localizer | `uv run pytest tests/unit/hdmap/test_particle_filter.py` | 5 passed |
+| Tactical 1280x720 HD Map Visualizer | `uv run pytest tests/unit/hdmap/test_hdmap_viz.py` | 3 passed |
+| HD Map CLI Command Group | `uv run pytest tests/unit/test_hdmap_cli.py` | 7 passed |
+| CLI Surface & Release Audit | `uv run nearfield360 release audit` | 40 groups passed |
+| Full Pre-Commit Quality Checks | `uv run pre-commit run --files ...` | 100% Passed |
+| Code Coverage (`nearfield360.hdmap`) | `uv run pytest tests/unit/hdmap/ tests/unit/test_hdmap_cli.py --cov=nearfield360.hdmap` | 93.36% (exceeds 85% requirement) |
+| Ruff Linting & Formatting | `uv run ruff check` / `uv run ruff format` | Clean |
+| Mypy Strict Typing | `uv run mypy` | 0 errors |

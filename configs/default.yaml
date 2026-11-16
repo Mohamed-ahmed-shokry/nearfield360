@@ -403,3 +403,18 @@ inspection:
   glass_crack_length_threshold_mm: 15.0
   enable_cryptographic_certificate: true
   certificate_signing_salt: "nearfield360-avp-liability-salt-2026"
+
+hdmap:
+  tile_size_m: 50.0
+  douglas_peucker_epsilon_m: 0.15
+  min_lane_width_m: 2.5
+  max_lane_width_m: 4.5
+  default_speed_limit_mps: 3.0
+  num_particles: 200
+  process_noise_pos_m: 0.05
+  process_noise_yaw_rad: 0.02
+  observation_sigma_m: 0.20
+  kidnapped_robot_threshold: 0.001
+  kidnapped_injection_ratio: 0.05
+  lateral_convergence_threshold_m: 0.10
+  heading_convergence_threshold_deg: 2.0

@@ -54,6 +54,7 @@ the corresponding experiments have run.
 | Facility operations control tower, coordinated day-run simulation & cross-subsystem KPI aggregation | Implemented | Seeded stochastic arrival demand generator, coordinated day-level simulation orchestrating gate arrivals, slot dispatch, EV charging windows, V2G export and settlement billing, hourly facility snapshots, daily cross-subsystem KPI aggregation, unified tactical dashboard visualizer (`nearfield360 ops`), and release audit verification (28 CLI groups) |
 | SAE J2954 Wireless Power Transfer (WPT), High-Precision Magnetic Alignment & Inductive Docking | Implemented | SAE J2954 / ISO 19363 inductive charging, 85 kHz resonant beacon 3D offset estimation, Foreign Object Detection (FOD) with Q-factor detuning, closed-loop creeping Ackermann inching controller, WPT1-WPT4 power governor, tactical 1280x720 HUD visualizer (`nearfield360 wpt`), and regulatory audit |
 | Automated Vehicle Condition Inspection, 360° Optical Damage Assessment, Tire Tread Profiling & Liability Handover Audit | Implemented | 360° surround fisheye defect detection (scratches, dents, paint chips, panel misalignment), 4-wheel multi-groove tread depth profiling with TPMS pressure telemetry, ECE R43 optical glass transmittance and crack inspection, SHA-256 HMAC liability certificates, pre/post delta comparison, tactical 1280x720 HUD dashboard (`nearfield360 inspect`), and regulatory audit |
+| High-Definition (HD) Map Vector Tiling, Lanelet2 / OpenDRIVE Topology & Fisheye Feature-Map Localization | Implemented | Douglas-Peucker semantic BEV vectorization, spatial grid tiler & radius queries, OpenDRIVE / Lanelet2 OSM / GeoJSON multi-format export, multi-hypothesis Monte Carlo particle filter localizer ($\sigma_y \le 0.10\text{ m}$), tactical 1280x720 HUD dashboard (`nearfield360 hdmap`), and release audit verification |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -1615,6 +1616,57 @@ Audit vehicle condition inspection subsystem readiness and compliance against EC
 ```powershell
 uv run nearfield360 inspect audit
 uv run nearfield360 inspect audit --json --output outputs/inspect_audit.json
+```
+
+### High-Definition (HD) Map Vector Tiling & Fisheye Localization
+
+Inspect active HD map configuration, tile metric dimensions, and localization limits:
+
+```powershell
+uv run nearfield360 hdmap info
+uv run nearfield360 hdmap info --json
+```
+
+Vectorize BEV semantic raster into Douglas-Peucker simplified vector polylines:
+
+```powershell
+uv run nearfield360 hdmap vectorize
+uv run nearfield360 hdmap vectorize --tolerance 0.08 --json
+```
+
+Tile metric vector features into indexed spatial grid tiles and perform radius query:
+
+```powershell
+uv run nearfield360 hdmap tile --tile-size 25.0
+uv run nearfield360 hdmap tile --query-x 10.0 --query-y 10.0 --query-r 15.0 --json
+```
+
+Run Monte Carlo particle filter localizer against fisheye feature map observations:
+
+```powershell
+uv run nearfield360 hdmap localize --particles 400 --steps 12
+uv run nearfield360 hdmap localize --json
+```
+
+Export metric vector map to OpenDRIVE XML, Lanelet2 OSM XML, or GeoJSON formats:
+
+```powershell
+uv run nearfield360 hdmap export --format opendrive --output outputs/facility_map.xodr
+uv run nearfield360 hdmap export --format lanelet2 --output outputs/facility_map.osm
+uv run nearfield360 hdmap export --format geojson --output outputs/facility_map.geojson
+```
+
+Render tactical 1280x720 HUD dashboard PNG artifact visualizing HD map vector topology and particle cloud:
+
+```powershell
+uv run nearfield360 hdmap render --output outputs/hdmap_dashboard.png
+```
+
+Audit HD map subsystem readiness, Lanelet2/OpenDRIVE schema validity, and localization bounds:
+
+```powershell
+uv run nearfield360 hdmap audit
+uv run nearfield360 hdmap audit --json --output outputs/hdmap_audit.json
 ```
 
 ## License
