@@ -2419,25 +2419,25 @@ Establish an automotive-grade High-Definition (HD) vector map generator, metric 
 
 ### 5. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 48 HD map vector tiling and fisheye localization scope`
-2. [ ] `feat(config): add HDMapConfig schema and default mapping parameters`
-3. [ ] `test(config): verify HDMapConfig defaults, validation bounds, and overrides`
-4. [ ] `feat(hdmap): implement vector primitives, lanelets, and localization domain models`
-5. [ ] `test(hdmap): verify HD map domain models validation, serialization, and JSON schemas`
-6. [ ] `feat(hdmap): implement BEV semantic raster to vector polyline extractor and Douglas-Peucker simplifier`
-7. [ ] `test(hdmap): verify vectorizer polyline simplification, lanelet extraction, and curvature bounds`
-8. [ ] `feat(hdmap): implement spatial metric map tiler and radius spatial query engine`
-9. [ ] `test(hdmap): verify spatial map tiling, index hashing, and localized radius queries`
-10. [ ] `feat(hdmap): implement OpenDRIVE, Lanelet2 OSM, and GeoJSON format exporters`
-11. [ ] `test(hdmap): verify format export schemas, XML/JSON generation, and coordinate integrity`
-12. [ ] `feat(hdmap): implement multi-hypothesis fisheye feature-map matching Monte Carlo particle filter localizer`
-13. [ ] `test(hdmap): verify particle filter convergence, observation weighting, and kidnapped robot recovery`
-14. [ ] `feat(hdmap): implement tactical 1280x720 HD map and localization HUD visualizer (render_hdmap_dashboard)`
-15. [ ] `test(hdmap): verify tactical HD map visualizer renders valid 1280x720 PNG artifacts`
-16. [ ] `feat(hdmap): export public HD map API from package init`
-17. [ ] `feat(cli): implement nearfield360 hdmap command group (info, vectorize, tile, localize, export, render, audit)`
-18. [ ] `feat(cli): register hdmap command group and update release audit expected count to 40`
-19. [ ] `test(cli): verify hdmap CLI command group execution, subcommands, and exit codes`
-20. [ ] `docs(readme): add HD map vector tiling and fisheye localization capability and CLI usage commands`
-21. [ ] `docs(progress): record Phase 48 implementation, Decision Log, and quality gates`
-22. [ ] `docs(roadmap): mark Phase 48 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 48 HD map vector tiling and fisheye localization scope`
+2. [x] `feat(config): add HDMapConfig schema and default mapping parameters`
+3. [x] `test(config): verify HDMapConfig defaults, validation bounds, and overrides`
+4. [x] `feat(hdmap): implement vector primitives, lanelets, and localization domain models`
+5. [x] `test(hdmap): verify HD map domain models validation, serialization, and JSON schemas`
+6. [x] `feat(hdmap): implement BEV semantic raster to vector polyline extractor and Douglas-Peucker simplifier`
+7. [x] `test(hdmap): verify vectorizer polyline simplification, lanelet extraction, and curvature bounds`
+8. [x] `feat(hdmap): implement spatial metric map tiler and radius spatial query engine`
+9. [x] `test(hdmap): verify spatial map tiling, index hashing, and localized radius queries`
+10. [x] `feat(hdmap): implement OpenDRIVE, Lanelet2 OSM, and GeoJSON format exporters`
+11. [x] `test(hdmap): verify format export schemas, XML/JSON generation, and coordinate integrity`
+12. [x] `feat(hdmap): implement multi-hypothesis fisheye feature-map matching Monte Carlo particle filter localizer`
+13. [x] `test(hdmap): verify particle filter convergence, observation weighting, and kidnapped robot recovery`
+14. [x] `feat(hdmap): implement tactical 1280x720 HD map and localization HUD visualizer (render_hdmap_dashboard)`
+15. [x] `test(hdmap): verify tactical HD map visualizer renders valid 1280x720 PNG artifacts`
+16. [x] `feat(hdmap): export public HD map API from package init`
+17. [x] `feat(cli): implement nearfield360 hdmap command group (info, vectorize, tile, localize, export, render, audit)`
+18. [x] `feat(cli): register hdmap command group and update release audit expected count to 40`
+19. [x] `test(cli): verify hdmap CLI command group execution, subcommands, and exit codes`
+20. [x] `docs(readme): add HD map vector tiling and fisheye localization capability and CLI usage commands`
+21. [x] `docs(progress): record Phase 48 implementation, Decision Log, and quality gates`
+22. [x] `docs(roadmap): mark Phase 48 micro-tasks and acceptance criteria completed`
