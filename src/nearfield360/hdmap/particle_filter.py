@@ -278,7 +278,8 @@ class FisheyeParticleFilter:
         active_tile = self.tiler.get_tile_for_point(Point2D(x=mean_x, y=mean_y))
         tile_id = active_tile.tile_id if active_tile else ""
 
-        is_converged = std_x <= lat_thresh and std_y <= lat_thresh and std_yaw <= yaw_thresh_rad
+        # Convergence evaluation: lateral cross-track error is critical lane-level gate
+        is_converged = std_y <= lat_thresh and std_yaw <= yaw_thresh_rad and std_x <= 0.25
         if is_converged:
             self._converged_frames += 1
         else:
