@@ -30,6 +30,7 @@ from nearfield360.cli.fleet import fleet_app
 from nearfield360.cli.floor import floor_app
 from nearfield360.cli.gate import gate_app
 from nearfield360.cli.geometry import geometry_app
+from nearfield360.cli.hdmap import hdmap_app
 from nearfield360.cli.health import health_app
 from nearfield360.cli.infer import infer_app
 from nearfield360.cli.inspect import inspect_app
@@ -91,6 +92,7 @@ app.add_typer(fleet_app, name="fleet")
 app.add_typer(floor_app, name="floor")
 app.add_typer(gate_app, name="gate")
 app.add_typer(geometry_app, name="geometry")
+app.add_typer(hdmap_app, name="hdmap")
 app.add_typer(health_app, name="health")
 app.add_typer(infer_app, name="infer")
 app.add_typer(inspect_app, name="inspect")
