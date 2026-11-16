@@ -1632,3 +1632,53 @@ def test_inspection_config_rejects_invalid_pressure(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match=r"less than or equal to 3\.5"):
         load_config(config_path)
+
+
+def test_default_hdmap_config() -> None:
+    config = load_config()
+    assert config.hdmap.tile_size_m == 50.0
+    assert config.hdmap.douglas_peucker_epsilon_m == 0.15
+    assert config.hdmap.min_lane_width_m == 2.5
+    assert config.hdmap.max_lane_width_m == 4.5
+    assert config.hdmap.default_speed_limit_mps == 3.0
+    assert config.hdmap.num_particles == 200
+    assert config.hdmap.process_noise_pos_m == 0.05
+    assert config.hdmap.process_noise_yaw_rad == 0.02
+    assert config.hdmap.observation_sigma_m == 0.20
+    assert config.hdmap.kidnapped_robot_threshold == 0.001
+    assert config.hdmap.kidnapped_injection_ratio == 0.05
+    assert config.hdmap.lateral_convergence_threshold_m == 0.10
+    assert config.hdmap.heading_convergence_threshold_deg == 2.0
+
+
+def test_hdmap_config_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text(
+        "hdmap:\n  tile_size_m: 75.0\n  douglas_peucker_epsilon_m: 0.25\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEARFIELD360_HDMAP__NUM_PARTICLES", "500")
+    monkeypatch.setenv("NEARFIELD360_HDMAP__DEFAULT_SPEED_LIMIT_MPS", "4.5")
+
+    config = load_config(config_path)
+
+    assert config.hdmap.tile_size_m == 75.0
+    assert config.hdmap.douglas_peucker_epsilon_m == 0.25
+    assert config.hdmap.num_particles == 500
+    assert config.hdmap.default_speed_limit_mps == 4.5
+
+
+def test_hdmap_config_rejects_invalid_tile_size(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("hdmap:\n  tile_size_m: 5.0\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"greater than or equal to 10"):
+        load_config(config_path)
+
+
+def test_hdmap_config_rejects_invalid_num_particles(tmp_path: Path) -> None:
+    config_path = tmp_path / "project.yaml"
+    config_path.write_text("hdmap:\n  num_particles: 5\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match=r"greater than or equal to 20"):
+        load_config(config_path)
