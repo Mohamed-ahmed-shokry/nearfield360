@@ -198,6 +198,9 @@ class ExtrinsicSelfCalibrator:
             normal = jacobian.T @ (row_weights[:, None] * jacobian)
             gradient = jacobian.T @ (row_weights * residual)
             step = np.linalg.solve(normal + damping * np.diag(np.diag(normal) + 1e-12), -gradient)
+            if float(np.linalg.norm(step)) < self.config.convergence_tolerance_rad:
+                converged = True
+                break
             candidate = vector + step
             candidate_residual = self._residuals(candidate, origin, directions, references)
             candidate_cost = float(
@@ -211,9 +214,6 @@ class ExtrinsicSelfCalibrator:
                 cost = float(np.sum(np.repeat(weights, 2) * residual**2))
                 jacobian = self._jacobian(vector, origin, directions, references)
                 damping = max(damping * 0.3, 1e-12)
-                if float(np.linalg.norm(step)) < self.config.convergence_tolerance_rad:
-                    converged = True
-                    break
             else:
                 damping *= 10.0
                 if damping > 1e12:
