@@ -800,6 +800,31 @@ class HDMapConfig(BaseModel):
     )
 
 
+class SelfCalConfig(BaseModel):
+    """Parameters for map-anchored online extrinsic self-calibration and drift monitoring."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    min_correspondences: int = Field(default=12, ge=4, le=10000)
+    max_iterations: int = Field(default=30, ge=1, le=500)
+    convergence_tolerance_rad: float = Field(default=1e-7, gt=0.0, le=1e-3, allow_inf_nan=False)
+    huber_delta_m: float = Field(default=0.05, gt=0.0, le=1.0, allow_inf_nan=False)
+    min_inlier_ratio: float = Field(default=0.5, gt=0.0, le=1.0, allow_inf_nan=False)
+    max_condition_number: float = Field(default=1e4, gt=1.0, le=1e9, allow_inf_nan=False)
+    ewma_alpha: float = Field(default=0.3, gt=0.0, le=1.0, allow_inf_nan=False)
+    warning_deg: float = Field(default=0.3, gt=0.0, le=10.0, allow_inf_nan=False)
+    recalibrate_deg: float = Field(default=0.8, gt=0.0, le=20.0, allow_inf_nan=False)
+    fault_deg: float = Field(default=3.0, gt=0.0, le=45.0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def _thresholds_ordered(self) -> SelfCalConfig:
+        if not self.warning_deg < self.recalibrate_deg < self.fault_deg:
+            raise ValueError(
+                "drift thresholds must satisfy warning_deg < recalibrate_deg < fault_deg"
+            )
+        return self
+
+
 class ProjectConfig(BaseSettings):
     """Top-level NearField360 settings.
 
@@ -857,6 +882,7 @@ class ProjectConfig(BaseSettings):
     wpt: WPTConfig = Field(default_factory=WPTConfig)
     inspection: InspectionConfig = Field(default_factory=InspectionConfig)
     hdmap: HDMapConfig = Field(default_factory=HDMapConfig)
+    selfcal: SelfCalConfig = Field(default_factory=SelfCalConfig)
 
     @classmethod
     def settings_customise_sources(
