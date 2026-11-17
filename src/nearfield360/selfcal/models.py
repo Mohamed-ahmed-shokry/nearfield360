@@ -65,17 +65,18 @@ def rotation_matrix(vector: npt.ArrayLike) -> npt.NDArray[np.float64]:
     """Rodrigues rotation matrix for a rotation vector (radians)."""
     rotvec = np.asarray(vector, dtype=np.float64)
     angle = float(np.linalg.norm(rotvec))
-    skew = np.array(
+    skew: npt.NDArray[np.float64] = np.array(
         [
             [0.0, -rotvec[2], rotvec[1]],
             [rotvec[2], 0.0, -rotvec[0]],
             [-rotvec[1], rotvec[0], 0.0],
-        ]
+        ],
+        dtype=np.float64,
     )
+    identity: npt.NDArray[np.float64] = np.eye(3, dtype=np.float64)
     if angle < 1e-12:
-        return np.eye(3) + skew
-    return (
-        np.eye(3)
-        + (math.sin(angle) / angle) * skew
-        + ((1.0 - math.cos(angle)) / (angle * angle)) * (skew @ skew)
-    )
+        return identity + skew
+    sin_term = math.sin(angle) / angle
+    cos_term = (1.0 - math.cos(angle)) / (angle * angle)
+    rotation: npt.NDArray[np.float64] = identity + sin_term * skew + cos_term * (skew @ skew)
+    return rotation
