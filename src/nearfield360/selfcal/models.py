@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import math
+from enum import StrEnum
 from typing import Self
 
 import numpy as np
 import numpy.typing as npt
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from nearfield360.data.woodscape import CameraId
 
 
 class RotationDelta(BaseModel):
@@ -80,3 +83,73 @@ def rotation_matrix(vector: npt.ArrayLike) -> npt.NDArray[np.float64]:
     cos_term = (1.0 - math.cos(angle)) / (angle * angle)
     rotation: npt.NDArray[np.float64] = identity + sin_term * skew + cos_term * (skew @ skew)
     return rotation
+
+
+class GroundObservation(BaseModel):
+    """One camera ray toward a landmark whose ground position is known.
+
+    ``direction`` is the nominal vehicle-frame ray (from the camera origin) as
+    produced by the factory calibration. ``reference_x_m``/``reference_y_m`` is
+    the landmark position in the vehicle frame obtained from the HD map match
+    or a calibration target.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    camera_id: CameraId
+    direction: tuple[float, float, float]
+    reference_x_m: float = Field(..., allow_inf_nan=False)
+    reference_y_m: float = Field(..., allow_inf_nan=False)
+
+    @field_validator("direction")
+    @classmethod
+    def _direction_finite_nonzero(
+        cls, value: tuple[float, float, float]
+    ) -> tuple[float, float, float]:
+        if not all(math.isfinite(component) for component in value):
+            raise ValueError("direction components must be finite")
+        if math.sqrt(sum(component * component for component in value)) == 0.0:
+            raise ValueError("direction must be non-zero")
+        return value
+
+
+class DriftStatus(StrEnum):
+    """Severity of a camera's estimated extrinsic misalignment."""
+
+    NOMINAL = "NOMINAL"
+    WARNING = "WARNING"
+    RECALIBRATE = "RECALIBRATE"
+    FAULT = "FAULT"
+    UNOBSERVABLE = "UNOBSERVABLE"
+
+
+class CalibrationEstimate(BaseModel):
+    """Result of one robust extrinsic estimation for a single camera."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    camera_id: CameraId
+    delta: RotationDelta
+    observable: bool
+    converged: bool
+    num_observations: int = Field(..., ge=0)
+    inlier_ratio: float = Field(..., ge=0.0, le=1.0, allow_inf_nan=False)
+    rms_before_m: float = Field(..., ge=0.0, allow_inf_nan=False)
+    rms_after_m: float = Field(..., ge=0.0, allow_inf_nan=False)
+    iterations: int = Field(..., ge=0)
+    sigma_deg: tuple[float, float, float]
+    condition_number: float | None = None
+    reason: str = ""
+
+
+class DriftReport(BaseModel):
+    """Smoothed drift state of one camera after a monitor update."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    camera_id: CameraId
+    status: DriftStatus
+    smoothed_delta: RotationDelta
+    magnitude_deg: float = Field(..., ge=0.0, allow_inf_nan=False)
+    accepted_updates: int = Field(..., ge=0)
+    rejected_updates: int = Field(..., ge=0)
