@@ -1682,3 +1682,35 @@ def test_hdmap_config_rejects_invalid_num_particles(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match=r"greater than or equal to 20"):
         load_config(config_path)
+
+
+def test_default_selfcal_config() -> None:
+    config = load_config()
+
+    assert config.selfcal.min_correspondences == 12
+    assert config.selfcal.max_iterations == 30
+    assert config.selfcal.huber_delta_m == 0.05
+    assert config.selfcal.min_inlier_ratio == 0.5
+    assert config.selfcal.ewma_alpha == 0.3
+    assert (config.selfcal.warning_deg, config.selfcal.recalibrate_deg) == (0.3, 0.8)
+    assert config.selfcal.fault_deg == 3.0
+
+
+def test_selfcal_thresholds_must_be_strictly_ordered() -> None:
+    from nearfield360.config import SelfCalConfig
+
+    with pytest.raises(ValidationError, match="warning_deg < recalibrate_deg"):
+        SelfCalConfig(warning_deg=1.0, recalibrate_deg=0.8)
+    with pytest.raises(ValidationError, match="warning_deg < recalibrate_deg"):
+        SelfCalConfig(recalibrate_deg=3.0, fault_deg=3.0)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("min_correspondences", 3), ("ewma_alpha", 0.0), ("huber_delta_m", -0.1)],
+)
+def test_selfcal_rejects_out_of_range_values(field: str, value: float) -> None:
+    from nearfield360.config import SelfCalConfig
+
+    with pytest.raises(ValidationError):
+        SelfCalConfig(**{field: value})
