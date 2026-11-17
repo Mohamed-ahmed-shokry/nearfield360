@@ -137,7 +137,7 @@ class CalibrationEstimate(BaseModel):
     rms_before_m: float = Field(..., ge=0.0, allow_inf_nan=False)
     rms_after_m: float = Field(..., ge=0.0, allow_inf_nan=False)
     iterations: int = Field(..., ge=0)
-    sigma_deg: tuple[float, float, float]
+    sigma_deg: tuple[float, float, float] | None = None
     condition_number: float | None = None
     reason: str = ""
 
