@@ -134,3 +134,17 @@ def test_ground_height_offset_is_respected() -> None:
 
     assert math.isclose(estimate.delta.roll_rad, TRUE_DELTA.roll_rad, abs_tol=1e-6)
     assert estimate.observable
+
+
+@pytest.mark.parametrize("pitch_deg", [0.1, 0.5, 1.2, 4.0])
+def test_converges_across_misalignment_magnitudes(pitch_deg: float) -> None:
+    truth = RotationDelta.from_degrees(pitch=pitch_deg)
+    observations = synthesize_observations(
+        CameraId.FRONT, truth, noise_deg=0.02, num_points=50, seed=2
+    )
+
+    estimate = ExtrinsicSelfCalibrator().estimate(DEFAULT_CAMERA_ORIGIN, observations)
+
+    assert estimate.converged and estimate.observable
+    assert estimate.iterations < 15
+    assert math.degrees(abs(estimate.delta.pitch_rad - truth.pitch_rad)) < 0.05
