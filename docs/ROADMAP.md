@@ -2441,3 +2441,68 @@ Establish an automotive-grade High-Definition (HD) vector map generator, metric 
 20. [x] `docs(readme): add HD map vector tiling and fisheye localization capability and CLI usage commands`
 21. [x] `docs(progress): record Phase 48 implementation, Decision Log, and quality gates`
 22. [x] `docs(roadmap): mark Phase 48 micro-tasks and acceptance criteria completed`
+
+## Phase 49: Map-Anchored Online Extrinsic Self-Calibration, Camera Misalignment Drift Monitoring & Recalibration Gating (Roadmap Item 40)
+
+### 1. Objective & Scope
+
+Fisheye cameras on a parked or valet-driven vehicle drift out of their factory extrinsics (bumper knocks, thermal creep, wheel-well vibration). Phase 6 only *injects* synthetic extrinsic perturbations to measure sensitivity; nothing *estimates* or *monitors* real drift. Phase 49 closes that gap: given landmarks whose ground position is known from the Phase 48 HD map (or a calibration target), estimate each camera's residual rotation error online, track it over time, and gate perception when it exceeds safe limits.
+
+- **Configuration (`nearfield360.config.SelfCalConfig`, `configs/default.yaml`)**: minimum correspondences, Gauss-Newton iteration budget, Huber robust-loss scale, EWMA smoothing, and drift thresholds (warning / recalibrate / fault, in degrees).
+- **Domain models (`nearfield360.selfcal.models`)**: `RotationDelta` (roll/pitch/yaw, rotation matrix, angular magnitude), `GroundObservation`, `CalibrationEstimate`, `DriftStatus`, `DriftReport`.
+- **Robust estimator (`nearfield360.selfcal.estimator`)**: Levenberg-Marquardt over a 3-parameter small rotation, minimizing ground-plane reprojection residuals with Huber IRLS reweighting; reports RMS before/after, inlier ratio, 1-sigma angular uncertainty from the weighted normal equations, and Jacobian condition number for observability.
+- **Drift monitor (`nearfield360.selfcal.monitor`)**: per-camera EWMA of accepted estimates, hysteresis-free threshold classification (`NOMINAL`, `WARNING`, `RECALIBRATE`, `FAULT`, `UNOBSERVABLE`), rejection of low-confidence estimates.
+- **Synthetic scenario generator (`nearfield360.selfcal.synthetic`)**: seeded landmark/ray synthesis with configurable true misalignment, pixel-equivalent noise, and outlier fraction for tests and the CLI demo.
+- **Tactical HUD (`nearfield360.selfcal.viz`)**: 1280x720 dashboard with before/after residual scatter, per-camera drift bars against thresholds, and a status table.
+- **CLI group `nearfield360 selfcal`**: `info`, `estimate`, `monitor`, `render`, `audit`; release audit grows from 40 to 41 command groups.
+
+### 2. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `SelfCalConfig` validated by Pydantic and present in `configs/default.yaml` | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Domain models validate inputs, expose rotation matrix/magnitude, and serialize to JSON | `uv run pytest tests/unit/selfcal/test_selfcal_models.py` |
+| AC-3 | Estimator recovers a known 0.5 degree misalignment to within 0.05 degrees on noisy data and survives 20% outliers | `uv run pytest tests/unit/selfcal/test_estimator.py` |
+| AC-4 | Estimator flags degenerate geometry (too few or collinear points) as unobservable instead of returning a bogus delta | `uv run pytest tests/unit/selfcal/test_estimator.py` |
+| AC-5 | Drift monitor classifies a ramping misalignment through NOMINAL, WARNING, RECALIBRATE, FAULT and ignores low-confidence estimates | `uv run pytest tests/unit/selfcal/test_monitor.py` |
+| AC-6 | HUD renders a valid 1280x720 PNG | `uv run pytest tests/unit/selfcal/test_selfcal_viz.py` |
+| AC-7 | `nearfield360 selfcal` executes all five subcommands with JSON/artifact output | `uv run pytest tests/unit/test_selfcal_cli.py` |
+| AC-8 | Release audit passes with 41 registered command groups | `uv run nearfield360 release audit` |
+| AC-9 | All local CI-parity checks and remote CI workflow runs pass 100% | `uv run pre-commit run --all-files`, remote CI green |
+
+### 3. Validation Plan
+
+1. Focused tests: `uv run pytest tests/unit/selfcal tests/unit/test_selfcal_cli.py --cov=nearfield360.selfcal` with coverage at or above 85%.
+2. Static analysis exactly as CI: `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`.
+3. Packaging: `uv build` and `uv run twine check dist/*`.
+4. Real execution: run every `selfcal` subcommand and inspect the JSON and PNG output.
+5. Remote CI: all six jobs green on the phase branch PR.
+
+### 4. Exclusions
+
+- Intrinsic (fisheye polynomial) recalibration and photometric calibration; only extrinsic rotation is estimated.
+- Translation (lever-arm) estimation; rotation dominates reprojection error at parking ranges and translation is weakly observable from ground landmarks.
+- Automatic landmark detection from imagery; observations are supplied (HD-map matches, targets, or synthetic).
+
+### 5. Micro-Task Breakdown
+
+1. [ ] `docs(roadmap): define Phase 49 online extrinsic self-calibration scope`
+2. [ ] `feat(config): add SelfCalConfig schema and default thresholds`
+3. [ ] `test(config): verify SelfCalConfig defaults, bounds, and ordering`
+4. [ ] `feat(selfcal): add RotationDelta model with rotation matrix and magnitude`
+5. [ ] `feat(selfcal): add observation, estimate, and drift report models`
+6. [ ] `test(selfcal): verify selfcal domain models and serialization`
+7. [ ] `feat(selfcal): add seeded synthetic ground observation generator`
+8. [ ] `feat(selfcal): implement robust Levenberg-Marquardt extrinsic estimator`
+9. [ ] `test(selfcal): verify estimator accuracy, outlier robustness, and degeneracy detection`
+10. [ ] `feat(selfcal): implement per-camera EWMA drift monitor with status gating`
+11. [ ] `test(selfcal): verify drift monitor classification and low-confidence rejection`
+12. [ ] `feat(selfcal): implement 1280x720 self-calibration HUD visualizer`
+13. [ ] `test(selfcal): verify HUD renders valid PNG artifacts`
+14. [ ] `feat(selfcal): export public self-calibration API from package init`
+15. [ ] `feat(cli): implement nearfield360 selfcal command group`
+16. [ ] `feat(cli): register selfcal group and update release audit count to 41`
+17. [ ] `test(cli): verify selfcal subcommands, JSON output, and exit codes`
+18. [ ] `docs(readme): add self-calibration capability and CLI usage`
+19. [ ] `docs(progress): record Phase 49 implementation, Decision Log, and quality gates`
+20. [ ] `docs(roadmap): mark Phase 49 micro-tasks and acceptance criteria completed`
