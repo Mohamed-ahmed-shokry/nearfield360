@@ -418,3 +418,15 @@ hdmap:
   kidnapped_injection_ratio: 0.05
   lateral_convergence_threshold_m: 0.10
   heading_convergence_threshold_deg: 2.0
+
+selfcal:
+  min_correspondences: 12
+  max_iterations: 30
+  convergence_tolerance_rad: 1.0e-07
+  huber_delta_m: 0.05
+  min_inlier_ratio: 0.5
+  max_condition_number: 10000.0
+  ewma_alpha: 0.3
+  warning_deg: 0.3
+  recalibrate_deg: 0.8
+  fault_deg: 3.0
