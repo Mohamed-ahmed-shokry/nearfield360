@@ -1644,7 +1644,7 @@ uv run nearfield360 hdmap tile --facility FAC-AIRPORT --level L2 --json
 Run Monte Carlo particle filter localizer against fisheye feature map observations:
 
 ```powershell
-uv run nearfield360 hdmap localize --particles 400 --steps 12
+uv run nearfield360 hdmap localize --x 15.2 --y 0.2 --yaw 0.05 --steps 12
 uv run nearfield360 hdmap localize --json
 ```
 
