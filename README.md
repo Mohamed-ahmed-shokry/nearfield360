@@ -1631,7 +1631,7 @@ Vectorize BEV semantic raster into Douglas-Peucker simplified vector polylines:
 
 ```powershell
 uv run nearfield360 hdmap vectorize
-uv run nearfield360 hdmap vectorize --tolerance 0.08 --json
+uv run nearfield360 hdmap vectorize --id L-DEMO-01 --speed 3.0 --json
 ```
 
 Tile metric vector features into indexed spatial grid tiles and perform radius query:
