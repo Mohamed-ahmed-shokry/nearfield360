@@ -3873,3 +3873,67 @@ Phase 48 delivers an autonomous valet parking (AVP) high-definition (HD) vector 
 | Code Coverage (`nearfield360.hdmap`) | `uv run pytest tests/unit/hdmap/ tests/unit/test_hdmap_cli.py --cov=nearfield360.hdmap` | 93.36% (exceeds 85% requirement) |
 | Ruff Linting & Formatting | `uv run ruff check` / `uv run ruff format` | Clean |
 | Mypy Strict Typing | `uv run mypy` | 0 errors |
+
+## Phase 49: Map-Anchored Online Extrinsic Self-Calibration, Camera Misalignment Drift Monitoring & Recalibration Gating
+
+**Status:** Completed
+**Repository Branch:** `phase/online-extrinsic-self-calibration`
+**Test Suite:** Full suite 1981 passed, 1 skipped (pre-existing skip); 57 phase-specific tests passed
+**Type Checking:** `mypy --strict` clean (296 source files)
+**Linting & Style:** `ruff check` and `ruff format --check` clean; `pre-commit run --all-files` clean
+**Test Coverage:** 91.85% overall; `nearfield360.selfcal` modules 91-100%, `nearfield360.cli.selfcal` 97%
+**CLI Command Groups:** 41 registered groups
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 6 only injects synthetic extrinsic perturbations to measure sensitivity; nothing estimated real camera drift. Phase 49 estimates each camera's residual rotation from landmarks whose ground position is known from the Phase 48 HD map, tracks it over time, and gates perception when it grows unsafe.
+
+1. **Configuration (`nearfield360.config.SelfCalConfig`, `configs/default.yaml`)**: correspondence minimum, LM iteration budget and tolerance, Huber scale, inlier and condition-number gates, EWMA alpha, and strictly ordered warning / recalibrate / fault thresholds (0.3 / 0.8 / 3.0 degrees).
+2. **Domain models (`nearfield360.selfcal.models`)**: `RotationDelta` (rotation vector with Rodrigues matrix and magnitude), `GroundObservation`, `CalibrationEstimate`, `DriftStatus`, `DriftReport`.
+3. **Robust estimator (`nearfield360.selfcal.estimator`)**: Levenberg-Marquardt over a 3-parameter rotation with Huber IRLS reweighting; reports inlier ratio, RMS before/after on the same inlier set, 1-sigma angular uncertainty, and Jacobian condition number; returns `UNOBSERVABLE` for too few correspondences, failed inlier gate, non-convergence, or ill-conditioned geometry.
+4. **Drift monitor (`nearfield360.selfcal.monitor`)**: per-camera EWMA over accepted estimates only, threshold classification, trust gate for perception.
+5. **Synthetic generator (`nearfield360.selfcal.synthetic`)**: seeded landmarks with true misalignment, angular noise, and wrong-match outliers.
+6. **HUD (`nearfield360.selfcal.viz`)**: 1280x720 dashboard with drift bars, history, estimate table, and RMS before/after.
+7. **CLI (`nearfield360.cli.selfcal`)**: `info`, `estimate`, `monitor`, `render`, `audit`; release audit expects 41 groups including `selfcal`.
+
+---
+
+### 2. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Rotation-vector parameterization instead of Euler angles.
+   - *Alternatives*: roll/pitch/yaw Euler composition.
+   - *Rationale*: Euler order is ambiguous and non-composable; for sub-degree to few-degree drift the rotation vector equals roll/pitch/yaw to first order and has a closed-form Rodrigues matrix with no gimbal issues.
+2. **Decision**: Estimate rotation only; exclude translation.
+   - *Alternatives*: 6-DoF estimation.
+   - *Rationale*: At parking ranges of 5-10 m a degree of rotation moves a ground point by roughly 9-17 cm while centimeter-level lever-arm changes are weakly observable from coplanar ground landmarks; adding translation worsens conditioning. Recorded as an exclusion.
+3. **Decision**: Huber IRLS inside Levenberg-Marquardt rather than RANSAC.
+   - *Alternatives*: RANSAC over minimal 2-point sets.
+   - *Rationale*: Landmarks come from map matching with a modest wrong-match rate; Huber keeps the problem deterministic and smooth, needs no random sampling for reproducible CI, and recovers truth within 0.05 degrees at 20% outliers (verified).
+4. **Decision**: Only observable, converged estimates update the monitor.
+   - *Rationale*: A single degenerate frame must neither raise nor clear an alarm; rejected frames are counted and visible in the report.
+5. **Decision**: `sigma_deg` is optional.
+   - *Rationale*: Unobservable estimates have no meaningful uncertainty and infinity does not survive JSON; found while writing the estimator and fixed in its own commit.
+6. **Defect found by tests and fixed**: the LM loop reported non-convergence at the optimum for 1.2 degree drift because floating-point noise made every candidate step marginally worse until damping blew up. Convergence is now declared when the step norm falls below tolerance, with a regression test across 0.1-4.0 degrees.
+7. **Defect from Phase 48 corrected**: README examples for `hdmap vectorize/tile/localize` used flags that do not exist (`--tolerance`, `--tile-size`, `--query-*`, `--particles`). They were verified against `--help` and replaced with the real flags in three commits.
+8. **Tooling finding**: pre-commit is not installed as a git hook in this checkout, so commits are not auto-gated; every commit in this phase was preceded by explicit `ruff`, `mypy`, and `pytest` runs, and one mypy error that slipped into a commit was fixed in the next commit.
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Config validation | `uv run pytest tests/unit/test_config.py` | 155 passed |
+| Domain models | `uv run pytest tests/unit/selfcal/test_selfcal_models.py` | 8 passed |
+| Estimator accuracy, outliers, degeneracy, convergence | `uv run pytest tests/unit/selfcal/test_estimator.py` | 22 passed |
+| Drift monitor | `uv run pytest tests/unit/selfcal/test_monitor.py` | 13 passed |
+| HUD visualizer | `uv run pytest tests/unit/selfcal/test_selfcal_viz.py` | 4 passed |
+| CLI group | `uv run pytest tests/unit/test_selfcal_cli.py` | 10 passed |
+| Release audit | `uv run nearfield360 release audit` | passed, `selfcal` registered (41 groups) |
+| Real CLI execution | `selfcal info/estimate/monitor/render/audit` | all exit 0; estimate recovers +0.513/-0.292/+0.399 deg against truth +0.5/-0.3/+0.4 at 20% outliers |
+| Lockfile | `uv lock --check` | passed |
+| Pre-commit (all files) | `uv run pre-commit run --all-files --show-diff-on-failure` | passed after line-ending normalization of `configs/default.yaml` working copy (committed blob is LF) |
+| Full suite with coverage | `uv run pytest -q --cov=nearfield360 ...` | 1981 passed, 1 skipped, 91.85% |
+| Package build | `uv build; uv run twine check dist/*` | sdist and wheel passed |
