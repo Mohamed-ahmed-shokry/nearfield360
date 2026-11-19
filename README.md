@@ -1634,11 +1634,11 @@ uv run nearfield360 hdmap vectorize
 uv run nearfield360 hdmap vectorize --id L-DEMO-01 --speed 3.0 --json
 ```
 
-Tile metric vector features into indexed spatial grid tiles and perform radius query:
+Tile metric vector features into indexed spatial grid tiles (tile size comes from `hdmap.tile_size_m`):
 
 ```powershell
-uv run nearfield360 hdmap tile --tile-size 25.0
-uv run nearfield360 hdmap tile --query-x 10.0 --query-y 10.0 --query-r 15.0 --json
+uv run nearfield360 hdmap tile
+uv run nearfield360 hdmap tile --facility FAC-AIRPORT --level L2 --json
 ```
 
 Run Monte Carlo particle filter localizer against fisheye feature map observations:
