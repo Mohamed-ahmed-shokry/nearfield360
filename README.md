@@ -55,6 +55,7 @@ the corresponding experiments have run.
 | SAE J2954 Wireless Power Transfer (WPT), High-Precision Magnetic Alignment & Inductive Docking | Implemented | SAE J2954 / ISO 19363 inductive charging, 85 kHz resonant beacon 3D offset estimation, Foreign Object Detection (FOD) with Q-factor detuning, closed-loop creeping Ackermann inching controller, WPT1-WPT4 power governor, tactical 1280x720 HUD visualizer (`nearfield360 wpt`), and regulatory audit |
 | Automated Vehicle Condition Inspection, 360° Optical Damage Assessment, Tire Tread Profiling & Liability Handover Audit | Implemented | 360° surround fisheye defect detection (scratches, dents, paint chips, panel misalignment), 4-wheel multi-groove tread depth profiling with TPMS pressure telemetry, ECE R43 optical glass transmittance and crack inspection, SHA-256 HMAC liability certificates, pre/post delta comparison, tactical 1280x720 HUD dashboard (`nearfield360 inspect`), and regulatory audit |
 | High-Definition (HD) Map Vector Tiling, Lanelet2 / OpenDRIVE Topology & Fisheye Feature-Map Localization | Implemented | Douglas-Peucker semantic BEV vectorization, spatial grid tiler & radius queries, OpenDRIVE / Lanelet2 OSM / GeoJSON multi-format export, multi-hypothesis Monte Carlo particle filter localizer ($\sigma_y \le 0.10\text{ m}$), tactical 1280x720 HUD dashboard (`nearfield360 hdmap`), and release audit verification |
+| Online Extrinsic Self-Calibration, Camera Misalignment Drift Monitoring & Recalibration Gating | Implemented | HD-map-anchored ground landmarks, 3-parameter Levenberg-Marquardt rotation estimator with Huber IRLS outlier rejection, 1-sigma uncertainty and Jacobian condition-number observability checks, per-camera EWMA drift monitor (NOMINAL/WARNING/RECALIBRATE/FAULT/UNOBSERVABLE), tactical 1280x720 HUD (`nearfield360 selfcal`), and release audit verification (41 CLI groups) |
 | PyTorch training & native TensorRT/C++ accelerators | Planned | No proprietary training checkpoints or CUDA toolchains assumed; pure ONNX and OpenCV DNN execution |
 
 ## System design
@@ -1667,6 +1668,43 @@ Audit HD map subsystem readiness, Lanelet2/OpenDRIVE schema validity, and locali
 ```powershell
 uv run nearfield360 hdmap audit
 uv run nearfield360 hdmap audit --json --output outputs/hdmap_audit.json
+```
+
+### Online Extrinsic Self-Calibration & Camera Drift Monitoring
+
+Show estimator settings and the warning / recalibrate / fault thresholds (degrees):
+
+```powershell
+uv run nearfield360 selfcal info
+uv run nearfield360 selfcal info --json
+```
+
+Estimate a camera's residual roll/pitch/yaw from ground landmarks whose positions are known from the HD map (synthetic, seeded landmarks with optional wrong matches):
+
+```powershell
+uv run nearfield360 selfcal estimate --camera FV --roll 0.5 --pitch -0.3 --yaw 0.4
+uv run nearfield360 selfcal estimate --outliers 0.2 --points 60 --json --output outputs/selfcal_estimate.json
+```
+
+Estimates with too few usable correspondences, a failed inlier gate, or ill-conditioned geometry report `UNOBSERVABLE` instead of a bogus rotation.
+
+Simulate gradual drift of one camera and watch the smoothed per-camera status:
+
+```powershell
+uv run nearfield360 selfcal monitor --camera MVR --pitch 3.5 --frames 8
+```
+
+Render the tactical 1280x720 HUD (drift bars, history, estimate table, RMS before/after):
+
+```powershell
+uv run nearfield360 selfcal render --output outputs/selfcal_dashboard.png
+```
+
+Audit the subsystem, including an end-to-end accuracy check on a 20% outlier scenario:
+
+```powershell
+uv run nearfield360 selfcal audit
+uv run nearfield360 selfcal audit --json --output outputs/selfcal_audit.json
 ```
 
 ## License
