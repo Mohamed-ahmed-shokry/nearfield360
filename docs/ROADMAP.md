@@ -2486,23 +2486,23 @@ Fisheye cameras on a parked or valet-driven vehicle drift out of their factory e
 
 ### 5. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 49 online extrinsic self-calibration scope`
-2. [ ] `feat(config): add SelfCalConfig schema and default thresholds`
-3. [ ] `test(config): verify SelfCalConfig defaults, bounds, and ordering`
-4. [ ] `feat(selfcal): add RotationDelta model with rotation matrix and magnitude`
-5. [ ] `feat(selfcal): add observation, estimate, and drift report models`
-6. [ ] `test(selfcal): verify selfcal domain models and serialization`
-7. [ ] `feat(selfcal): add seeded synthetic ground observation generator`
-8. [ ] `feat(selfcal): implement robust Levenberg-Marquardt extrinsic estimator`
-9. [ ] `test(selfcal): verify estimator accuracy, outlier robustness, and degeneracy detection`
-10. [ ] `feat(selfcal): implement per-camera EWMA drift monitor with status gating`
-11. [ ] `test(selfcal): verify drift monitor classification and low-confidence rejection`
-12. [ ] `feat(selfcal): implement 1280x720 self-calibration HUD visualizer`
-13. [ ] `test(selfcal): verify HUD renders valid PNG artifacts`
-14. [ ] `feat(selfcal): export public self-calibration API from package init`
-15. [ ] `feat(cli): implement nearfield360 selfcal command group`
-16. [ ] `feat(cli): register selfcal group and update release audit count to 41`
-17. [ ] `test(cli): verify selfcal subcommands, JSON output, and exit codes`
-18. [ ] `docs(readme): add self-calibration capability and CLI usage`
-19. [ ] `docs(progress): record Phase 49 implementation, Decision Log, and quality gates`
-20. [ ] `docs(roadmap): mark Phase 49 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 49 online extrinsic self-calibration scope`
+2. [x] `feat(config): add SelfCalConfig schema and default thresholds`
+3. [x] `test(config): verify SelfCalConfig defaults, bounds, and ordering`
+4. [x] `feat(selfcal): add RotationDelta model with rotation matrix and magnitude`
+5. [x] `feat(selfcal): add observation, estimate, and drift report models`
+6. [x] `test(selfcal): verify selfcal domain models and serialization`
+7. [x] `feat(selfcal): add seeded synthetic ground observation generator`
+8. [x] `feat(selfcal): implement robust Levenberg-Marquardt extrinsic estimator`
+9. [x] `test(selfcal): verify estimator accuracy, outlier robustness, and degeneracy detection`
+10. [x] `feat(selfcal): implement per-camera EWMA drift monitor with status gating`
+11. [x] `test(selfcal): verify drift monitor classification and low-confidence rejection`
+12. [x] `feat(selfcal): implement 1280x720 self-calibration HUD visualizer`
+13. [x] `test(selfcal): verify HUD renders valid PNG artifacts`
+14. [x] `feat(selfcal): export public self-calibration API from package init`
+15. [x] `feat(cli): implement nearfield360 selfcal command group`
+16. [x] `feat(cli): register selfcal group and update release audit count to 41`
+17. [x] `test(cli): verify selfcal subcommands, JSON output, and exit codes`
+18. [x] `docs(readme): add self-calibration capability and CLI usage`
+19. [x] `docs(progress): record Phase 49 implementation, Decision Log, and quality gates`
+20. [x] `docs(roadmap): mark Phase 49 micro-tasks and acceptance criteria completed`
