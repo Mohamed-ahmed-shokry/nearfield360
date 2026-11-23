@@ -2506,3 +2506,68 @@ Fisheye cameras on a parked or valet-driven vehicle drift out of their factory e
 18. [x] `docs(readme): add self-calibration capability and CLI usage`
 19. [x] `docs(progress): record Phase 49 implementation, Decision Log, and quality gates`
 20. [x] `docs(roadmap): mark Phase 49 micro-tasks and acceptance criteria completed`
+
+## Phase 50: Pixel-Space Fisheye Landmark Association (Point-to-Line ICP) for Extrinsic Self-Calibration (Roadmap Item 41)
+
+### 1. Objective & Scope
+
+Phase 49 estimates camera rotation drift from *ground landmarks with known point correspondences*. In a real vehicle the input is not point pairs: it is pixel detections of painted lines (aisle edges, slot dividers, stop bars) that must be associated to HD-map polylines through the fisheye model. Painted lines are not points: displacement along a line is unobservable (the aperture problem), so point-to-point correspondence biases the estimate. Phase 50 delivers the missing front end:
+
+- **Configuration (`SelfCalConfig`)**: coarse-to-fine association gates (`association_gate_start_m`, `association_gate_end_m`) and an association round budget.
+- **Point-to-line residuals**: `GroundObservation` gains an optional unit `reference_normal`; the estimator then penalizes only the cross-line component, with degrees of freedom counted per effective dimension.
+- **Polyline map (`nearfield360.selfcal.association.PolylineMap`)**: vectorized nearest-point-on-segment queries over vehicle-frame HD-map polylines.
+- **Detection association**: unproject pixels with the real `CalibratedCamera` fisheye model, apply the current rotation hypothesis, intersect the ground plane, gate against the map, and emit point-to-line `GroundObservation`s.
+- **ICP driver (`ImageLandmarkCalibrator`)**: alternates association and robust estimation while shrinking the gate, recording a per-round trace; returns the final `CalibrationEstimate`.
+- **Synthetic scene (`nearfield360.selfcal.scene`)**: a demo fisheye camera, a parking-aisle map with longitudinal and cross lines, and seeded pixel detections with pixel noise and clutter, generated through the true (drifted) camera.
+- **CLI**: `nearfield360 selfcal image` and extended `selfcal audit`.
+
+### 2. Acceptance Criteria
+
+| ID | Criterion | Verification Method |
+|---|---|---|
+| AC-1 | `SelfCalConfig` validates new gate/round fields (end gate not above start gate) and defaults load from YAML | `uv run pytest tests/unit/test_config.py` |
+| AC-2 | Point-to-line residuals ignore along-line displacement and match point-to-point accuracy on cross-line geometry | `uv run pytest tests/unit/selfcal/test_estimator.py` |
+| AC-3 | `PolylineMap` returns exact nearest points/distances, handles degenerate segments, and rejects empty maps | `uv run pytest tests/unit/selfcal/test_association.py` |
+| AC-4 | Association gates out far detections and emits unit normals | `uv run pytest tests/unit/selfcal/test_association.py` |
+| AC-5 | ICP recovers a 0.5 degree misalignment to within 0.05 degrees from pixel detections with 1 px noise and 20% clutter | `uv run pytest tests/unit/selfcal/test_image_calibrator.py` |
+| AC-6 | A scene with only parallel lines is reported as unobservable or ill-conditioned rather than returning a bogus rotation | `uv run pytest tests/unit/selfcal/test_image_calibrator.py` |
+| AC-7 | `nearfield360 selfcal image` runs end to end with JSON and trace output; audit includes the image scenario | `uv run pytest tests/unit/test_selfcal_cli.py` |
+| AC-8 | All local CI-parity checks and remote CI workflow runs pass 100% | `uv run pre-commit run --all-files`, remote CI green |
+
+### 3. Validation Plan
+
+1. Focused tests: `uv run pytest tests/unit/selfcal tests/unit/test_selfcal_cli.py` with `nearfield360.selfcal` coverage at or above 85%.
+2. CI parity exactly as the workflow: `uv lock --check`, `uv run pre-commit run --all-files --show-diff-on-failure`, `uv run pytest -q --cov=nearfield360 --cov-report=term-missing --cov-report=xml`, `uv build`, `uv run twine check dist/*`.
+3. Real execution: run `selfcal image` with several truths and inspect traces; run `selfcal audit`.
+4. Remote CI: all six jobs green on the phase branch PR.
+
+### 4. Exclusions
+
+- Learned lane/curb detection from raw imagery; detections are supplied (the interface is pixel coordinates).
+- Photometric calibration and intrinsic (polynomial) re-estimation.
+- Fusing the estimate back into the live rig (applying the delta to `CalibratedCamera` extrinsics); the monitor only gates.
+
+### 5. Micro-Task Breakdown
+
+1. [ ] `docs(roadmap): define Phase 50 pixel-space landmark association scope`
+2. [ ] `feat(config): add association gate and round fields to SelfCalConfig`
+3. [ ] `feat(config): add association defaults to default.yaml`
+4. [ ] `test(config): verify association gate ordering and bounds`
+5. [ ] `refactor(selfcal): bundle estimator problem inputs with no behavior change`
+6. [ ] `feat(selfcal): add optional reference_normal to GroundObservation`
+7. [ ] `feat(selfcal): support point-to-line residuals in the estimator`
+8. [ ] `test(selfcal): verify point-to-line residuals and aperture handling`
+9. [ ] `feat(selfcal): add PolylineMap nearest-point queries`
+10. [ ] `test(selfcal): verify PolylineMap nearest points and validation`
+11. [ ] `feat(selfcal): associate fisheye pixel detections to map polylines`
+12. [ ] `test(selfcal): verify association gating and normals`
+13. [ ] `feat(selfcal): add demo fisheye camera, parking-aisle map, and synthetic detections`
+14. [ ] `test(selfcal): verify synthetic scene geometry and detection round-trip`
+15. [ ] `feat(selfcal): implement ImageLandmarkCalibrator ICP driver`
+16. [ ] `test(selfcal): verify ICP accuracy, clutter robustness, and aperture detection`
+17. [ ] `feat(selfcal): export image-landmark calibration API`
+18. [ ] `feat(cli): add selfcal image subcommand and extend audit`
+19. [ ] `test(cli): verify selfcal image and extended audit`
+20. [ ] `docs(readme): document selfcal image workflow`
+21. [ ] `docs(progress): record Phase 50 implementation, Decision Log, and quality gates`
+22. [ ] `docs(roadmap): mark Phase 50 micro-tasks and acceptance criteria completed`
