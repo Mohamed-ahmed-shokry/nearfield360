@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -20,6 +21,15 @@ _MIN_DIRECTION_Z = 1e-9
 _JACOBIAN_STEP_RAD = 1e-6
 _INLIER_SCALES = 3.0
 _SIGMA_FLOOR_M = 1e-4
+
+
+@dataclass(frozen=True)
+class _Problem:
+    """Fixed inputs of one estimation: camera origin, nominal rays, and references."""
+
+    origin: npt.NDArray[np.float64]
+    directions: npt.NDArray[np.float64]
+    references: npt.NDArray[np.float64]
 
 
 class ExtrinsicSelfCalibrator:
@@ -60,6 +70,7 @@ class ExtrinsicSelfCalibrator:
         ) > 0.0
         directions = directions[usable]
         references = references[usable]
+        problem = _Problem(origin_array, directions, references)
 
         def unobservable(reason: str, num: int = total) -> CalibrationEstimate:
             return CalibrationEstimate(
@@ -82,18 +93,16 @@ class ExtrinsicSelfCalibrator:
                 f"got {len(directions)}"
             )
 
-        solution = self._solve(origin_array, directions, references)
+        solution = self._solve(problem)
         if solution is None:
             return unobservable("estimator diverged outside the supported rotation range")
         vector, iterations, converged, weights, jacobian = solution
 
-        residual_norm = np.linalg.norm(
-            self._residuals(vector, origin_array, directions, references).reshape(-1, 2), axis=1
-        )
+        residual_norm = np.linalg.norm(self._residuals(vector, problem).reshape(-1, 2), axis=1)
         inliers = residual_norm <= _INLIER_SCALES * self.config.huber_delta_m
         inlier_ratio = float(np.count_nonzero(inliers)) / total
         zero_norm = np.linalg.norm(
-            self._residuals(np.zeros(3), origin_array, directions, references).reshape(-1, 2),
+            self._residuals(np.zeros(3), problem).reshape(-1, 2),
             axis=1,
         )
         rms_after = _rms(residual_norm[inliers])
@@ -133,30 +142,27 @@ class ExtrinsicSelfCalibrator:
     def _residuals(
         self,
         vector: npt.NDArray[np.float64],
-        origin: npt.NDArray[np.float64],
-        directions: npt.NDArray[np.float64],
-        references: npt.NDArray[np.float64],
+        problem: _Problem,
     ) -> npt.NDArray[np.float64]:
-        rotated = directions @ rotation_matrix(vector).T
+        origin = problem.origin
+        rotated = problem.directions @ rotation_matrix(vector).T
         with np.errstate(all="ignore"):
             scale = (self.ground_z - origin[2]) / rotated[:, 2]
         points = origin[:2] + scale[:, None] * rotated[:, :2]
-        residual: npt.NDArray[np.float64] = (points - references).reshape(-1)
+        residual: npt.NDArray[np.float64] = (points - problem.references).reshape(-1)
         return residual
 
     def _jacobian(
         self,
         vector: npt.NDArray[np.float64],
-        origin: npt.NDArray[np.float64],
-        directions: npt.NDArray[np.float64],
-        references: npt.NDArray[np.float64],
+        problem: _Problem,
     ) -> npt.NDArray[np.float64]:
         columns = []
         for axis in range(3):
             step = np.zeros(3)
             step[axis] = _JACOBIAN_STEP_RAD
-            plus = self._residuals(vector + step, origin, directions, references)
-            minus = self._residuals(vector - step, origin, directions, references)
+            plus = self._residuals(vector + step, problem)
+            minus = self._residuals(vector - step, problem)
             columns.append((plus - minus) / (2.0 * _JACOBIAN_STEP_RAD))
         jacobian: npt.NDArray[np.float64] = np.stack(columns, axis=1)
         return jacobian
@@ -171,9 +177,7 @@ class ExtrinsicSelfCalibrator:
 
     def _solve(
         self,
-        origin: npt.NDArray[np.float64],
-        directions: npt.NDArray[np.float64],
-        references: npt.NDArray[np.float64],
+        problem: _Problem,
     ) -> (
         tuple[
             npt.NDArray[np.float64],
@@ -188,10 +192,10 @@ class ExtrinsicSelfCalibrator:
         damping = 1e-3
         converged = False
         iterations = 0
-        residual = self._residuals(vector, origin, directions, references)
+        residual = self._residuals(vector, problem)
         weights = self._huber_weights(residual)
         cost = float(np.sum(np.repeat(weights, 2) * residual**2))
-        jacobian = self._jacobian(vector, origin, directions, references)
+        jacobian = self._jacobian(vector, problem)
         for _ in range(self.config.max_iterations):
             iterations += 1
             row_weights = np.repeat(weights, 2)
@@ -202,7 +206,7 @@ class ExtrinsicSelfCalibrator:
                 converged = True
                 break
             candidate = vector + step
-            candidate_residual = self._residuals(candidate, origin, directions, references)
+            candidate_residual = self._residuals(candidate, problem)
             candidate_cost = float(
                 np.sum(
                     np.repeat(self._huber_weights(candidate_residual), 2) * candidate_residual**2
@@ -212,7 +216,7 @@ class ExtrinsicSelfCalibrator:
                 vector, residual = candidate, candidate_residual
                 weights = self._huber_weights(residual)
                 cost = float(np.sum(np.repeat(weights, 2) * residual**2))
-                jacobian = self._jacobian(vector, origin, directions, references)
+                jacobian = self._jacobian(vector, problem)
                 damping = max(damping * 0.3, 1e-12)
             else:
                 damping *= 10.0
