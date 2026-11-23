@@ -815,6 +815,15 @@ class SelfCalConfig(BaseModel):
     warning_deg: float = Field(default=0.3, gt=0.0, le=10.0, allow_inf_nan=False)
     recalibrate_deg: float = Field(default=0.8, gt=0.0, le=20.0, allow_inf_nan=False)
     fault_deg: float = Field(default=3.0, gt=0.0, le=45.0, allow_inf_nan=False)
+    association_gate_start_m: float = Field(default=0.6, gt=0.0, le=5.0, allow_inf_nan=False)
+    association_gate_end_m: float = Field(default=0.1, gt=0.0, le=5.0, allow_inf_nan=False)
+    max_association_rounds: int = Field(default=8, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def _gates_ordered(self) -> SelfCalConfig:
+        if self.association_gate_end_m > self.association_gate_start_m:
+            raise ValueError("association_gate_end_m must not exceed association_gate_start_m")
+        return self
 
     @model_validator(mode="after")
     def _thresholds_ordered(self) -> SelfCalConfig:

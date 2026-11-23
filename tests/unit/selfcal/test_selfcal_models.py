@@ -107,3 +107,18 @@ def test_estimate_and_report_round_trip_through_json() -> None:
     assert DriftReport.model_validate_json(report.model_dump_json()) == report
     with pytest.raises(ValidationError):
         CalibrationEstimate(**{**estimate.model_dump(), "inlier_ratio": 1.5})
+
+
+def test_ground_observation_reference_normal_validation() -> None:
+    base = {
+        "camera_id": CameraId.FRONT,
+        "direction": (1.0, 0.0, -0.5),
+        "reference_x_m": 4.0,
+        "reference_y_m": 0.0,
+    }
+    assert GroundObservation(**base).reference_normal is None
+    assert GroundObservation(**base, reference_normal=(0.0, 2.0)).reference_normal == (0.0, 2.0)
+    with pytest.raises(ValidationError, match="non-zero"):
+        GroundObservation(**base, reference_normal=(0.0, 0.0))
+    with pytest.raises(ValidationError, match="finite"):
+        GroundObservation(**base, reference_normal=(float("nan"), 1.0))

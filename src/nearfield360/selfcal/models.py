@@ -91,7 +91,9 @@ class GroundObservation(BaseModel):
     ``direction`` is the nominal vehicle-frame ray (from the camera origin) as
     produced by the factory calibration. ``reference_x_m``/``reference_y_m`` is
     the landmark position in the vehicle frame obtained from the HD map match
-    or a calibration target.
+    or a calibration target. When ``reference_normal`` is given the landmark lies
+    on a line with that vehicle-frame normal, and only the cross-line component
+    of the ground residual is meaningful (point-to-line correspondence).
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -100,6 +102,20 @@ class GroundObservation(BaseModel):
     direction: tuple[float, float, float]
     reference_x_m: float = Field(..., allow_inf_nan=False)
     reference_y_m: float = Field(..., allow_inf_nan=False)
+    reference_normal: tuple[float, float] | None = None
+
+    @field_validator("reference_normal")
+    @classmethod
+    def _normal_finite_nonzero(
+        cls, value: tuple[float, float] | None
+    ) -> tuple[float, float] | None:
+        if value is None:
+            return None
+        if not all(math.isfinite(component) for component in value):
+            raise ValueError("reference_normal components must be finite")
+        if math.hypot(*value) == 0.0:
+            raise ValueError("reference_normal must be non-zero")
+        return value
 
     @field_validator("direction")
     @classmethod
