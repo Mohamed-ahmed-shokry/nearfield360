@@ -30,6 +30,8 @@ class _Problem:
     origin: npt.NDArray[np.float64]
     directions: npt.NDArray[np.float64]
     references: npt.NDArray[np.float64]
+    normals: npt.NDArray[np.float64]
+    has_normal: npt.NDArray[np.bool_]
 
 
 class ExtrinsicSelfCalibrator:
@@ -65,12 +67,21 @@ class ExtrinsicSelfCalibrator:
         references = np.asarray(
             [[o.reference_x_m, o.reference_y_m] for o in observations], dtype=np.float64
         )
+        normals = np.zeros((total, 2), dtype=np.float64)
+        has_normal = np.zeros(total, dtype=bool)
+        for index, observation in enumerate(observations):
+            if observation.reference_normal is not None:
+                normal = np.asarray(observation.reference_normal, dtype=np.float64)
+                normals[index] = normal / np.linalg.norm(normal)
+                has_normal[index] = True
         usable = (self.ground_z - origin_array[2]) / np.where(
             np.abs(directions[:, 2]) < _MIN_DIRECTION_Z, np.nan, directions[:, 2]
         ) > 0.0
         directions = directions[usable]
         references = references[usable]
-        problem = _Problem(origin_array, directions, references)
+        problem = _Problem(
+            origin_array, directions, references, normals[usable], has_normal[usable]
+        )
 
         def unobservable(reason: str, num: int = total) -> CalibrationEstimate:
             return CalibrationEstimate(
@@ -111,7 +122,7 @@ class ExtrinsicSelfCalibrator:
         weighted = jacobian * np.repeat(weights, 2)[:, None] ** 0.5
         singular = np.linalg.svd(weighted, compute_uv=False)
         condition = float(singular[0] / singular[-1]) if singular[-1] > 0.0 else math.inf
-        sigma_deg = self._sigma_deg(weighted, residual_norm, weights)
+        sigma_deg = self._sigma_deg(weighted, residual_norm, weights, problem)
 
         reason = ""
         if not converged:
@@ -149,7 +160,11 @@ class ExtrinsicSelfCalibrator:
         with np.errstate(all="ignore"):
             scale = (self.ground_z - origin[2]) / rotated[:, 2]
         points = origin[:2] + scale[:, None] * rotated[:, :2]
-        residual: npt.NDArray[np.float64] = (points - problem.references).reshape(-1)
+        offset = points - problem.references
+        along_normal = np.sum(offset * problem.normals, axis=1, keepdims=True) * problem.normals
+        residual: npt.NDArray[np.float64] = np.where(
+            problem.has_normal[:, None], along_normal, offset
+        ).reshape(-1)
         return residual
 
     def _jacobian(
@@ -231,8 +246,10 @@ class ExtrinsicSelfCalibrator:
         weighted_jacobian: npt.NDArray[np.float64],
         residual_norm: npt.NDArray[np.float64],
         weights: npt.NDArray[np.float64],
+        problem: _Problem,
     ) -> tuple[float, float, float]:
-        dof = max(2 * len(residual_norm) - 3, 1)
+        measurements = int(np.sum(np.where(problem.has_normal, 1, 2)))
+        dof = max(measurements - 3, 1)
         variance = max(float(np.sum(weights * residual_norm**2)) / dof, _SIGMA_FLOOR_M**2)
         covariance = variance * np.linalg.pinv(weighted_jacobian.T @ weighted_jacobian)
         sigma = np.degrees(np.sqrt(np.maximum(np.diag(covariance), 0.0)))
