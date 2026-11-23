@@ -148,3 +148,65 @@ def test_converges_across_misalignment_magnitudes(pitch_deg: float) -> None:
     assert estimate.converged and estimate.observable
     assert estimate.iterations < 15
     assert math.degrees(abs(estimate.delta.pitch_rad - truth.pitch_rad)) < 0.05
+
+
+def _line_observations(
+    truth: RotationDelta, *, with_normals: bool, shift_m: float = 1.0
+) -> list[GroundObservation]:
+    """Observations of perpendicular lines whose references slide along each line."""
+    rng = np.random.default_rng(11)
+    exact = synthesize_observations(CameraId.FRONT, truth, noise_deg=0.0, num_points=60, seed=5)
+    observations = []
+    for index, obs in enumerate(exact):
+        across_x = index % 2 == 0  # line x=const has normal (1, 0); line y=const has (0, 1)
+        slide = float(rng.uniform(-shift_m, shift_m))
+        reference = (
+            (obs.reference_x_m, obs.reference_y_m + slide)
+            if across_x
+            else (obs.reference_x_m + slide, obs.reference_y_m)
+        )
+        observations.append(
+            GroundObservation(
+                camera_id=obs.camera_id,
+                direction=obs.direction,
+                reference_x_m=reference[0],
+                reference_y_m=reference[1],
+                reference_normal=((1.0, 0.0) if across_x else (0.0, 1.0)) if with_normals else None,
+            )
+        )
+    return observations
+
+
+def test_point_to_line_residuals_ignore_along_line_displacement() -> None:
+    observations = _line_observations(TRUE_DELTA, with_normals=True)
+
+    estimate = ExtrinsicSelfCalibrator().estimate(DEFAULT_CAMERA_ORIGIN, observations)
+
+    assert estimate.observable and estimate.converged
+    np.testing.assert_allclose(estimate.delta.as_vector(), TRUE_DELTA.as_vector(), atol=1e-5)
+    assert estimate.rms_after_m < 1e-4
+
+
+def test_point_to_point_is_biased_by_the_same_along_line_displacement() -> None:
+    observations = _line_observations(TRUE_DELTA, with_normals=False)
+
+    estimate = ExtrinsicSelfCalibrator(SelfCalConfig(min_inlier_ratio=0.1)).estimate(
+        DEFAULT_CAMERA_ORIGIN, observations
+    )
+
+    assert _max_error_deg(estimate.delta.as_vector()) > 0.05
+
+
+def test_unnormalized_reference_normal_is_normalized() -> None:
+    unit = _line_observations(TRUE_DELTA, with_normals=True)
+    scaled = [
+        o.model_copy(
+            update={"reference_normal": (3.0 * o.reference_normal[0], 3.0 * o.reference_normal[1])}
+        )  # type: ignore[index]
+        for o in unit
+    ]
+
+    first = ExtrinsicSelfCalibrator().estimate(DEFAULT_CAMERA_ORIGIN, unit)
+    second = ExtrinsicSelfCalibrator().estimate(DEFAULT_CAMERA_ORIGIN, scaled)
+
+    np.testing.assert_allclose(first.delta.as_vector(), second.delta.as_vector(), atol=1e-9)
