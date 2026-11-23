@@ -1714,3 +1714,31 @@ def test_selfcal_rejects_out_of_range_values(field: str, value: float) -> None:
 
     with pytest.raises(ValidationError):
         SelfCalConfig(**{field: value})
+
+
+def test_selfcal_association_defaults_and_gate_ordering() -> None:
+    from nearfield360.config import SelfCalConfig
+
+    config = load_config().selfcal
+    assert config.association_gate_start_m == 0.6
+    assert config.association_gate_end_m == 0.1
+    assert config.max_association_rounds == 8
+
+    assert SelfCalConfig(association_gate_start_m=0.3, association_gate_end_m=0.3)
+    with pytest.raises(ValidationError, match="association_gate_end_m"):
+        SelfCalConfig(association_gate_start_m=0.2, association_gate_end_m=0.5)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("association_gate_start_m", 0.0),
+        ("association_gate_end_m", -0.1),
+        ("max_association_rounds", 0),
+    ],
+)
+def test_selfcal_association_rejects_out_of_range_values(field: str, value: float) -> None:
+    from nearfield360.config import SelfCalConfig
+
+    with pytest.raises(ValidationError):
+        SelfCalConfig(**{field: value})
