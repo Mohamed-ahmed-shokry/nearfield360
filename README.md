@@ -1700,7 +1700,14 @@ Render the tactical 1280x720 HUD (drift bars, history, estimate table, RMS befor
 uv run nearfield360 selfcal render --output outputs/selfcal_dashboard.png
 ```
 
-Audit the subsystem, including an end-to-end accuracy check on a 20% outlier scenario:
+Run coarse-to-fine pixel-space point-to-line ICP associating fisheye lane detections to the parking-aisle HD map:
+
+```powershell
+uv run nearfield360 selfcal image --camera FV --roll 0.5 --pitch -0.3 --yaw 0.4 --noise-px 1.0 --clutter 0.2
+uv run nearfield360 selfcal image --json --output outputs/selfcal_image_icp.json
+```
+
+Audit the subsystem, including end-to-end accuracy checks on both 20% outlier ground landmarks and 1 px / 20% clutter pixel-space ICP:
 
 ```powershell
 uv run nearfield360 selfcal audit
