@@ -328,6 +328,22 @@ def selfcal_audit(
     )
     estimate = ExtrinsicSelfCalibrator(cfg).estimate(DEFAULT_CAMERA_ORIGIN, observations)
     error_deg = math.degrees(float(abs(estimate.delta.as_vector() - truth.as_vector()).max()))
+    demo_cam = demo_fisheye_camera(CameraId.FRONT)
+    demo_pixels = synthesize_pixel_detections(
+        demo_cam,
+        demo_parking_aisle_polylines(),
+        truth,
+        points_per_segment=40,
+        pixel_noise_px=1.0,
+        clutter_fraction=0.2,
+        seed=0,
+    )
+    icp_result = ImageLandmarkCalibrator(cfg).calibrate(
+        demo_cam, demo_pixels, demo_parking_aisle_map()
+    )
+    icp_error_deg = math.degrees(
+        float(abs(icp_result.estimate.delta.as_vector() - truth.as_vector()).max())
+    )
     checks = [
         (
             "Drift thresholds strictly ordered",
@@ -339,6 +355,11 @@ def selfcal_audit(
         ("Estimator converges on 20% outlier scenario", estimate.converged and estimate.observable),
         ("Recovered rotation within 0.05 degrees of truth", error_deg < 0.05),
         ("Reprojection RMS reduced by estimate", estimate.rms_after_m < estimate.rms_before_m),
+        (
+            "Image-landmark ICP converges on 1 px / 20% clutter scene",
+            icp_result.converged and icp_result.estimate.observable,
+        ),
+        ("Image-landmark ICP recovers rotation within 0.05 degrees", icp_error_deg < 0.05),
     ]
     compliant = all(passed for _, passed in checks)
     payload = {

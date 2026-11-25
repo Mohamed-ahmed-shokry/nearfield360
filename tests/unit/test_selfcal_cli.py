@@ -114,7 +114,7 @@ def test_cli_selfcal_audit_is_compliant(as_json: bool, tmp_path: Path) -> None:
     assert res.exit_code == 0
     saved = json.loads((tmp_path / "audit.json").read_text(encoding="utf-8"))
     assert saved["compliant"] is True
-    assert saved["passed_checks"] == saved["total_checks"] == 7
+    assert saved["passed_checks"] == saved["total_checks"] == 9
     assert ("COMPLIANT" in res.stdout) or as_json
 
 
