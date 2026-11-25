@@ -6,9 +6,17 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import pairwise
+from typing import TYPE_CHECKING, Self
 
 import numpy as np
 import numpy.typing as npt
+
+from nearfield360.geometry.camera import CalibratedCamera
+from nearfield360.geometry.ground import intersect_ground
+from nearfield360.selfcal.models import GroundObservation, RotationDelta
+
+if TYPE_CHECKING:
+    from nearfield360.hdmap.models import HDVectorMap
 
 _MIN_SEGMENT_M = 1e-9
 
@@ -78,3 +86,79 @@ class PolylineMap:
             distances=distances[rows, best],
             normals=self._normals[best],
         )
+
+    @classmethod
+    def from_hdmap(cls, hd_map: HDVectorMap) -> Self:
+        """Build a polyline map from lanelet and parking-space boundaries in an HDVectorMap."""
+        polylines: list[list[tuple[float, float]]] = []
+        for tile in hd_map.tiles:
+            for lanelet in tile.lanelets:
+                polylines.append([(p.x, p.y) for p in lanelet.left_boundary.points])
+                polylines.append([(p.x, p.y) for p in lanelet.right_boundary.points])
+            for space in tile.parking_spaces:
+                pts = [(p.x, p.y) for p in space.boundary.points]
+                if space.boundary.is_closed and len(pts) >= 3:
+                    pts.append(pts[0])
+                polylines.append(pts)
+        return cls(polylines)
+
+
+def associate_pixel_detections(
+    camera: CalibratedCamera,
+    pixels: npt.ArrayLike,
+    polyline_map: PolylineMap,
+    *,
+    current_delta: RotationDelta | None = None,
+    gate_m: float = 0.6,
+    ground_z: float = 0.0,
+    max_distance: float | None = 25.0,
+    check_image_bounds: bool = True,
+) -> list[GroundObservation]:
+    """Unproject fisheye pixel detections and associate them to nearest map polylines.
+
+    Each returned ``GroundObservation`` keeps the nominal vehicle-frame ray from
+    ``camera`` so the estimator solves directly for the total residual rotation.
+    """
+    if not math.isfinite(gate_m) or gate_m <= 0.0:
+        raise ValueError("gate_m must be a positive finite distance")
+    pixel_array = np.asarray(pixels, dtype=np.float64)
+    if pixel_array.size == 0:
+        return []
+    if pixel_array.ndim != 2 or pixel_array.shape[1] != 2:
+        raise ValueError(f"pixels must have shape (N, 2), got {pixel_array.shape}")
+
+    ray_result = camera.pixel_rays_vehicle(pixel_array, check_image_bounds=check_image_bounds)
+    valid_rays = ray_result.valid
+    if not np.any(valid_rays):
+        return []
+
+    nominal_dirs = ray_result.directions[valid_rays]
+    origins = ray_result.origins[valid_rays]
+    if current_delta is not None:
+        rotated_dirs = nominal_dirs @ current_delta.matrix().T
+    else:
+        rotated_dirs = nominal_dirs
+
+    ground = intersect_ground(origins, rotated_dirs, ground_z=ground_z, max_distance=max_distance)
+    if not np.any(ground.valid):
+        return []
+
+    hit_nominal = nominal_dirs[ground.valid]
+    hit_xy = ground.points[ground.valid, :2]
+    nearest = polyline_map.nearest(hit_xy)
+
+    observations: list[GroundObservation] = []
+    for idx in np.flatnonzero(nearest.distances <= gate_m):
+        ray = hit_nominal[idx]
+        ref = nearest.points[idx]
+        normal = nearest.normals[idx]
+        observations.append(
+            GroundObservation(
+                camera_id=camera.name,
+                direction=(float(ray[0]), float(ray[1]), float(ray[2])),
+                reference_x_m=float(ref[0]),
+                reference_y_m=float(ref[1]),
+                reference_normal=(float(normal[0]), float(normal[1])),
+            )
+        )
+    return observations
