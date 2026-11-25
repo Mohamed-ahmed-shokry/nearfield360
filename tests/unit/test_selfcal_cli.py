@@ -123,3 +123,48 @@ def test_release_audit_includes_selfcal_group() -> None:
 
     assert res.exit_code == 0
     assert "selfcal" in res.stdout
+
+
+def test_cli_selfcal_image_json_and_artifact(tmp_path: Path) -> None:
+    out_file = tmp_path / "image_icp.json"
+
+    res = runner.invoke(
+        app,
+        [
+            "selfcal",
+            "image",
+            "--camera",
+            "FV",
+            "--roll",
+            "0.5",
+            "--pitch",
+            "-0.3",
+            "--yaw",
+            "0.4",
+            "--noise-px",
+            "1.0",
+            "--clutter",
+            "0.2",
+            "--json",
+            "-o",
+            str(out_file),
+        ],
+    )
+
+    assert res.exit_code == 0
+    data = json.loads(res.stdout)
+    assert data["status"] == "WARNING"
+    assert data["result"]["converged"] is True
+    assert data["result"]["estimate"]["observable"] is True
+    assert len(data["result"]["rounds"]) == 8
+    assert json.loads(out_file.read_text(encoding="utf-8")) == data
+
+
+def test_cli_selfcal_image_table_and_validation() -> None:
+    text = runner.invoke(app, ["selfcal", "image", "--noise-px", "0.0", "--clutter", "0.0"])
+    assert text.exit_code == 0
+    assert "Coarse-to-Fine Association Trace" in text.stdout
+    assert "converged: True" in text.stdout
+
+    assert runner.invoke(app, ["selfcal", "image", "--clutter", "1.5"]).exit_code != 0
+    assert runner.invoke(app, ["selfcal", "image", "--noise-px", "-1.0"]).exit_code != 0
