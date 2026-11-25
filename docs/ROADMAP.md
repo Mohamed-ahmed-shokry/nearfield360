@@ -2549,25 +2549,25 @@ Phase 49 estimates camera rotation drift from *ground landmarks with known point
 
 ### 5. Micro-Task Breakdown
 
-1. [ ] `docs(roadmap): define Phase 50 pixel-space landmark association scope`
-2. [ ] `feat(config): add association gate and round fields to SelfCalConfig`
-3. [ ] `feat(config): add association defaults to default.yaml`
-4. [ ] `test(config): verify association gate ordering and bounds`
-5. [ ] `refactor(selfcal): bundle estimator problem inputs with no behavior change`
-6. [ ] `feat(selfcal): add optional reference_normal to GroundObservation`
-7. [ ] `feat(selfcal): support point-to-line residuals in the estimator`
-8. [ ] `test(selfcal): verify point-to-line residuals and aperture handling`
-9. [ ] `feat(selfcal): add PolylineMap nearest-point queries`
-10. [ ] `test(selfcal): verify PolylineMap nearest points and validation`
-11. [ ] `feat(selfcal): associate fisheye pixel detections to map polylines`
-12. [ ] `test(selfcal): verify association gating and normals`
-13. [ ] `feat(selfcal): add demo fisheye camera, parking-aisle map, and synthetic detections`
-14. [ ] `test(selfcal): verify synthetic scene geometry and detection round-trip`
-15. [ ] `feat(selfcal): implement ImageLandmarkCalibrator ICP driver`
-16. [ ] `test(selfcal): verify ICP accuracy, clutter robustness, and aperture detection`
-17. [ ] `feat(selfcal): export image-landmark calibration API`
-18. [ ] `feat(cli): add selfcal image subcommand and extend audit`
-19. [ ] `test(cli): verify selfcal image and extended audit`
-20. [ ] `docs(readme): document selfcal image workflow`
-21. [ ] `docs(progress): record Phase 50 implementation, Decision Log, and quality gates`
-22. [ ] `docs(roadmap): mark Phase 50 micro-tasks and acceptance criteria completed`
+1. [x] `docs(roadmap): define Phase 50 pixel-space landmark association scope`
+2. [x] `feat(config): add association gate and round fields to SelfCalConfig`
+3. [x] `feat(config): add association defaults to default.yaml`
+4. [x] `test(config): verify association gate ordering and bounds`
+5. [x] `refactor(selfcal): bundle estimator problem inputs with no behavior change`
+6. [x] `feat(selfcal): add optional reference_normal to GroundObservation`
+7. [x] `feat(selfcal): support point-to-line residuals in the estimator`
+8. [x] `test(selfcal): verify point-to-line residuals and aperture handling`
+9. [x] `feat(selfcal): add PolylineMap nearest-point queries`
+10. [x] `test(selfcal): verify PolylineMap nearest points and validation`
+11. [x] `feat(selfcal): associate fisheye pixel detections to map polylines`
+12. [x] `test(selfcal): verify association gating and normals`
+13. [x] `feat(selfcal): add demo fisheye camera, parking-aisle map, and synthetic detections`
+14. [x] `test(selfcal): verify synthetic scene geometry and detection round-trip`
+15. [x] `feat(selfcal): implement ImageLandmarkCalibrator ICP driver`
+16. [x] `test(selfcal): verify ICP accuracy, clutter robustness, and aperture detection`
+17. [x] `feat(selfcal): export image-landmark calibration API`
+18. [x] `feat(cli): add selfcal image subcommand and extend audit`
+19. [x] `test(cli): verify selfcal image and extended audit`
+20. [x] `docs(readme): document selfcal image workflow`
+21. [x] `docs(progress): record Phase 50 implementation, Decision Log, and quality gates`
+22. [x] `docs(roadmap): mark Phase 50 micro-tasks and acceptance criteria completed`
