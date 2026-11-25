@@ -14,8 +14,15 @@ from nearfield360.cli.state import get_state
 from nearfield360.config import SelfCalConfig
 from nearfield360.data.woodscape import CameraId
 from nearfield360.selfcal.estimator import ExtrinsicSelfCalibrator
+from nearfield360.selfcal.icp import ImageLandmarkCalibrator
 from nearfield360.selfcal.models import CalibrationEstimate, RotationDelta
 from nearfield360.selfcal.monitor import DriftMonitor
+from nearfield360.selfcal.scene import (
+    demo_fisheye_camera,
+    demo_parking_aisle_map,
+    demo_parking_aisle_polylines,
+    synthesize_pixel_detections,
+)
 from nearfield360.selfcal.synthetic import DEFAULT_CAMERA_ORIGIN, synthesize_observations
 from nearfield360.selfcal.viz import CAMERA_ORDER, render_selfcal_dashboard
 from nearfield360.utils.artifacts import write_json
@@ -228,6 +235,85 @@ def selfcal_render(
         return
     console.print(f"[green]Self-calibration dashboard rendered to {output}[/green]")
     console.print(f"Canvas: {canvas.shape[1]}x{canvas.shape[0]}")
+
+
+@selfcal_app.command("image")
+def selfcal_image(
+    context: typer.Context,
+    camera: CameraOption = CameraId.FRONT,
+    roll: Annotated[float, typer.Option("--roll", help="True roll error in degrees.")] = 0.5,
+    pitch: Annotated[float, typer.Option("--pitch", help="True pitch error in degrees.")] = -0.3,
+    yaw: Annotated[float, typer.Option("--yaw", help="True yaw error in degrees.")] = 0.4,
+    points_per_segment: Annotated[
+        int, typer.Option("--points-per-segment", min=1, help="Samples per map segment.")
+    ] = 40,
+    noise_px: Annotated[
+        float, typer.Option("--noise-px", min=0.0, help="Pixel detection noise (px).")
+    ] = 1.0,
+    clutter: Annotated[
+        float, typer.Option("--clutter", min=0.0, max=0.95, help="Clutter detection fraction.")
+    ] = 0.2,
+    seed: SeedOption = 0,
+    as_json: JsonOption = False,
+    output: OutputOption = None,
+) -> None:
+    """Run pixel-space point-to-line ICP from fisheye detections to the parking-aisle HD map."""
+    cfg = get_state(context).config.selfcal
+    cam = demo_fisheye_camera(camera)
+    truth = RotationDelta.from_degrees(roll=roll, pitch=pitch, yaw=yaw)
+    pixels = synthesize_pixel_detections(
+        cam,
+        demo_parking_aisle_polylines(),
+        truth,
+        points_per_segment=points_per_segment,
+        pixel_noise_px=noise_px,
+        clutter_fraction=clutter,
+        seed=seed,
+    )
+    result = ImageLandmarkCalibrator(cfg).calibrate(cam, pixels, demo_parking_aisle_map())
+    status = (
+        DriftMonitor(cfg).classify(result.estimate.delta.magnitude_deg).value
+        if result.estimate.observable
+        else "UNOBSERVABLE"
+    )
+    payload = {
+        "truth_deg": {"roll": roll, "pitch": pitch, "yaw": yaw},
+        "num_detections": len(pixels),
+        "status": status,
+        "result": result.model_dump(mode="json"),
+    }
+    if output is not None:
+        write_json(output, payload, overwrite=True)
+    if as_json:
+        console.print_json(data=payload)
+        return
+    est = result.estimate
+    console.print(
+        f"[bold]{camera.value}[/bold] image-ICP status: {status} | "
+        f"converged: {result.converged} | detections: {len(pixels)}"
+    )
+    console.print(
+        f"Estimated roll/pitch/yaw: {math.degrees(est.delta.roll_rad):+.3f} / "
+        f"{math.degrees(est.delta.pitch_rad):+.3f} / "
+        f"{math.degrees(est.delta.yaw_rad):+.3f} deg"
+    )
+    table = Table(title="Coarse-to-Fine Association Trace")
+    table.add_column("Round", justify="right", style="cyan")
+    table.add_column("Gate (m)", justify="right")
+    table.add_column("Matched", justify="right")
+    table.add_column("Inliers", justify="right")
+    table.add_column("RMS (cm)", justify="right")
+    table.add_column("Step (deg)", justify="right")
+    for rd in result.rounds:
+        table.add_row(
+            str(rd.round_index),
+            f"{rd.gate_m:.3f}",
+            str(rd.num_associated),
+            f"{rd.inlier_ratio * 100:.0f}%",
+            f"{rd.rms_after_m * 100:.2f}",
+            f"{rd.step_deg:.4f}",
+        )
+    console.print(table)
 
 
 @selfcal_app.command("audit")
