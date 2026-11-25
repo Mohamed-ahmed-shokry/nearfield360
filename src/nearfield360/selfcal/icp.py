@@ -14,7 +14,7 @@ from nearfield360.selfcal.association import PolylineMap, associate_pixel_detect
 from nearfield360.selfcal.estimator import ExtrinsicSelfCalibrator
 from nearfield360.selfcal.models import CalibrationEstimate, RotationDelta
 
-_ICP_CONVERGENCE_DEG = 0.01
+_ICP_CONVERGENCE_DEG = 0.025
 
 
 class AssociationRound(BaseModel):
