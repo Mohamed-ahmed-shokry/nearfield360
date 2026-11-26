@@ -3937,3 +3937,67 @@ Phase 6 only injects synthetic extrinsic perturbations to measure sensitivity; n
 | Pre-commit (all files) | `uv run pre-commit run --all-files --show-diff-on-failure` | passed after line-ending normalization of `configs/default.yaml` working copy (committed blob is LF) |
 | Full suite with coverage | `uv run pytest -q --cov=nearfield360 ...` | 1981 passed, 1 skipped, 91.85% |
 | Package build | `uv build; uv run twine check dist/*` | sdist and wheel passed |
+
+## Phase 50: Pixel-Space Fisheye Landmark Association (Point-to-Line ICP) for Extrinsic Self-Calibration
+
+**Status:** Completed
+**Repository Branch:** `phase/image-landmark-selfcal`
+**Test Suite:** 85 selfcal/CLI tests passed (0 failures); 159 config tests passed
+**Type Checking:** `mypy --strict` clean (299 source files)
+**Linting & Style:** `ruff check` and `ruff format --check` clean; `pre-commit run --all-files` clean
+**Test Coverage:** 97.91% branch coverage across `nearfield360.selfcal` (exceeds required 85.0% threshold)
+**CLI Command Groups:** 41 registered groups (`nearfield360 selfcal image` added; `selfcal audit` expanded to 9 checks)
+
+---
+
+### 1. Milestone Objectives & Scope
+
+Phase 49 estimated residual camera rotation from pre-associated ground landmarks. Phase 50 closes the front-end gap from raw fisheye pixel detections of painted markings to HD-map polylines:
+
+1. **Association Configuration (`nearfield360.config.SelfCalConfig`, `configs/default.yaml`)**:
+   - Added `association_gate_start_m` ($0.6\text{ m}$), `association_gate_end_m` ($0.1\text{ m}$), and `max_association_rounds` ($8$) with strict ordering validation (`association_gate_end_m <= association_gate_start_m`).
+2. **Point-to-Line Residuals (`nearfield360.selfcal.models`, `estimator.py`)**:
+   - Added optional `reference_normal: tuple[float, float] | None` to `GroundObservation` with finite non-zero validation.
+   - Bundled estimator inputs into `_Problem` and projected residuals onto `reference_normal` when present, counting degrees of freedom per effective measurement dimension (1D per line observation, 2D per point observation).
+3. **Polyline Map & Fisheye Association (`nearfield360.selfcal.association`)**:
+   - `PolylineMap`: vectorized nearest-point-on-segment, distance, and unit line-normal queries, plus `PolylineMap.from_hdmap(HDVectorMap)` loader.
+   - `associate_pixel_detections(...)`: unprojects pixels via `CalibratedCamera.pixel_rays_vehicle`, rotates by the current hypothesis, intersects `ground_z`, gates by distance, and emits nominal-ray point-to-line `GroundObservation`s.
+4. **Synthetic Parking-Aisle Scene (`nearfield360.selfcal.scene`)**:
+   - `demo_fisheye_camera`, `demo_parking_aisle_polylines`, `demo_parking_aisle_map`, and `synthesize_pixel_detections` supporting configurable pixel noise and random ground-half clutter.
+5. **Coarse-to-Fine Point-to-Line ICP Driver (`nearfield360.selfcal.icp`)**:
+   - `ImageLandmarkCalibrator` alternates pixel-to-polyline association and robust estimation while decaying the gate geometrically from `start` to `end` with a final stabilization pass at `end`, returning an `ImageCalibrationResult` with per-round `AssociationRound` telemetry.
+6. **CLI & Audit (`nearfield360.cli.selfcal`)**:
+   - Added `nearfield360 selfcal image` with rich coarse-to-fine trace table and JSON/artifact export.
+   - Extended `nearfield360 selfcal audit` to 9 checks covering 1 px / 20% clutter ICP convergence and `< 0.05 deg` accuracy.
+
+---
+
+### 2. Key Findings & Autonomous Decision Log
+
+1. **Decision**: Point-to-line residuals via optional `reference_normal` rather than a separate estimator class.
+   - *Alternatives*: Dedicated `LineSelfCalibrator` duplicating LM/Huber logic.
+   - *Rationale*: Projecting the 2D ground offset onto the line normal reuses the existing Huber IRLS + LM solver, Jacobian, and observability checks cleanly with zero code duplication, while allowing mixed point and line observations in a single solve.
+2. **Decision**: Geometric gate decay with one final stabilization round at `association_gate_end_m`.
+   - *Alternatives*: Decaying the gate all the way to the final round without repeating `end`.
+   - *Rationale*: Experimentally, shrinking the gate on the very last round drops boundary noisy points and causes a small `~0.015 deg` step on the last round. Repeating `end` on the final round lets the active inlier set settle so `step_deg` drops cleanly below `0.025 deg`.
+3. **Decision**: Use realistic 420 px/rad focal scale (`k1=420.0`, ~174° HFOV on 1280×966) in `demo_fisheye_camera`.
+   - *Rationale*: At `k1=320.0` (0.18°/px), 1 px noise on far stop bars at 10–12 m projects to 0.18–0.31 m ground noise, pushing single-frame 1 px estimation error to ~0.07–0.09°. With a realistic automotive 174° HFOV scale (`k1=420.0`), all 5 tested seeds converge to `< 0.05 deg` (`0.014°–0.047°`) under 1 px noise and 20% clutter.
+4. **Decision**: Projective-geometry finding on parallel lines vs. single collinear line.
+   - *Finding*: Two symmetric longitudinal parallel lines (`y = ±2.2`) actually constrain all 3 rotational axes in perspective (pitch from vanishing-point convergence, roll from symmetry, yaw from lateral offset; condition number `~8.9`). A single collinear line (`y = 0`) is genuinely rank-deficient / unobservable and is verified to return `observable=False`.
+5. **Delivery Note**: Draft PR #36 was merged at `4b52fd3` (config, `_Problem` refactor, point-to-line estimator) before the remaining Phase 50 commits were pushed; follow-up Draft PR #37 delivers the remaining commits (`PolylineMap`, association, synthetic scene, ICP driver, `selfcal image` CLI, audit, and docs).
+
+---
+
+### 3. Verification & Quality Gates
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Config validation | `uv run pytest tests/unit/test_config.py` | 159 passed |
+| Association & PolylineMap | `uv run pytest tests/unit/selfcal/test_association.py` | 8 passed |
+| Synthetic fisheye scene | `uv run pytest tests/unit/selfcal/test_scene.py` | 4 passed |
+| Point-to-line ICP driver | `uv run pytest tests/unit/selfcal/test_image_calibrator.py` | 10 passed |
+| Full selfcal + CLI unit tests | `uv run pytest tests/unit/selfcal tests/unit/test_selfcal_cli.py --cov=nearfield360.selfcal` | 85 passed, 97.91% coverage |
+| Real CLI execution | `uv run nearfield360 selfcal image` & `selfcal audit` | exit 0; recovers +0.497/-0.290/+0.447 deg vs +0.5/-0.3/+0.4 deg; 9/9 audit checks pass |
+| Release audit | `uv run nearfield360 release audit` | passed (41 groups) |
+| Lockfile & Pre-commit | `uv lock --check`, `uv run pre-commit run --all-files` | passed |
+| Package build | `uv build; uv run twine check dist/*` | sdist and wheel passed |
